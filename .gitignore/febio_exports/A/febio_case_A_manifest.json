@@ -1,0 +1,50 @@
+{
+  "exportType": "febio-handoff-bundle",
+  "generatedAt": "2026-04-17T04:48:46.716Z",
+  "appSchemaVersion": "2026.04-solver-abstraction",
+  "caseName": "A",
+  "selectedSolverMode": "lightweight",
+  "solverMetadata": {
+    "solverMode": "febio",
+    "source": "FEBio bridge (mock)",
+    "note": "not yet solved by FEBio"
+  },
+  "files": {
+    "feb": "case_A.feb",
+    "inputJson": "febio_case_A_input.json",
+    "manifestJson": "febio_case_A_manifest.json",
+    "readmeText": "febio_case_A_README.txt"
+  },
+  "execution": {
+    "cliScript": "scripts/run_febio_case.ps1",
+    "commandExample": "powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile case_A.feb",
+    "expectedOutputs": [
+      "case_A.log",
+      "case_A.xplt",
+      "case_A.feb"
+    ],
+    "note": "The in-app febio mode is still a bridge mock. The exported .feb is intended for external FEBio execution."
+  },
+  "importBack": {
+    "supportedNow": "normalized app result JSON",
+    "nextStep": "convert FEBio outputs into the app result schema before using 結果読込"
+  },
+  "parameterSummary": {
+    "puncture": {
+      "x": 4.5,
+      "z": 8.5
+    },
+    "hold": {
+      "Fhold": 20,
+      "P_hold": 0.7
+    },
+    "motion": {
+      "dz_lift": 8,
+      "dx_inward": 4,
+      "ds_tangent": 7.5,
+      "dx_outward": 3
+    },
+    "adhesionPattern": "uniform",
+    "adhesionSeed": 17
+  }
+}

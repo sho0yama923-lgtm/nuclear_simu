@@ -1,0 +1,204 @@
+*Step  = 0
+*Time  = 0
+*Data  = pipette_rigid_body
+4,4.5,44.24,0,0
+*Step  = 1
+*Time  = 0.1
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.05497079527e-14,1.60031987662e-12
+*Step  = 2
+*Time  = 0.2
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.12438217477e-14,-1.77813319624e-13
+*Step  = 3
+*Time  = 0.3
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.24665300072e-14,0
+*Step  = 4
+*Time  = 0.4
+*Data  = pipette_rigid_body
+4,4.5,34.54,6.61472216554e-14,1.77813319624e-13
+*Step  = 5
+*Time  = 0.5
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.64738565769e-14,-3.55626639248e-13
+*Step  = 6
+*Time  = 0.6
+*Data  = pipette_rigid_body
+4,4.5,34.54,6.88791745008e-14,3.55626639248e-13
+*Step  = 7
+*Time  = 0.7
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.15036233876e-14,-1.77813319624e-13
+*Step  = 8
+*Time  = 0.8
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.27920813284e-14,0
+*Step  = 9
+*Time  = 0.9
+*Data  = pipette_rigid_body
+4,4.5,34.54,6.58158009791e-14,1.77813319624e-13
+*Step  = 10
+*Time  = 1
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.44828418705e-14,0
+*Step  = 1
+*Time  = 1.1
+*Data  = pipette_rigid_body
+4,4.5,34.54,6.63991956061e-14,-1.77813319624e-12
+*Step  = 2
+*Time  = 1.2
+*Data  = pipette_rigid_body
+4,4.5,34.54,-1.13804811185e-13,3.55626639248e-13
+*Step  = 3
+*Time  = 1.3
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.65574258376e-14,-1.77813319624e-13
+*Step  = 4
+*Time  = 1.4
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.11333738059e-14,1.77813319624e-13
+*Step  = 5
+*Time  = 1.5
+*Data  = pipette_rigid_body
+4,4.5,34.54,6.54612568695e-14,0
+*Step  = 6
+*Time  = 1.6
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.38150232184e-14,-3.55626639248e-13
+*Step  = 7
+*Time  = 1.7
+*Data  = pipette_rigid_body
+4,4.5,34.54,6.68754659054e-14,0
+*Step  = 8
+*Time  = 1.8
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.37930058908e-14,1.77813319624e-13
+*Step  = 9
+*Time  = 1.9
+*Data  = pipette_rigid_body
+4,4.5,34.54,-1.0977893326e-13,1.77813319624e-13
+*Step  = 10
+*Time  = 2
+*Data  = pipette_rigid_body
+4,4.5,34.54,-2.20809009603e-14,0
+*Step  = 1
+*Time  = 2.1
+*Data  = pipette_rigid_body
+4,4.5,42.54,7.55352252609e-14,7.11253278496e-13
+*Step  = 2
+*Time  = 2.2
+*Data  = pipette_rigid_body
+4,4.5,42.54,-2.60632689498e-14,0
+*Step  = 3
+*Time  = 2.3
+*Data  = pipette_rigid_body
+4,4.5,42.54,-2.40560925189e-14,-3.55626639248e-13
+*Step  = 4
+*Time  = 2.4
+*Data  = pipette_rigid_body
+4,4.5,42.54,6.54179875262e-14,3.55626639248e-13
+*Step  = 5
+*Time  = 2.5
+*Data  = pipette_rigid_body
+4,4.5,42.54,-2.1760078304e-14,0
+*Step  = 6
+*Time  = 2.6
+*Data  = pipette_rigid_body
+4,4.5,42.54,6.67571229955e-14,0
+*Step  = 7
+*Time  = 2.7
+*Data  = pipette_rigid_body
+4,4.5,42.54,6.47307855816e-14,0
+*Step  = 8
+*Time  = 2.8
+*Data  = pipette_rigid_body
+4,4.5,42.54,-1.11545672137e-13,0
+*Step  = 9
+*Time  = 2.9
+*Data  = pipette_rigid_body
+4,4.5,42.54,-2.38658426355e-14,0
+*Step  = 10
+*Time  = 3
+*Data  = pipette_rigid_body
+4,4.5,42.54,-2.16048602258e-14,-3.55626639248e-13
+*Step  = 1
+*Time  = 3.1
+*Data  = pipette_rigid_body
+4,0.5,42.54,1.33359989718e-13,3.55626639248e-13
+*Step  = 2
+*Time  = 3.2
+*Data  = pipette_rigid_body
+4,0.5,42.54,0,0
+*Step  = 3
+*Time  = 3.3
+*Data  = pipette_rigid_body
+4,0.5,42.54,0,0
+*Step  = 4
+*Time  = 3.4
+*Data  = pipette_rigid_body
+4,0.5,42.54,0,0
+*Step  = 5
+*Time  = 3.5
+*Data  = pipette_rigid_body
+4,0.5,42.54,8.8906659812e-14,0
+*Step  = 6
+*Time  = 3.6
+*Data  = pipette_rigid_body
+4,0.5,42.54,8.8906659812e-14,0
+*Step  = 7
+*Time  = 3.7
+*Data  = pipette_rigid_body
+4,0.5,42.54,0,0
+*Step  = 8
+*Time  = 3.8
+*Data  = pipette_rigid_body
+4,0.5,42.54,0,-3.55626639248e-13
+*Step  = 9
+*Time  = 3.9
+*Data  = pipette_rigid_body
+4,0.5,42.54,0,3.55626639248e-13
+*Step  = 10
+*Time  = 4
+*Data  = pipette_rigid_body
+4,0.5,42.54,8.8906659812e-14,0
+*Step  = 1
+*Time  = 4.1
+*Data  = pipette_rigid_body
+4,7.5,42.54,-2.2226664953e-13,0
+*Step  = 2
+*Time  = 4.2
+*Data  = pipette_rigid_body
+4,7.5,42.54,2.52435489671e-29,0
+*Step  = 3
+*Time  = 4.3
+*Data  = pipette_rigid_body
+4,7.5,42.54,0,0
+*Step  = 4
+*Time  = 4.4
+*Data  = pipette_rigid_body
+4,7.5,42.54,0,0
+*Step  = 5
+*Time  = 4.5
+*Data  = pipette_rigid_body
+4,7.5,42.54,0,3.55626639248e-13
+*Step  = 6
+*Time  = 4.6
+*Data  = pipette_rigid_body
+4,7.5,42.54,-1.33359989718e-13,0
+*Step  = 7
+*Time  = 4.7
+*Data  = pipette_rigid_body
+4,7.5,42.54,8.8906659812e-14,-3.55626639248e-13
+*Step  = 8
+*Time  = 4.8
+*Data  = pipette_rigid_body
+4,7.5,42.54,0,0
+*Step  = 9
+*Time  = 4.9
+*Data  = pipette_rigid_body
+4,7.5,42.54,0,0
+*Step  = 10
+*Time  = 5
+*Data  = pipette_rigid_body
+4,7.5,42.54,0,0
