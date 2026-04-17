@@ -344,6 +344,34 @@ canvas {
   font-size: 1rem;
 }
 
+.display-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.display-mode-pill {
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.display-mode-pill.source-lightweight {
+  background: rgba(38, 93, 99, 0.12);
+  color: var(--accent-2);
+}
+
+.display-mode-pill.source-febio {
+  background: rgba(109, 79, 138, 0.12);
+  color: #6d4f8a;
+}
+
+.display-mode-pill.source-mock {
+  background: rgba(170, 74, 42, 0.14);
+  color: var(--accent);
+}
+
 .playback {
   display: grid;
   gap: 12px;
@@ -380,6 +408,23 @@ canvas {
 
 .hidden-input {
   display: none;
+}
+
+.bridge-status {
+  margin-top: 8px;
+  font-size: 0.84rem;
+}
+
+.bridge-status.is-error {
+  color: #a1382a;
+}
+
+.bridge-status.is-busy {
+  color: #7a5a11;
+}
+
+.bridge-status.is-ready {
+  color: #2f6a46;
 }
 
 .legend {

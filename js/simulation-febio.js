@@ -1187,6 +1187,95 @@ function exportFebioHandoffBundle(inputSpec = null) {
   return manifest;
 }
 
+const FEBIO_BRIDGE_BASE_URL = "http://127.0.0.1:8765";
+
+function setFebioBridgeStatus(text, tone = "") {
+  appState.febioBridge.statusText = text;
+  if (!elements.febioBridgeStatus) {
+    return;
+  }
+  elements.febioBridgeStatus.textContent = text;
+  elements.febioBridgeStatus.classList.remove("is-error", "is-busy", "is-ready");
+  if (tone) {
+    elements.febioBridgeStatus.classList.add(tone);
+  }
+}
+
+async function fetchFebioBridge(pathname, options = {}) {
+  const response = await fetch(`${FEBIO_BRIDGE_BASE_URL}${pathname}`, {
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.ok === false) {
+    throw new Error(payload.error || `Bridge request failed: ${response.status}`);
+  }
+  return payload;
+}
+
+async function refreshFebioBridgeStatus() {
+  try {
+    const payload = await fetchFebioBridge("/health", { method: "GET" });
+    appState.febioBridge.available = true;
+    appState.febioBridge.busy = Boolean(payload.busy);
+    const label = payload.busy
+      ? `bridge: busy (${payload.activeCase || "running"})`
+      : "bridge: ready";
+    setFebioBridgeStatus(label, payload.busy ? "is-busy" : "is-ready");
+    return payload;
+  } catch (error) {
+    appState.febioBridge.available = false;
+    appState.febioBridge.busy = false;
+    setFebioBridgeStatus("bridge: offline", "is-error");
+    return null;
+  }
+}
+
+async function runFebioViaBridge() {
+  const caseName = appState.ui.selectedCase || "C";
+  const params = collectParams();
+  appState.ui.solverMode = "febio";
+  syncSolverModeControl();
+  appState.febioBridge.busy = true;
+  setFebioBridgeStatus(`bridge: running case ${caseName}`, "is-busy");
+  try {
+    const payload = await fetchFebioBridge("/run", {
+      method: "POST",
+      body: JSON.stringify({ caseName, params }),
+    });
+    const normalized = loadExternalResult(payload.resultPayload);
+    appState.febioBridge.available = true;
+    appState.febioBridge.busy = false;
+    setFebioBridgeStatus(`bridge: loaded case ${caseName}`, "is-ready");
+    return normalized;
+  } catch (error) {
+    appState.febioBridge.available = false;
+    appState.febioBridge.busy = false;
+    setFebioBridgeStatus(`bridge: ${error.message}`, "is-error");
+    throw error;
+  }
+}
+
+async function viewFebioBridgeResult() {
+  const caseName = appState.ui.selectedCase || "C";
+  setFebioBridgeStatus(`bridge: loading case ${caseName}`, "is-busy");
+  try {
+    const payload = await fetchFebioBridge(`/latest?caseName=${encodeURIComponent(caseName)}`, {
+      method: "GET",
+    });
+    const normalized = loadExternalResult(payload.resultPayload);
+    appState.febioBridge.available = true;
+    appState.febioBridge.busy = false;
+    setFebioBridgeStatus(`bridge: viewing case ${caseName}`, "is-ready");
+    return normalized;
+  } catch (error) {
+    appState.febioBridge.available = false;
+    appState.febioBridge.busy = false;
+    setFebioBridgeStatus(`bridge: ${error.message}`, "is-error");
+    throw error;
+  }
+}
+
 // Imported results are already normalized before they reach the UI state.
 function applyImportedResult(result) {
   appState.ui.solverMode = result.solverMetadata?.solverMode || appState.ui.solverMode;

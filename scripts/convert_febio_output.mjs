@@ -240,6 +240,100 @@ function buildSnapshotsByName(runDir, logOutputs) {
   return lookup;
 }
 
+function buildOutputMappingSummary(templateData) {
+  return {
+    displacementSources: {
+      nucleusNodes: {
+        logfile: "febio_nucleus_nodes.csv",
+        mapsTo: ["history[].nucleus", "displacements.nucleus"],
+      },
+      cytoplasmNodes: {
+        logfile: "febio_cytoplasm_nodes.csv",
+        mapsTo: ["history[].cell", "displacements.cell"],
+      },
+      rigidPipette: {
+        logfile: "febio_rigid_pipette.csv",
+        mapsTo: [
+          "history[].pipette",
+          "history[].holdForce",
+          "peaks.peakContactForce",
+          "captureEstablished",
+          "captureMaintained",
+        ],
+      },
+    },
+    localNc: Object.fromEntries(
+      Object.entries(templateData.interfaceRegions.localNc).map(([region, mapping]) => [
+        region,
+        {
+          nucleusLogfile: `febio_${mapping.nucleusNodeSet.replace(/_nodes$/, "")}.csv`,
+          cytoplasmLogfile: `febio_${mapping.cytoplasmNodeSet.replace(/_nodes$/, "")}.csv`,
+          mapsTo: [
+            `localNc.${region}.normalStress`,
+            `localNc.${region}.shearStress`,
+            `localNc.${region}.damage`,
+            `localNc.${region}.peakNormal`,
+            `localNc.${region}.peakShear`,
+          ],
+        },
+      ]),
+    ),
+    localCd: Object.fromEntries(
+      Object.entries(templateData.interfaceRegions.localCd).map(([region, mapping]) => [
+        region,
+        {
+          cellLogfile: `febio_${mapping.cellNodeSet.replace(/_nodes$/, "")}.csv`,
+          mapsTo: [
+            `localCd.${region}.normalStress`,
+            `localCd.${region}.shearStress`,
+            `localCd.${region}.damage`,
+            `localCd.${region}.peakNormal`,
+            `localCd.${region}.peakShear`,
+          ],
+        },
+      ]),
+    ),
+    derived: {
+      membraneRegions: {
+        source: "proxy from localNc",
+        mapsTo: ["membraneRegions.top_neck", "membraneRegions.side", "membraneRegions.basal"],
+      },
+      firstFailure: {
+        source: "earliest localNc/localCd/membrane proxy failure time",
+        mapsTo: ["firstFailureSite", "firstFailureMode"],
+      },
+      classification: {
+        source: "classifyRun(normalizedResult)",
+        mapsTo: ["classification", "dominantMechanism"],
+      },
+    },
+  };
+}
+
+function getRigidPipetteState(snapshot, fallbackPosition) {
+  const values = averageRecordColumns(snapshot);
+  const x = Number.isFinite(values[0]) ? values[0] : fallbackPosition.x;
+  const z = Number.isFinite(values[1]) ? values[1] : fallbackPosition.y;
+  const forceX = Number.isFinite(values[2]) ? values[2] : 0;
+  const forceZ = Number.isFinite(values[3]) ? values[3] : 0;
+  return {
+    position: { x, z },
+    reaction: { x: forceX, z: forceZ },
+  };
+}
+
+function getPipetteTipOffsetZ(templateData, inputSpec) {
+  const centerOfMass = templateData?.materials?.pipette?.center_of_mass;
+  if (!centerOfMass) {
+    return 0;
+  }
+  const pipetteTop =
+    (templateData?.geometry?.cytoplasm?.height ?? inputSpec.geometry.Hc) +
+    Math.max(inputSpec.geometry.Hn * 0.8, inputSpec.geometry.rp * 3);
+  const initialTipZ = centerOfMass[2] * 2 - pipetteTop;
+  return centerOfMass[2] - initialTipZ;
+}
+
 function computeRegionInterfaceState(region, leftSeries, rightSeries, params, crits) {
   const state = createLocalRegionState();
   const timeline = [];
@@ -331,18 +425,34 @@ function buildMembraneProxy(localNc, membraneSpec) {
   return regions;
 }
 
-function buildHistoryFromSnapshots(sandbox, inputSpec, nucleusSeries, cellSeries, localNcTimeline, localCdTimeline) {
+function buildHistoryFromSnapshots(
+  sandbox,
+  inputSpec,
+  templateData,
+  nucleusSeries,
+  cellSeries,
+  rigidSeries,
+  localNcTimeline,
+  localCdTimeline,
+) {
   const params = inputSpec.params;
   const nucleusRest = sandbox.getNucleusRest(params);
   const cellRest = sandbox.getCellRest(params);
+  const pipetteTipOffsetZ = getPipetteTipOffsetZ(templateData, inputSpec);
   const times = Array.from(
-    new Set([...nucleusSeries.map((entry) => entry.time), ...cellSeries.map((entry) => entry.time)]),
+    new Set([
+      ...nucleusSeries.map((entry) => entry.time),
+      ...cellSeries.map((entry) => entry.time),
+      ...rigidSeries.map((entry) => entry.time),
+    ]),
   ).sort((a, b) => a - b);
 
   return times.map((time) => {
     const nucleusValues = averageRecordColumns(nearestSnapshot(nucleusSeries, time));
     const cellValues = averageRecordColumns(nearestSnapshot(cellSeries, time));
     const target = inputSpec.schedule.targetAt(Math.min(time, inputSpec.schedule.phaseEnds.total));
+    const rigidState = getRigidPipetteState(nearestSnapshot(rigidSeries, time), target.pos);
+    const holdForce = Math.hypot(rigidState.reaction.x, rigidState.reaction.z);
     const ncState = {};
     const cdState = {};
 
@@ -374,18 +484,33 @@ function buildHistoryFromSnapshots(sandbox, inputSpec, nucleusSeries, cellSeries
           }
         : createLocalRegionState();
     });
+    const membraneRegions = buildMembraneProxy(ncState, inputSpec.membrane);
+    const damageNc = Math.max(...Object.values(ncState).map((state) => state.damage), 0);
+    const damageCd = Math.max(...Object.values(cdState).map((state) => state.damage), 0);
+    const damageMembrane = Math.max(...Object.values(membraneRegions).map((state) => state.damage), 0);
+    const membraneStress = Math.max(...Object.values(membraneRegions).map((state) => state.stress), 0);
 
     return {
       time,
       phase: target.phase,
-      pipette: { x: target.pos.x, y: target.pos.y },
+      pipette: sandbox.makeSectionPoint(rigidState.position.x, rigidState.position.z - pipetteTipOffsetZ),
+      pipetteCenter: sandbox.makeSectionPoint(rigidState.position.x, rigidState.position.z),
+      pipetteReaction: { x: rigidState.reaction.x, y: rigidState.reaction.z },
       nucleus: sandbox.makeSectionPoint(sandbox.getSectionX(nucleusRest) + (nucleusValues[0] || 0), sandbox.getWorldZ(nucleusRest) + (nucleusValues[1] || 0)),
       cell: sandbox.makeSectionPoint(sandbox.getSectionX(cellRest) + (cellValues[0] || 0), sandbox.getWorldZ(cellRest) + (cellValues[1] || 0)),
       localNc: ncState,
       localCd: cdState,
       tangentNucleus: 0,
       tangentCell: 0,
-      membraneDamage: 0,
+      membraneRegions,
+      damageNc,
+      damageCd,
+      damageMembrane,
+      membraneDamage: damageMembrane,
+      membraneStress,
+      membraneStrain: membraneStress / Math.max(inputSpec.membrane.sig_m_crit || 1, 1e-6),
+      holdForce,
+      tangentialOffset: 0,
     };
   });
 }
@@ -413,6 +538,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
   const febioInputSpec = sandbox.buildFebioInputSpec(caseName, params, inputSpec);
   const templateData = febioInputSpec.febioTemplateData;
   const logs = buildSnapshotsByName(runDir, templateData.logOutputs || {});
+  const outputMapping = buildOutputMappingSummary(templateData);
 
   const nucleusSeries = logs.nucleus_nodes || [];
   const cellSeries = logs.cytoplasm_nodes || [];
@@ -482,7 +608,16 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     caseName,
     params: sandbox.structuredClone(params),
     schedule: inputSpec.schedule,
-    history: buildHistoryFromSnapshots(sandbox, inputSpec, nucleusSeries, cellSeries, localNcTimeline, localCdTimeline),
+    history: buildHistoryFromSnapshots(
+      sandbox,
+      inputSpec,
+      templateData,
+      nucleusSeries,
+      cellSeries,
+      rigidSeries,
+      localNcTimeline,
+      localCdTimeline,
+    ),
     events: {},
     damage,
     peaks: {
@@ -515,6 +650,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
       source: "febio-cli",
       runDirectory: runDir,
       inputJson: payload,
+      outputMapping,
     },
   };
 
@@ -560,6 +696,7 @@ fs.writeFileSync(
     {
       normalizedResult,
       solverMetadata: normalizedResult.solverMetadata,
+      outputMapping: normalizedResult.externalResult?.outputMapping || null,
       generatedAt: new Date().toISOString(),
       source: "convert_febio_output.mjs",
     },

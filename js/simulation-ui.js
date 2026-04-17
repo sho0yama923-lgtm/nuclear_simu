@@ -1,19 +1,72 @@
 // -----------------------------------------------------------------------------
 // rendering
 // -----------------------------------------------------------------------------
+function describeDisplayedResult(result) {
+  const solverInfo = describeSolverMetadata(result.solverMetadata);
+  const normalizedSource = String(solverInfo.source || "").toLowerCase();
+  const isMock =
+    solverInfo.solverMode === "febio" &&
+    (normalizedSource.includes("mock") ||
+      normalizedSource.includes("bridge") ||
+      normalizedSource.includes("stub"));
+  const isFebioSolved = solverInfo.solverMode === "febio" && !isMock;
+
+  if (isMock) {
+    return {
+      title: "FEBio mock",
+      short: "FEBio mock",
+      pillClass: "source-mock",
+      detail: "FEBio 実解析ではなく bridge mock の結果を表示中",
+    };
+  }
+
+  if (isFebioSolved) {
+    return {
+      title: "FEBio結果",
+      short: "FEBio",
+      pillClass: "source-febio",
+      detail:
+        solverInfo.note === "imported external result"
+          ? `FEBio 由来の外部結果を表示中 (${solverInfo.label})`
+          : `FEBio の結果を表示中 (${solverInfo.label})`,
+    };
+  }
+
+  return {
+    title: "軽量JS近似",
+    short: "簡易版",
+    pillClass: "source-lightweight",
+    detail: "ブラウザ内の軽量近似シミュレーション結果を表示中",
+  };
+}
+
+function renderDisplayModeBanner(result) {
+  if (!elements.displayModeBanner) {
+    return;
+  }
+  const displayInfo = describeDisplayedResult(result);
+  elements.displayModeBanner.innerHTML = `
+    <span class="label-pill display-mode-pill ${displayInfo.pillClass}">${displayInfo.title}</span>
+    <span>${displayInfo.detail}</span>
+  `;
+}
+
 function renderSummary(result) {
   const caseMeta = CASE_DESCRIPTIONS[result.caseName];
   const solverInfo = describeSolverMetadata(result.solverMetadata);
+  const displayInfo = describeDisplayedResult(result);
   elements.summaryBand.innerHTML = `
     <div>
       <p class="eyebrow">最新実行</p>
       <h2>${result.caseName} / ${result.classification}</h2>
+      <p><span class="label-pill display-mode-pill ${displayInfo.pillClass}">${displayInfo.title}</span></p>
       <p class="lede">
         核-細胞質損傷 ${formatNumber(result.damage.nc)} | 細胞-ディッシュ損傷 ${formatNumber(
           result.damage.cd,
         )} | 膜損傷 ${formatNumber(result.damage.membrane)}
       </p>
       <p class="summary-note">${caseMeta.label} | ${caseMeta.summary}</p>
+      <p class="summary-note">${displayInfo.detail}</p>
       <p class="summary-note">solverMode: ${solverInfo.solverMode} | source: ${solverInfo.label}</p>
       ${solverInfo.note ? `<p class="summary-note">${solverInfo.note}</p>` : ""}
     </div>
@@ -437,6 +490,46 @@ function computeDisplayState(result, entry) {
   const params = result.params;
   const cellRest = getCellRest(params);
   const nucleusRest = getNucleusRest(params);
+  const solverSource = result.solverMetadata?.source || result.externalResult?.source || "";
+  const isFebioDriven =
+    solverSource === "febio-cli" ||
+    solverSource === "febio-import" ||
+    solverSource === "convert_febio_output.mjs" ||
+    Boolean(result.externalResult?.outputMapping);
+
+  if (isFebioDriven) {
+    const cellDelta = subtract(entry.cell, cellRest);
+    const baseY = Math.max(0, getWorldZ(cellDelta));
+    const cellX = clamp(cellDelta.x, -params.Lc * 0.22, params.Lc * 0.22);
+    const domeHeight = params.Hc * clamp(1 - (entry.damageMembrane || 0) * 0.06 - (entry.membraneStrain || 0) * 0.015, 0.84, 1.02);
+    const halfWidth = params.Lc / 2;
+    const nucleusCenter = { x: entry.nucleus.x, y: entry.nucleus.y };
+    const boundary = nucleusBoundary(params, nucleusCenter);
+
+    return {
+      cellX,
+      baseY,
+      domeHeight,
+      halfWidth,
+      nucleus: nucleusCenter,
+      pipette: entry.pipette ? { x: entry.pipette.x, y: entry.pipette.y } : boundary.point,
+      pipetteCenter: entry.pipetteCenter ? { x: entry.pipetteCenter.x, y: entry.pipetteCenter.y } : null,
+      pipetteAxis: { x: 0, y: 1 },
+      boundary: boundary.point,
+      boundaryNormal: boundary.outward,
+      boundaryTangent: boundary.tangent,
+      phase: entry.phase,
+      time: entry.time,
+      damageNc: entry.damageNc || 0,
+      damageCd: entry.damageCd || 0,
+      damageMembrane: entry.damageMembrane || 0,
+      membraneStress: entry.membraneStress || 0,
+      holdForce: entry.holdForce || 0,
+      tangentialOffset: entry.tangentialOffset || 0,
+      domePoints: buildDomePoints(cellX, baseY, halfWidth, domeHeight),
+    };
+  }
+
   const cellDelta = subtract(entry.cell, cellRest);
   const relativeRest = subtract(nucleusRest, cellRest);
   const relativeNow = subtract(entry.nucleus, entry.cell);
@@ -598,6 +691,7 @@ function drawScene(result, frameIndex = result.history.length - 1) {
   const width = elements.scene.width;
   const height = elements.scene.height;
   const params = result.params;
+  const displayInfo = describeDisplayedResult(result);
   const displayHistory = result.history.map((entry) => computeDisplayState(result, entry));
   const safeIndex = getPlaybackFrame(result, frameIndex);
   const frame = displayHistory[safeIndex];
@@ -736,7 +830,8 @@ function drawScene(result, frameIndex = result.history.length - 1) {
   context.fillText(`ケース ${result.caseName}`, margin.left + 6, margin.top + 18);
   context.fillText(`結果: ${result.classification}`, margin.left + 6, margin.top + 40);
   context.fillText(`フェーズ: ${phaseLabel(frame.phase)}`, margin.left + 6, margin.top + 62);
-  context.fillText("x-z section (dish z = 0)", margin.left + 6, margin.top + 84);
+  context.fillText(`表示: ${displayInfo.short}`, margin.left + 6, margin.top + 84);
+  context.fillText("x-z section (dish z = 0)", margin.left + 6, margin.top + 106);
   context.textAlign = "right";
   context.fillText(`t = ${formatNumber(frame.time)}`, width - margin.right - 4, margin.top + 18);
   context.textAlign = "left";
@@ -963,6 +1058,7 @@ function renderLatest(result) {
   elements.playbackSlider.max = String(lastFrame);
   elements.playbackSlider.value = String(lastFrame);
   renderSummary(result);
+  renderDisplayModeBanner(result);
   renderClassification(result);
   renderEvents(result);
   renderMetrics(result);
@@ -1058,6 +1154,20 @@ function bindButtons() {
   elements.exportFebioJson?.addEventListener("click", exportCurrentCaseAsFebioJson);
   elements.exportFebioXml?.addEventListener("click", () => exportFebioXml());
   elements.exportFebioHandoff?.addEventListener("click", () => exportFebioHandoffBundle());
+  elements.febioRun?.addEventListener("click", async () => {
+    try {
+      await runFebioViaBridge();
+    } catch (error) {
+      console.error(error);
+    }
+  });
+  elements.febioView?.addEventListener("click", async () => {
+    try {
+      await viewFebioBridgeResult();
+    } catch (error) {
+      console.error(error);
+    }
+  });
   elements.importResult?.addEventListener("click", () => {
     elements.importResultFile?.click();
   });
@@ -1096,6 +1206,7 @@ function initialize() {
   bindButtons();
   syncRunButtons();
   syncSolverModeControl();
+  refreshFebioBridgeStatus();
   renderComparison();
   renderSweep();
   executeCase("C");

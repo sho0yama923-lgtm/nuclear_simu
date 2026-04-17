@@ -121,6 +121,25 @@ powershell -ExecutionPolicy Bypass -File scripts/export_and_run_febio_case.ps1 -
 - `scripts/run_febio_case.ps1`
 - `scripts/export_and_run_febio_case.ps1`
 
+## FEBio UI Bridge
+
+- UI から `FEBio Run` / `FEBio View` を使うときは、先に localhost bridge を起動します。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start_febio_bridge.ps1
+```
+
+- bridge は `febio_exports\ui_bridge\case_A` のような固定出力先へ export / run / result import をまとめます。
+- 詳細は [FEBIO_UI_BRIDGE.md](./FEBIO_UI_BRIDGE.md) を参照してください。
+
 ## Code Structure
 
 - 繧ｳ繝ｼ繝峨・蛻晄悄繝ｫ繝ｼ繝ｫ縺ｨ蜷榊燕隱ｬ譏弱・ [CODEBASE_STRUCTURE.md](./CODEBASE_STRUCTURE.md)
+- パラメータと `lightweight` / `FEBio` の対応整理: [PARAMETER_MAPPING.md](./PARAMETER_MAPPING.md)
+- FEBio 出力と app result の対応整理: [FEBIO_OUTPUT_MAPPING.md](./FEBIO_OUTPUT_MAPPING.md)
+- UI から FEBio を実行する bridge: [FEBIO_UI_BRIDGE.md](./FEBIO_UI_BRIDGE.md)
+
+## Maintenance Rules
+
+- 構成や責務を変えたときは、必要に応じて `README.md` と `CODEBASE_STRUCTURE.md` も一緒に更新します。
+- 新しい要素を追加したときは、既存要素と矛盾がないか、古い説明や使われなくなったコード・UI・出力が残っていないかを確認します。

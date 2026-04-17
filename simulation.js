@@ -436,6 +436,10 @@ const elements = {
   exportFebioJson: document.querySelector("#export-febio-json"),
   exportFebioXml: document.querySelector("#export-febio-xml"),
   exportFebioHandoff: document.querySelector("#export-febio-handoff"),
+  febioRun: document.querySelector("#febio-run"),
+  febioView: document.querySelector("#febio-view"),
+  febioBridgeStatus: document.querySelector("#febio-bridge-status"),
+  displayModeBanner: document.querySelector("#display-mode-banner"),
   importResult: document.querySelector("#import-result"),
   importResultFile: document.querySelector("#import-result-file"),
   runCaseA: document.querySelector("#run-case-a"),
@@ -461,6 +465,11 @@ const appState = {
     isPlaying: false,
     rafId: null,
     lastTimestamp: 0,
+  },
+  febioBridge: {
+    available: false,
+    busy: false,
+    statusText: "bridge: unknown",
   },
 };
 
@@ -594,12 +603,21 @@ function organizeWorkspaceLayout() {
   document.querySelector(".subcanvas-copy")?.remove();
 
   const canvasPanel = document.querySelector(".canvas-panel");
+  const canvasHeader = canvasPanel?.querySelector(".panel-header");
   const legend = canvasPanel?.querySelector(".legend");
   let simulationActions = canvasPanel?.querySelector(".simulation-actions");
   if (!simulationActions && legend) {
     simulationActions = document.createElement("div");
     simulationActions.className = "simulation-actions";
     legend.insertAdjacentElement("afterend", simulationActions);
+  }
+  if (!elements.displayModeBanner && canvasHeader) {
+    const banner = document.createElement("div");
+    banner.id = "display-mode-banner";
+    banner.className = "display-mode-banner subtle";
+    banner.textContent = "表示ソース: 未実行";
+    canvasHeader.appendChild(banner);
+    elements.displayModeBanner = banner;
   }
 
   const runGroup = elements.runCaseA?.closest(".control-group");
@@ -629,6 +647,28 @@ function organizeWorkspaceLayout() {
     }
     elements.importResult.textContent = "結果読込";
     runGroup.querySelector(".inline-select span")?.replaceChildren("ソルバ");
+    if (!elements.febioRun && elements.exportFebioJson?.parentNode) {
+      const febioRunButton = elements.exportFebioJson.cloneNode(true);
+      febioRunButton.id = "febio-run";
+      febioRunButton.textContent = "FEBio Run";
+      (elements.exportFebioHandoff || elements.exportFebioXml || elements.exportFebioJson).insertAdjacentElement("afterend", febioRunButton);
+      elements.febioRun = febioRunButton;
+    }
+    if (!elements.febioView && elements.exportFebioJson?.parentNode) {
+      const febioViewButton = elements.exportFebioJson.cloneNode(true);
+      febioViewButton.id = "febio-view";
+      febioViewButton.textContent = "FEBio View";
+      (elements.febioRun || elements.exportFebioHandoff || elements.exportFebioXml || elements.exportFebioJson).insertAdjacentElement("afterend", febioViewButton);
+      elements.febioView = febioViewButton;
+    }
+    if (!elements.febioBridgeStatus && elements.importResult?.parentNode) {
+      const status = document.createElement("div");
+      status.id = "febio-bridge-status";
+      status.className = "bridge-status subtle";
+      status.textContent = "bridge: checking";
+      elements.importResult.insertAdjacentElement("afterend", status);
+      elements.febioBridgeStatus = status;
+    }
     simulationActions.appendChild(runGroup);
   }
 
@@ -841,6 +881,7 @@ function normalizeSimulationResult(rawResult, inputSpec) {
     ...buildSolverMetadata(result.solverMetadata?.solverMode || appState.ui.solverMode || "lightweight"),
     ...(result.solverMetadata || {}),
   };
+  result.history = normalizeHistoryEntries(result.history, result, inputSpec);
   return result;
 }
 
@@ -923,6 +964,72 @@ function initializeMembraneState(regions) {
       },
     ]),
   );
+}
+
+function summarizeLocalDamage(localState, regions) {
+  return Math.max(...regions.map((region) => localState?.[region]?.damage || 0), 0);
+}
+
+function deriveMembraneStateFromLocalNc(localNc, membraneSpec = {}) {
+  const thresholds = getMembraneThresholds(membraneSpec);
+  const membraneRegions = initializeMembraneState(MEMBRANE_REGIONS);
+  const topNormal = localNc?.top?.peakNormal ?? localNc?.top?.normalStress ?? 0;
+  const topShear = localNc?.top?.peakShear ?? localNc?.top?.shearStress ?? 0;
+  const leftShear = localNc?.left?.peakShear ?? localNc?.left?.shearStress ?? 0;
+  const rightShear = localNc?.right?.peakShear ?? localNc?.right?.shearStress ?? 0;
+  const bottomNormal = localNc?.bottom?.peakNormal ?? localNc?.bottom?.normalStress ?? 0;
+
+  membraneRegions.top_neck.threshold = thresholds.top_neck;
+  membraneRegions.side.threshold = thresholds.side;
+  membraneRegions.basal.threshold = thresholds.basal;
+
+  membraneRegions.top_neck.stress = topNormal + topShear * 0.35;
+  membraneRegions.side.stress = Math.max(leftShear, rightShear) * 0.8;
+  membraneRegions.basal.stress = bottomNormal * 0.6;
+
+  Object.values(membraneRegions).forEach((region) => {
+    region.peakStress = region.stress;
+    region.damage = clamp(region.stress / Math.max(region.threshold, 1e-6) - 1, 0, 1);
+    if (region.damage > 0) {
+      region.firstFailureTime = 0;
+    }
+  });
+
+  return membraneRegions;
+}
+
+function normalizeHistoryEntries(history, result, inputSpec) {
+  const membraneSpec = inputSpec.membrane || {
+    sig_m_crit: result.params?.sig_m_crit,
+    sig_m_crit_top: result.params?.sig_m_crit_top,
+    sig_m_crit_side: result.params?.sig_m_crit_side,
+    sig_m_crit_basal: result.params?.sig_m_crit_basal,
+  };
+  return history.map((entry) => {
+    const normalized = { ...entry };
+    normalized.localNc ??= initializeLocalState(NC_REGIONS);
+    normalized.localCd ??= initializeLocalState(CD_REGIONS);
+    normalized.membraneRegions ??= deriveMembraneStateFromLocalNc(normalized.localNc, membraneSpec);
+    normalized.damageNc ??= summarizeLocalDamage(normalized.localNc, NC_REGIONS);
+    normalized.damageCd ??= summarizeLocalDamage(normalized.localCd, CD_REGIONS);
+    normalized.damageMembrane ??= Math.max(
+      ...MEMBRANE_REGIONS.map((region) => normalized.membraneRegions?.[region]?.damage || 0),
+      0,
+    );
+    normalized.membraneDamage ??= normalized.damageMembrane;
+    normalized.membraneStress ??= Math.max(
+      ...MEMBRANE_REGIONS.map((region) => normalized.membraneRegions?.[region]?.stress || 0),
+      0,
+    );
+    normalized.membraneStrain ??=
+      normalized.membraneStress / Math.max(membraneSpec.sig_m_crit || 1, 1e-6);
+    normalized.holdForce ??= Math.hypot(
+      normalized.pipetteReaction?.x || 0,
+      normalized.pipetteReaction?.y || 0,
+    );
+    normalized.tangentialOffset ??= normalized.tangentNucleus ?? 0;
+    return normalized;
+  });
 }
 
 function getPunctureOffsetX(params) {
