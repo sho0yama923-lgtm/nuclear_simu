@@ -1,0 +1,15 @@
+febio_exports/
+
+*.xplt
+*.log
+*_cli.log
+*_result.json
+
+febio_*.csv
+febio_case_*_input.json
+febio_case_*_manifest.json
+febio_case_*_README.txt
+case_*.feb
+
+*.tmp
+*.bak

@@ -120,3 +120,7 @@ powershell -ExecutionPolicy Bypass -File scripts/export_and_run_febio_case.ps1 -
 - `scripts/export_febio_case.mjs`
 - `scripts/run_febio_case.ps1`
 - `scripts/export_and_run_febio_case.ps1`
+
+## Code Structure
+
+- 繧ｳ繝ｼ繝峨・蛻晄悄繝ｫ繝ｼ繝ｫ縺ｨ蜷榊燕隱ｬ譏弱・ [CODEBASE_STRUCTURE.md](./CODEBASE_STRUCTURE.md)

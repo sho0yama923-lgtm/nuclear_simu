@@ -67,8 +67,10 @@ function createElementStub() {
 }
 
 function loadSimulationModule(projectRoot) {
-  let source = fs.readFileSync(path.join(projectRoot, "simulation.js"), "utf8");
-  source = source.replace(/\ninitialize\(\);\s*$/, "\n");
+  const source = [
+    fs.readFileSync(path.join(projectRoot, "simulation.js"), "utf8"),
+    fs.readFileSync(path.join(projectRoot, "js", "simulation-febio.js"), "utf8"),
+  ].join("\n");
   const documentStub = {
     querySelector() {
       return createElementStub();
