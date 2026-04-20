@@ -115,6 +115,11 @@ function writeFile(targetPath, content) {
   fs.writeFileSync(targetPath, content, "utf8");
 }
 
+function readJsonFile(filePath) {
+  const text = fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "");
+  return JSON.parse(text);
+}
+
 const args = parseArgs(process.argv.slice(2));
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(scriptDir, "..");
@@ -122,7 +127,7 @@ const sandbox = loadSimulationModule(projectRoot);
 const caseName = String(args.caseName || "C").toUpperCase();
 const defaults = sandbox.structuredClone(sandbox.DEFAULTS);
 const params = args.paramsFile
-  ? { ...defaults, ...JSON.parse(fs.readFileSync(path.resolve(args.paramsFile), "utf8")) }
+  ? { ...defaults, ...readJsonFile(path.resolve(args.paramsFile)) }
   : defaults;
 
 const input = sandbox.buildFebioInputSpec(

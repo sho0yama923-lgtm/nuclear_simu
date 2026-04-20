@@ -25,6 +25,8 @@
   画面レイアウトと可視化スタイル
 
 ### FEBio / CLI Support
+- [scripts/febio_scan_case_a.mjs](/C:/Users/xiogo/projects/nuclear_simu/scripts/febio_scan_case_a.mjs)
+  Case A の FEBio 条件探索を自動実行し、順位付きの JSON / CSV を出力する
 - [scripts/export_febio_case.mjs](/C:/Users/xiogo/projects/nuclear_simu/scripts/export_febio_case.mjs)
   ケース条件から `.feb` と handoff 一式を出力する
 - [scripts/run_febio_case.ps1](/C:/Users/xiogo/projects/nuclear_simu/scripts/run_febio_case.ps1)
@@ -69,3 +71,9 @@
 - 使われなくなった生成物、暫定ファイル、旧構造の名残は `.gitignore` とコードベースの両方から整理し、将来の実装者が現行構成を誤解しない状態を保つ。
 
 これらは再生成可能な出力なので、追跡対象にしない。
+## FEBio-first additions
+
+- [FEBIO_FRONTEND_ARCHITECTURE.md](/C:/Users/xiogo/projects/nuclear_simu/FEBIO_FRONTEND_ARCHITECTURE.md)
+  FEBio-first UI / canonical schema / export-import / physical result rendering design note.
+- [tests/febio-front-end.test.mjs](/C:/Users/xiogo/projects/nuclear_simu/tests/febio-front-end.test.mjs)
+  Canonical mapping, digest, XML serialization, mesh validation, and UI gate tests.

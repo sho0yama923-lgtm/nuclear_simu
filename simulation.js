@@ -223,53 +223,53 @@ function normalizeFieldEntry(entry) {
 
 function buildFieldGroups() {
   const geometry = [
-    ["Ln", "\u6838\u5e45 x", 28, { hint: "\u65ad\u9762 x-z \u9762\u3067\u306e\u6838\u5e45\u3002\u4e0a\u9762\u56f3 xy \u9762\u3067\u306f\u4ee3\u8868\u5f84\u3068\u3057\u3066\u6271\u3044\u307e\u3059" }],
-    ["Hn", "\u6838\u9ad8\u3055 z", 18, { hint: "\u30c7\u30a3\u30c3\u30b7\u30e5\u9762\u3092 z = 0 \u3068\u3057\u305f\u3068\u304d\u306e\u6838\u306e\u9ad8\u3055\u3067\u3059" }],
-    ["Lc", "\u7d30\u80de\u5e45 x", 52, { hint: "\u65ad\u9762 x-z \u9762\u3067\u306e\u7d30\u80de\u5e45\u3067\u3059" }],
-    ["Hc", "\u7d30\u80de\u9ad8\u3055 z", 34, { hint: "\u30c7\u30a3\u30c3\u30b7\u30e5\u9762\u3092 z = 0 \u3068\u3057\u305f\u3068\u304d\u306e\u7d30\u80de\u306e\u9ad8\u3055\u3067\u3059" }],
-    ["xn", "\u6838\u4e2d\u5fc3 x", 0, { hint: "\u4e0a\u9762\u56f3 xy \u5ea7\u6a19\u7cfb\u306e x \u5ea7\u6a19\u3067\u3059" }],
-    ["yn", "\u6838\u4e2d\u5fc3 z", 17, { hint: "\u30c7\u30a3\u30c3\u30b7\u30e5\u9762\u3092 z = 0 \u3068\u3057\u305f\u3068\u304d\u306e\u6838\u4e2d\u5fc3 z \u5ea7\u6a19\u3067\u3059" }],
-    ["rp", "\u30d4\u30da\u30c3\u30c8\u534a\u5f84", 6.5, { hint: "\u30d4\u30da\u30c3\u30c8\u5148\u7aef\u306e\u6709\u52b9\u534a\u5f84\u3067\u3059" }],
-    ["xp", "\u7a7f\u523a\u4f4d\u7f6e x", 4.5, { hint: "\u4e0a\u9762\u56f3\u3067\u306e x \u5ea7\u6a19\u3002\u5185\u90e8 solver \u306e hold \u70b9\u306b\u76f4\u63a5\u53cd\u6620\u3057\u307e\u3059" }],
-    ["zp", "\u7a7f\u523a\u9ad8\u3055 z", 8.5, { hint: "\u65ad\u9762 x-z \u9762\u3067\u306e z \u5ea7\u6a19\u3067\u3059" }],
+    ["Ln", "\u6838\u5e45 x [um]", 28, { hint: "\u65ad\u9762 x-z \u9762\u3067\u306e\u6838\u5e45\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3068\u3057\u3066\u6271\u3044\u307e\u3059\u3002\u4e0a\u9762\u56f3 xy \u9762\u3067\u3082\u4ee3\u8868\u5f84\u3068\u3057\u3066\u4f7f\u3044\u307e\u3059" }],
+    ["Hn", "\u6838\u9ad8\u3055 z [um]", 18, { hint: "\u30c7\u30a3\u30c3\u30b7\u30e5\u9762 z = 0 \u3092\u57fa\u6e96\u306b\u3057\u305f\u6838\u306e\u9ad8\u3055\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3067\u8a08\u7b97\u3057\u307e\u3059" }],
+    ["Lc", "\u7d30\u80de\u5e45 x [um]", 52, { hint: "\u65ad\u9762 x-z \u9762\u3067\u306e\u7d30\u80de\u5e45\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3068\u3057\u3066\u6271\u3044\u307e\u3059" }],
+    ["Hc", "\u7d30\u80de\u9ad8\u3055 z [um]", 34, { hint: "\u30c7\u30a3\u30c3\u30b7\u30e5\u9762 z = 0 \u3092\u57fa\u6e96\u306b\u3057\u305f\u7d30\u80de\u9ad8\u3055\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3067\u8a08\u7b97\u3057\u307e\u3059" }],
+    ["xn", "\u6838\u4e2d\u5fc3 x [um]", 0, { hint: "\u4e0a\u9762\u56f3 xy \u5ea7\u6a19\u7cfb\u306e x \u5ea7\u6a19\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3068\u3057\u3066\u6271\u3044\u307e\u3059" }],
+    ["yn", "\u6838\u4e2d\u5fc3 z [um]", 17, { hint: "\u30c7\u30a3\u30c3\u30b7\u30e5\u9762 z = 0 \u3092\u57fa\u6e96\u306b\u3057\u305f\u6838\u4e2d\u5fc3 z \u5ea7\u6a19\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3068\u3057\u3066\u6271\u3044\u307e\u3059" }],
+    ["rp", "\u30d4\u30da\u30c3\u30c8\u534a\u5f84 [um]", 6.5, { hint: "\u30d4\u30da\u30c3\u30c8\u5148\u7aef\u306e\u6709\u52b9\u534a\u5f84\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3067\u6271\u3044\u307e\u3059" }],
+    ["xp", "\u7a7f\u523a\u4f4d\u7f6e x [um]", 4.5, { hint: "\u4e0a\u9762\u56f3\u3067\u306e x \u5ea7\u6a19\u3067\u3001\u5185\u90e8 solver \u306e hold \u70b9\u306b um \u3067\u76f4\u63a5\u53cd\u6620\u3057\u307e\u3059" }],
+    ["zp", "\u7a7f\u523a\u9ad8\u3055 z [um]", 8.5, { hint: "\u65ad\u9762 x-z \u9762\u3067\u306e z \u5ea7\u6a19\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3068\u3057\u3066\u6271\u3044\u307e\u3059" }],
   ];
   const material = [
-    ["En", "En", 3.0],
-    ["nun", "nu_n", 0.4],
-    ["etan", "eta_n", 5.0],
-    ["alpha_nonlinear", "alpha_nonlinear", 0.1],
-    ["Ec", "Ec", 1.0],
-    ["nuc", "nu_c", 0.45],
-    ["etac", "eta_c", 3.0],
-    ["Tm", "Tm", 0.2],
-    ["sig_m_crit", "sig_m_crit", 1.0],
-    ["sig_m_crit_top", "sig_m_crit_top", 0.8],
-    ["sig_m_crit_side", "sig_m_crit_side", 1.0],
-    ["sig_m_crit_basal", "sig_m_crit_basal", 1.2],
+    ["En", "En [kPa]", 3.0, { hint: "\u6838\u306e\u30e4\u30f3\u30b0\u7387\u3002\u5185\u90e8 solver \u3067\u306f kPa \u3068\u3057\u3066\u4f7f\u3044\u307e\u3059" }],
+    ["nun", "nu_n [-]", 0.4, { hint: "\u6838\u306e\u30dd\u30a2\u30bd\u30f3\u6bd4\u3002\u7121\u6b21\u5143\u3067\u3059" }],
+    ["etan", "eta_n [kPa·s]", 5.0, { hint: "\u6838\u306e\u7c98\u6027\u4fc2\u6570\u3002\u5185\u90e8 solver \u3067\u306f kPa\u00b7s \u3068\u3057\u3066\u4fdd\u6301\u3057\u307e\u3059" }],
+    ["alpha_nonlinear", "alpha_nonlinear [-]", 0.1, { hint: "\u6838\u306e\u975e\u7dda\u5f62\u4fc2\u6570\u3002\u7121\u6b21\u5143\u3067\u3059" }],
+    ["Ec", "Ec [kPa]", 1.0, { hint: "\u7d30\u80de\u8cea\u306e\u30e4\u30f3\u30b0\u7387\u3002\u5185\u90e8 solver \u3067\u306f kPa \u3068\u3057\u3066\u4f7f\u3044\u307e\u3059" }],
+    ["nuc", "nu_c [-]", 0.45, { hint: "\u7d30\u80de\u8cea\u306e\u30dd\u30a2\u30bd\u30f3\u6bd4\u3002\u7121\u6b21\u5143\u3067\u3059" }],
+    ["etac", "eta_c [kPa·s]", 3.0, { hint: "\u7d30\u80de\u8cea\u306e\u7c98\u6027\u4fc2\u6570\u3002\u5185\u90e8 solver \u3067\u306f kPa\u00b7s \u3067\u6271\u3044\u307e\u3059" }],
+    ["Tm", "Tm [N/m]", 0.2, { hint: "\u819c\u30fb\u76ae\u8cea\u306e\u9762\u5185\u5f35\u529b\u3002\u5185\u90e8 solver \u3067\u306f N/m \u3068\u3057\u3066\u6271\u3044\u307e\u3059" }],
+    ["sig_m_crit", "sig_m_crit [kPa]", 1.0, { hint: "\u819c\u7834\u65ad\u959e\u5024\u306e\u5168\u4f53\u5024\u3002\u5185\u90e8 solver \u3067\u306f kPa \u3067\u5224\u5b9a\u3057\u307e\u3059" }],
+    ["sig_m_crit_top", "sig_m_crit_top [kPa]", 0.8, { hint: "top_neck \u9818\u57df\u306e\u819c\u7834\u65ad\u959e\u5024\u3067\u3001\u5185\u90e8 solver \u3067\u306f kPa \u3092\u4f7f\u3044\u307e\u3059" }],
+    ["sig_m_crit_side", "sig_m_crit_side [kPa]", 1.0, { hint: "side \u9818\u57df\u306e\u819c\u7834\u65ad\u959e\u5024\u3067\u3001\u5185\u90e8 solver \u3067\u306f kPa \u3092\u4f7f\u3044\u307e\u3059" }],
+    ["sig_m_crit_basal", "sig_m_crit_basal [kPa]", 1.2, { hint: "basal \u9818\u57df\u306e\u819c\u7834\u65ad\u959e\u5024\u3067\u3001\u5185\u90e8 solver \u3067\u306f kPa \u3092\u4f7f\u3044\u307e\u3059" }],
   ];
   const interfaces = [
-    ["Kn_nc", "Kn_nc", 1.0],
-    ["Kt_nc", "Kt_nc", 0.8],
-    ["sig_nc_crit", "sig_nc_crit", 0.4],
-    ["tau_nc_crit", "tau_nc_crit", 0.25],
-    ["Gc_nc", "Gc_nc", 0.1],
-    ["Kn_cd", "Kn_cd", 3.0],
-    ["Kt_cd", "Kt_cd", 2.0],
-    ["sig_cd_crit", "sig_cd_crit", 2.0],
-    ["tau_cd_crit", "tau_cd_crit", 1.0],
-    ["Gc_cd", "Gc_cd", 1.0],
-    ["adhesionPattern", "adhesionPattern", "uniform", { type: "select", options: [["uniform", "uniform"], ["center_strong", "center_strong"], ["edge_strong", "edge_strong"], ["random_patchy", "random_patchy"]] }],
-    ["adhesionSeed", "adhesionSeed", 17, { step: 1 }],
+    ["Kn_nc", "Kn_nc [kPa/um]", 1.0, { hint: "\u6838-\u7d30\u80de\u8cea\u754c\u9762\u306e\u6cd5\u7dda\u5267\u6027\u3002\u5185\u90e8 solver \u3067\u306f kPa/um \u3067\u6271\u3044\u307e\u3059" }],
+    ["Kt_nc", "Kt_nc [kPa/um]", 0.8, { hint: "\u6838-\u7d30\u80de\u8cea\u754c\u9762\u306e\u63a5\u7dda\u5267\u6027\u3002\u5185\u90e8 solver \u3067\u306f kPa/um \u3067\u6271\u3044\u307e\u3059" }],
+    ["sig_nc_crit", "sig_nc_crit [kPa]", 0.4, { hint: "\u6838-\u7d30\u80de\u8cea\u754c\u9762\u306e\u6cd5\u7dda\u65b9\u5411\u7834\u65ad\u5fdc\u529b\u3067\u3001\u5185\u90e8 solver \u3067\u306f kPa \u3067\u5224\u5b9a\u3057\u307e\u3059" }],
+    ["tau_nc_crit", "tau_nc_crit [kPa]", 0.25, { hint: "\u6838-\u7d30\u80de\u8cea\u754c\u9762\u306e\u305b\u3093\u65ad\u7834\u65ad\u5fdc\u529b\u3067\u3001\u5185\u90e8 solver \u3067\u306f kPa \u3067\u6271\u3044\u307e\u3059" }],
+    ["Gc_nc", "Gc_nc [N/m]", 0.1, { hint: "\u6838-\u7d30\u80de\u8cea\u754c\u9762\u306e\u7834\u58ca\u30a8\u30cd\u30eb\u30ae\u30fc\u3067\u3001\u5185\u90e8 solver \u3067\u306f N/m \u3068\u3057\u3066\u4fdd\u6301\u3057\u307e\u3059" }],
+    ["Kn_cd", "Kn_cd [kPa/um]", 3.0, { hint: "\u7d30\u80de-\u30c7\u30a3\u30c3\u30b7\u30e5\u754c\u9762\u306e\u6cd5\u7dda\u5267\u6027\u3002\u5185\u90e8 solver \u3067\u306f kPa/um \u3067\u6271\u3044\u307e\u3059" }],
+    ["Kt_cd", "Kt_cd [kPa/um]", 2.0, { hint: "\u7d30\u80de-\u30c7\u30a3\u30c3\u30b7\u30e5\u754c\u9762\u306e\u63a5\u7dda\u5267\u6027\u3002\u5185\u90e8 solver \u3067\u306f kPa/um \u3067\u6271\u3044\u307e\u3059" }],
+    ["sig_cd_crit", "sig_cd_crit [kPa]", 2.0, { hint: "\u7d30\u80de-\u30c7\u30a3\u30c3\u30b7\u30e5\u754c\u9762\u306e\u6cd5\u7dda\u65b9\u5411\u7834\u65ad\u5fdc\u529b\u3067\u3001\u5185\u90e8 solver \u3067\u306f kPa \u3067\u6271\u3044\u307e\u3059" }],
+    ["tau_cd_crit", "tau_cd_crit [kPa]", 1.0, { hint: "\u7d30\u80de-\u30c7\u30a3\u30c3\u30b7\u30e5\u754c\u9762\u306e\u305b\u3093\u65ad\u7834\u65ad\u5fdc\u529b\u3067\u3001\u5185\u90e8 solver \u3067\u306f kPa \u3067\u6271\u3044\u307e\u3059" }],
+    ["Gc_cd", "Gc_cd [N/m]", 1.0, { hint: "\u7d30\u80de-\u30c7\u30a3\u30c3\u30b7\u30e5\u754c\u9762\u306e\u7834\u58ca\u30a8\u30cd\u30eb\u30ae\u30fc\u3067\u3001\u5185\u90e8 solver \u3067\u306f N/m \u3068\u3057\u3066\u6271\u3044\u307e\u3059" }],
+    ["adhesionPattern", "adhesionPattern [-]", "uniform", { type: "select", options: [["uniform", "uniform"], ["center_strong", "center_strong"], ["edge_strong", "edge_strong"], ["random_patchy", "random_patchy"]], hint: "\u63a5\u7740\u5206\u5e03\u30d1\u30bf\u30fc\u30f3\u306e\u9078\u629e\u3067\u3001\u5358\u4f4d\u306f\u3042\u308a\u307e\u305b\u3093" }],
+    ["adhesionSeed", "adhesionSeed [-]", 17, { step: 1, hint: "random_patchy \u306e\u4e71\u6570 seed \u3067\u3001\u5358\u4f4d\u306f\u3042\u308a\u307e\u305b\u3093" }],
   ];
   const operation = [
-    ["Fhold", "\u4fdd\u6301\u529b", 20],
-    ["P_hold", "\u4fdd\u6301\u5727", 0.7],
-    ["dz_lift", "\u5f15\u304d\u4e0a\u3052\u91cf z", 8, { hint: "\u65ad\u9762 x-z \u9762\u3067\u306e z \u65b9\u5411\u79fb\u52d5\u3067\u3059" }],
-    ["dx_inward", "\u91cd\u5fc3\u5074\u79fb\u52d5 x", 4, { hint: "\u4e0a\u9762\u56f3 xy \u9762\u3067\u306e -x \u79fb\u52d5\u3067\u3059" }],
-    ["ds_tangent", "\u63a5\u7dda\u79fb\u52d5 y", 7.5, { hint: "\u4e0a\u9762\u56f3 xy \u9762\u3067\u306e +y \u79fb\u52d5\u3067\u3059" }],
-    ["dx_outward", "\u5916\u65b9\u5411\u79fb\u52d5 x", 3, { hint: "\u4e0a\u9762\u56f3 xy \u9762\u3067\u306e +x \u79fb\u52d5\u3067\u3059" }],
-    ["mu_p", "\u30d4\u30da\u30c3\u30c8\u6469\u64e6", 0.26],
-    ["contact_tol", "\u6355\u6349\u8a31\u5bb9\u8ddd\u96e2", 2.2],
+    ["Fhold", "\u4fdd\u6301\u529b [internal]", 20, { hint: "\u4fdd\u6301\u9650\u754c\u306b\u4f7f\u3046\u5185\u90e8\u5358\u4f4d\u306e proxy \u5024\u3067\u3059\u3002\u73fe\u6642\u70b9\u3067\u306f N \u306a\u3069\u306e\u5b9f\u5358\u4f4d\u3078\u306f\u672a\u63db\u7b97\u3067\u3059" }],
+    ["P_hold", "\u4fdd\u6301\u5727 [internal]", 0.7, { hint: "\u4fdd\u6301\u5267\u6027\u6709\u52b9\u5024\u306b\u4f7f\u3046\u5185\u90e8\u5358\u4f4d\u306e proxy \u5024\u3067\u3059" }],
+    ["dz_lift", "\u5f15\u304d\u4e0a\u3052\u91cf z [um]", 8, { hint: "\u65ad\u9762 x-z \u9762\u3067\u306e z \u65b9\u5411\u79fb\u52d5\u91cf\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3092\u4f7f\u3044\u307e\u3059" }],
+    ["dx_inward", "\u91cd\u5fc3\u5074\u79fb\u52d5 x [um]", 4, { hint: "\u4e0a\u9762\u56f3 xy \u9762\u3067\u306e -x \u79fb\u52d5\u91cf\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3067\u6271\u3044\u307e\u3059" }],
+    ["ds_tangent", "\u63a5\u7dda\u79fb\u52d5 y [um]", 7.5, { hint: "\u4e0a\u9762\u56f3 xy \u9762\u3067\u306e +y \u79fb\u52d5\u91cf\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3067\u6271\u3044\u307e\u3059" }],
+    ["dx_outward", "\u5916\u65b9\u5411\u79fb\u52d5 x [um]", 3, { hint: "\u4e0a\u9762\u56f3 xy \u9762\u3067\u306e +x \u79fb\u52d5\u91cf\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3092\u4f7f\u3044\u307e\u3059" }],
+    ["mu_p", "\u30d4\u30da\u30c3\u30c8\u6469\u64e6 [-]", 0.26, { hint: "\u30d4\u30da\u30c3\u30c8\u6469\u64e6\u4fc2\u6570\u3002\u7121\u6b21\u5143\u3067\u3059" }],
+    ["contact_tol", "\u6355\u6349\u8a31\u5bb9\u8ddd\u96e2 [um]", 2.2, { hint: "\u6355\u6349\u5224\u5b9a\u306b\u4f7f\u3046\u8ddd\u96e2\u95be\u5024\u3067\u3001\u5185\u90e8 solver \u3067\u306f um \u3068\u3057\u3066\u6271\u3044\u307e\u3059" }],
   ];
   const pinnedGeometry = geometry.filter(([key]) => PINNED_OPERATION_KEYS.includes(key));
   return {
@@ -297,6 +297,317 @@ const GEOMETRY_SCHEMA_KEYS = ["Ln", "Hn", "Lc", "Hc", "xn", "yn", "rp", "xp", "z
 const OPERATION_SCHEMA_KEYS = FIELD_GROUPS.operation
   .map(([key]) => key)
   .filter((key) => !PINNED_OPERATION_KEYS.includes(key));
+
+function identityTransform(value) {
+  return value;
+}
+
+function buildParameterSchema(fieldGroups) {
+  const schemaMeta = {
+    Ln: {
+      febioPath: "geometry.nucleus.width",
+      min: 1,
+      max: 500,
+      description: "核の x 方向幅",
+    },
+    Hn: {
+      febioPath: "geometry.nucleus.height",
+      min: 1,
+      max: 500,
+      description: "核の z 方向高さ",
+    },
+    Lc: {
+      febioPath: "geometry.cytoplasm.width",
+      min: 1,
+      max: 1000,
+      description: "細胞の x 方向幅",
+    },
+    Hc: {
+      febioPath: "geometry.cytoplasm.height",
+      min: 1,
+      max: 1000,
+      description: "細胞の z 方向高さ",
+    },
+    xn: {
+      febioPath: "geometry.nucleus.center.x",
+      min: -500,
+      max: 500,
+      description: "核中心 x 座標",
+    },
+    yn: {
+      febioPath: "geometry.nucleus.center.z",
+      min: 0,
+      max: 500,
+      description: "核中心 z 座標",
+    },
+    rp: {
+      febioPath: "geometry.pipette.radius",
+      min: 0.1,
+      max: 100,
+      description: "ピペット先端半径",
+    },
+    xp: {
+      febioPath: "geometry.pipette.puncture.x",
+      min: -500,
+      max: 500,
+      description: "穿刺位置 x 座標",
+    },
+    zp: {
+      febioPath: "geometry.pipette.puncture.z",
+      min: 0,
+      max: 500,
+      description: "穿刺高さ z 座標",
+    },
+    En: {
+      febioPath: "materials.nucleus.elastic.E",
+      min: 0.001,
+      max: 10000,
+      description: "核のヤング率",
+    },
+    nun: {
+      febioPath: "materials.nucleus.elastic.nu",
+      min: 0,
+      max: 0.499,
+      description: "核のポアソン比",
+    },
+    etan: {
+      febioPath: "materials.nucleus.viscous.eta",
+      min: 0,
+      max: 100000,
+      description: "核の粘性係数",
+    },
+    alpha_nonlinear: {
+      febioPath: "materials.nucleus.optionalNonlinear.alpha",
+      min: 0,
+      max: 100,
+      description: "核の任意非線形係数",
+    },
+    Ec: {
+      febioPath: "materials.cytoplasm.elastic.E",
+      min: 0.001,
+      max: 10000,
+      description: "細胞質のヤング率",
+    },
+    nuc: {
+      febioPath: "materials.cytoplasm.elastic.nu",
+      min: 0,
+      max: 0.499,
+      description: "細胞質のポアソン比",
+    },
+    etac: {
+      febioPath: "materials.cytoplasm.viscous.eta",
+      min: 0,
+      max: 100000,
+      description: "細胞質の粘性係数",
+    },
+    Tm: {
+      febioPath: "materials.membrane.tension",
+      min: 0,
+      max: 1000,
+      description: "膜・皮質張力",
+    },
+    sig_m_crit: {
+      febioPath: "geometry.membrane.thresholds.global",
+      min: 0,
+      max: 10000,
+      description: "膜破断応力の全体閾値",
+    },
+    sig_m_crit_top: {
+      febioPath: "geometry.membrane.thresholds.top_neck",
+      min: 0,
+      max: 10000,
+      description: "top_neck の膜破断応力",
+    },
+    sig_m_crit_side: {
+      febioPath: "geometry.membrane.thresholds.side",
+      min: 0,
+      max: 10000,
+      description: "side の膜破断応力",
+    },
+    sig_m_crit_basal: {
+      febioPath: "geometry.membrane.thresholds.basal",
+      min: 0,
+      max: 10000,
+      description: "basal の膜破断応力",
+    },
+    Kn_nc: {
+      febioPath: "interfaces.nucleusCytoplasm.normalStiffness",
+      min: 0,
+      max: 100000,
+      description: "核-細胞質界面の法線剛性",
+    },
+    Kt_nc: {
+      febioPath: "interfaces.nucleusCytoplasm.tangentialStiffness",
+      min: 0,
+      max: 100000,
+      description: "核-細胞質界面の接線剛性",
+    },
+    sig_nc_crit: {
+      febioPath: "interfaces.nucleusCytoplasm.criticalNormalStress",
+      min: 0,
+      max: 100000,
+      description: "核-細胞質界面の臨界法線応力",
+    },
+    tau_nc_crit: {
+      febioPath: "interfaces.nucleusCytoplasm.criticalShearStress",
+      min: 0,
+      max: 100000,
+      description: "核-細胞質界面の臨界せん断応力",
+    },
+    Gc_nc: {
+      febioPath: "interfaces.nucleusCytoplasm.fractureEnergy",
+      min: 0,
+      max: 100000,
+      description: "核-細胞質界面の破壊エネルギー",
+    },
+    Kn_cd: {
+      febioPath: "interfaces.cellDish.normalStiffness",
+      min: 0,
+      max: 100000,
+      description: "細胞-ディッシュ界面の法線剛性",
+    },
+    Kt_cd: {
+      febioPath: "interfaces.cellDish.tangentialStiffness",
+      min: 0,
+      max: 100000,
+      description: "細胞-ディッシュ界面の接線剛性",
+    },
+    sig_cd_crit: {
+      febioPath: "interfaces.cellDish.criticalNormalStress",
+      min: 0,
+      max: 100000,
+      description: "細胞-ディッシュ界面の臨界法線応力",
+    },
+    tau_cd_crit: {
+      febioPath: "interfaces.cellDish.criticalShearStress",
+      min: 0,
+      max: 100000,
+      description: "細胞-ディッシュ界面の臨界せん断応力",
+    },
+    Gc_cd: {
+      febioPath: "interfaces.cellDish.fractureEnergy",
+      min: 0,
+      max: 100000,
+      description: "細胞-ディッシュ界面の破壊エネルギー",
+    },
+    adhesionPattern: {
+      febioPath: "interfaces.cellDish.adhesionPattern",
+      description: "細胞-ディッシュ界面の接着分布パターン",
+    },
+    adhesionSeed: {
+      febioPath: "interfaces.cellDish.adhesionSeed",
+      min: 0,
+      max: 1000000,
+      description: "random_patchy 用の seed",
+    },
+    Fhold: {
+      febioPath: "contacts.pipetteNucleus.maxTractionProxy",
+      min: 0,
+      max: 100000,
+      description: "保持力 proxy",
+    },
+    P_hold: {
+      febioPath: "contacts.pipetteNucleus.holdPressureProxy",
+      min: 0,
+      max: 100000,
+      description: "保持圧 proxy",
+    },
+    dz_lift: {
+      febioPath: "schedule.lift.deltaZ",
+      min: -1000,
+      max: 1000,
+      description: "z 方向の引き上げ量",
+    },
+    dx_inward: {
+      febioPath: "schedule.manipulation.deltaXInward",
+      min: -1000,
+      max: 1000,
+      description: "x 方向の重心側移動量",
+    },
+    ds_tangent: {
+      febioPath: "schedule.manipulation.deltaYtangent",
+      min: -1000,
+      max: 1000,
+      description: "y 方向の接線移動量",
+    },
+    dx_outward: {
+      febioPath: "schedule.release.deltaXOutward",
+      min: -1000,
+      max: 1000,
+      description: "x 方向の外向き移動量",
+    },
+    mu_p: {
+      febioPath: "contacts.pipetteNucleus.friction",
+      min: 0,
+      max: 10,
+      description: "ピペット摩擦係数",
+    },
+    contact_tol: {
+      febioPath: "contacts.pipetteNucleus.searchTolerance",
+      min: 0,
+      max: 1000,
+      description: "接触・捕捉許容距離",
+    },
+  };
+
+  return Object.entries(fieldGroups).flatMap(([category, entries]) =>
+    entries.map((entry) => {
+      const field = normalizeFieldEntry(entry);
+      const meta = schemaMeta[field.key] || {};
+      const isNumber = typeof field.value === "number";
+      return {
+        uiKey: field.key,
+        internalKey: field.key,
+        category,
+        unit: extractUnitFromLabel(field.label),
+        defaultValue: field.value,
+        min: meta.min ?? (isNumber ? Number.NEGATIVE_INFINITY : undefined),
+        max: meta.max ?? (isNumber ? Number.POSITIVE_INFINITY : undefined),
+        required: true,
+        validation(value) {
+          if (field.type === "select") {
+            return field.options.some(([optionValue]) => optionValue === value)
+              ? []
+              : [`${field.key} must be one of the declared options`];
+          }
+          if (!isNumber) {
+            return [];
+          }
+          if (!Number.isFinite(value)) {
+            return [`${field.key} must be a finite number`];
+          }
+          const issues = [];
+          if (Number.isFinite(this.min) && value < this.min) {
+            issues.push(`${field.key} must be >= ${this.min}`);
+          }
+          if (Number.isFinite(this.max) && value > this.max) {
+            issues.push(`${field.key} must be <= ${this.max}`);
+          }
+          return issues;
+        },
+        febioPath: meta.febioPath || `params.${field.key}`,
+        transformIn: identityTransform,
+        transformOut: identityTransform,
+        description: meta.description || field.hint || field.label,
+        type: field.type,
+        options: structuredClone(field.options),
+        step: field.step,
+        label: field.label,
+        hint: field.hint,
+      };
+    }),
+  );
+}
+
+function extractUnitFromLabel(label) {
+  const match = String(label).match(/\[([^\]]+)\]\s*$/);
+  return match ? match[1] : "";
+}
+
+const PARAMETER_SCHEMA = buildParameterSchema(FIELD_GROUPS);
+const PARAMETER_SCHEMA_INDEX = Object.fromEntries(
+  PARAMETER_SCHEMA.map((field) => [field.internalKey, field]),
+);
 
 // World coordinates exposed to the user and external solver adapters:
 // - top view is the x-y plane centered on the nucleus
@@ -351,6 +662,8 @@ const NUMERICS = {
 };
 
 const APP_SCHEMA_VERSION = "2026.04-solver-abstraction";
+// `lightweight` is retained only for migration/debug compatibility.
+// Main UI flow is FEBio-first and should not use it as the primary result path.
 const SOLVER_MODES = ["lightweight", "febio"];
 const NC_REGIONS = ["right", "left", "top", "bottom"];
 const CD_REGIONS = ["left", "center", "right"];
@@ -438,6 +751,7 @@ const elements = {
   exportFebioHandoff: document.querySelector("#export-febio-handoff"),
   febioRun: document.querySelector("#febio-run"),
   febioView: document.querySelector("#febio-view"),
+  febioRunStatus: document.querySelector("#febio-run-status"),
   febioBridgeStatus: document.querySelector("#febio-bridge-status"),
   displayModeBanner: document.querySelector("#display-mode-banner"),
   importResult: document.querySelector("#import-result"),
@@ -455,10 +769,11 @@ const appState = {
   latest: null,
   comparisonRuns: [],
   sweepRuns: [],
+  exportContext: null,
   ui: {
     selectedCase: "C",
     selectedMode: "case",
-    solverMode: "lightweight",
+    solverMode: "febio",
   },
   playback: {
     frameIndex: 0,
@@ -470,6 +785,11 @@ const appState = {
     available: false,
     busy: false,
     statusText: "bridge: unknown",
+    runStage: "idle",
+    runDetail: "awaiting user action",
+    runTone: "",
+    lastUpdatedAt: null,
+    lastError: "",
   },
 };
 
@@ -651,15 +971,23 @@ function organizeWorkspaceLayout() {
       const febioRunButton = elements.exportFebioJson.cloneNode(true);
       febioRunButton.id = "febio-run";
       febioRunButton.textContent = "FEBio Run";
+      febioRunButton.title = "FEBio を実行して結果を読み込み、表示まで行います";
+      febioRunButton.setAttribute("onclick", "window.__runFebioFromButton && window.__runFebioFromButton(); return false;");
+      febioRunButton.setAttribute("onpointerdown", "window.__markFebioButtonPointer && window.__markFebioButtonPointer();");
       (elements.exportFebioHandoff || elements.exportFebioXml || elements.exportFebioJson).insertAdjacentElement("afterend", febioRunButton);
       elements.febioRun = febioRunButton;
     }
-    if (!elements.febioView && elements.exportFebioJson?.parentNode) {
-      const febioViewButton = elements.exportFebioJson.cloneNode(true);
-      febioViewButton.id = "febio-view";
-      febioViewButton.textContent = "FEBio View";
-      (elements.febioRun || elements.exportFebioHandoff || elements.exportFebioXml || elements.exportFebioJson).insertAdjacentElement("afterend", febioViewButton);
-      elements.febioView = febioViewButton;
+    if (!elements.febioRunStatus && elements.febioRun?.parentNode) {
+      const runStatus = document.createElement("div");
+      runStatus.id = "febio-run-status";
+      runStatus.className = "febio-run-status subtle";
+      runStatus.textContent = "FEBio status: awaiting user action";
+      elements.febioRun.insertAdjacentElement("afterend", runStatus);
+      elements.febioRunStatus = runStatus;
+    }
+    if (elements.febioView) {
+      elements.febioView.remove();
+      elements.febioView = null;
     }
     if (!elements.febioBridgeStatus && elements.importResult?.parentNode) {
       const status = document.createElement("div");
@@ -721,6 +1049,13 @@ function bindFieldListeners() {
           document.querySelector("#field-adhesionSeed").value = appState.params.adhesionSeed;
         }
         syncSweepDefaults();
+        if (!isPhysicalMainResult(appState.latest) && typeof buildFebioInputSpec === "function" && typeof renderAwaitingResult === "function") {
+          const caseName = appState.ui.selectedCase || "C";
+          appState.exportContext = buildFebioRunBundle(
+            buildFebioInputSpec(caseName, collectParams(), buildSimulationInput(caseName, collectParams())),
+          );
+          renderAwaitingResult(appState.exportContext);
+        }
       });
     });
 }
@@ -788,7 +1123,7 @@ function buildSolverMetadata(solverMode, overrides = {}) {
 }
 
 function describeSolverMetadata(solverMetadata = {}) {
-  const solverMode = solverMetadata.solverMode || "lightweight";
+  const solverMode = solverMetadata.solverMode || "febio";
   const source = solverMetadata.source || solverMode;
   const normalizedSource = String(source).toLowerCase();
   const isFebioMock =
@@ -804,29 +1139,120 @@ function describeSolverMetadata(solverMetadata = {}) {
   };
 }
 
-// Model layer: solver-independent input schema used by both lightweight JS and FEBio bridge flows.
-function buildSimulationInput(caseName, params) {
-  const normalizedParams = { ...structuredClone(DEFAULTS), ...structuredClone(params) };
-  const groups = splitParamsByRole(normalizedParams);
+function stableStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableStringify(entry)).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function normalizeParamValue(field, rawValue) {
+  if (field.type === "select") {
+    const candidate = rawValue ?? field.defaultValue;
+    return field.transformIn(String(candidate));
+  }
+  const numeric = Number(rawValue ?? field.defaultValue);
+  return field.transformIn(Number.isFinite(numeric) ? numeric : field.defaultValue);
+}
+
+function validateCanonicalParams(canonicalParams) {
+  const fields = {};
+  let errorCount = 0;
+  Object.values(PARAMETER_SCHEMA_INDEX).forEach((field) => {
+    const value = canonicalParams[field.internalKey];
+    const errors = field.validation(value);
+    if (errors.length) {
+      errorCount += errors.length;
+    }
+    fields[field.internalKey] = {
+      valid: errors.length === 0,
+      value,
+      errors,
+    };
+  });
   return {
+    valid: errorCount === 0,
+    errorCount,
+    fields,
+  };
+}
+
+function buildParameterTable(canonicalParams) {
+  return PARAMETER_SCHEMA.map((field) => ({
+    uiKey: field.uiKey,
+    internalKey: field.internalKey,
+    category: field.category,
+    unit: field.unit,
+    value: canonicalParams[field.internalKey],
+    febioPath: field.febioPath,
+    description: field.description,
+  }));
+}
+
+function buildParameterDigestPayload(canonicalSpec) {
+  return {
+    caseName: canonicalSpec.caseName,
+    coordinates: canonicalSpec.coordinates,
+    params: canonicalSpec.params,
+    geometry: canonicalSpec.geometry,
+    material: canonicalSpec.material,
+    interfaces: canonicalSpec.interfaces,
+    membrane: canonicalSpec.membrane,
+    membraneModel: canonicalSpec.membraneModel,
+    operation: canonicalSpec.operation,
+    adhesionPattern: canonicalSpec.adhesionPattern,
+    adhesionSeed: canonicalSpec.adhesionSeed,
+    schedule: serializeSchedule(canonicalSpec.schedule),
+  };
+}
+
+function buildParameterDigest(canonicalSpec) {
+  return `pdig_${hashString(stableStringify(buildParameterDigestPayload(canonicalSpec))).toString(16)}`;
+}
+
+function buildCanonicalSpec(caseName, params) {
+  const merged = { ...structuredClone(DEFAULTS), ...structuredClone(params) };
+  const canonicalParams = {};
+  PARAMETER_SCHEMA.forEach((field) => {
+    canonicalParams[field.internalKey] = normalizeParamValue(field, merged[field.uiKey]);
+  });
+  const validationReport = validateCanonicalParams(canonicalParams);
+  const groups = splitParamsByRole(canonicalParams);
+  const spec = {
     caseName,
-    params: normalizedParams,
+    params: canonicalParams,
     coordinates: structuredClone(COORDINATE_SYSTEM_SPEC),
     geometry: groups.geometry,
     material: groups.material,
     interfaces: groups.interfaces,
     membrane: {
-      Tm: normalizedParams.Tm,
-      sig_m_crit: normalizedParams.sig_m_crit,
-      sig_m_crit_top: normalizedParams.sig_m_crit_top,
-      sig_m_crit_side: normalizedParams.sig_m_crit_side,
-      sig_m_crit_basal: normalizedParams.sig_m_crit_basal,
+      Tm: canonicalParams.Tm,
+      sig_m_crit: canonicalParams.sig_m_crit,
+      sig_m_crit_top: canonicalParams.sig_m_crit_top,
+      sig_m_crit_side: canonicalParams.sig_m_crit_side,
+      sig_m_crit_basal: canonicalParams.sig_m_crit_basal,
     },
+    membraneModel: merged.membraneModel || "cortex_proxy",
     operation: groups.operation,
-    adhesionPattern: normalizedParams.adhesionPattern || "uniform",
-    adhesionSeed: normalizedParams.adhesionSeed ?? 17,
-    schedule: buildSchedule(caseName, normalizedParams),
+    adhesionPattern: canonicalParams.adhesionPattern || "uniform",
+    adhesionSeed: canonicalParams.adhesionSeed ?? 17,
+    validationReport,
+    parameterTable: buildParameterTable(canonicalParams),
+    schedule: buildSchedule(caseName, canonicalParams),
   };
+  spec.parameterDigest = buildParameterDigest(spec);
+  return spec;
+}
+
+// Model layer: canonical FEBio-facing input schema used across export/import and UI validation.
+function buildSimulationInput(caseName, params) {
+  return buildCanonicalSpec(caseName, params);
 }
 
 function serializeSchedule(schedule) {
@@ -874,15 +1300,26 @@ function normalizeSimulationResult(rawResult, inputSpec) {
       operation: inputSpec.operation,
       adhesionPattern: inputSpec.adhesionPattern,
       adhesionSeed: inputSpec.adhesionSeed,
+      parameterDigest: inputSpec.parameterDigest,
+      validationReport: inputSpec.validationReport,
+      parameterTable: inputSpec.parameterTable,
     }),
     schedule: serializeSchedule(inputSpec.schedule),
   };
+  result.parameterDigest ??= inputSpec.parameterDigest;
+  result.validationReport ??= inputSpec.validationReport;
+  result.parameterTable ??= inputSpec.parameterTable;
+  result.isPhysicalFebioResult = Boolean(result.isPhysicalFebioResult);
   result.solverMetadata = {
-    ...buildSolverMetadata(result.solverMetadata?.solverMode || appState.ui.solverMode || "lightweight"),
+    ...buildSolverMetadata(result.solverMetadata?.solverMode || appState.ui.solverMode || "febio"),
     ...(result.solverMetadata || {}),
   };
   result.history = normalizeHistoryEntries(result.history, result, inputSpec);
   return result;
+}
+
+function isPhysicalMainResult(result) {
+  return Boolean(result && result.isPhysicalFebioResult === true);
 }
 
 function hashString(value) {
@@ -2082,6 +2519,8 @@ function finalizeSimulationResult({ caseName, inputSpec, state, cellRest, nucleu
 }
 
 // Solver layer: current reduced-order solver kept intact as the lightweight backend.
+// Deprecated legacy reduced-order solver kept only for migration/debug use.
+// Main application results should come from imported physical FEBio outputs.
 function runLightweightSimulation(caseName, params, inputSpec = buildSimulationInput(caseName, params)) {
   const schedule = inputSpec.schedule;
   params = structuredClone(inputSpec.params);

@@ -32,6 +32,14 @@ Start-Process 'C:\Users\xiogo\projects\nuclear_simu\index.html'
 - `FEBio XML保存`
 - `FEBio引き渡し一式`
 
+パラメータ欄の単位表記は内部 solver と揃えてあります。
+- 幾何・移動量: `um`
+- 応力・弾性率: `kPa`
+- 粘性: `kPa·s`
+- 張力・破壊エネルギー: `N/m`
+- ポアソン比・摩擦係数など: 無次元
+- `Fhold`, `P_hold`: 現在は内部 proxy 単位
+
 ## FEBio 実行フロー
 
 ### 1. ブラウザから出力
@@ -73,6 +81,9 @@ powershell -ExecutionPolicy Bypass -File scripts/export_and_run_febio_case.ps1 -
 ```
 
 ## 追加したスクリプト
+
+- `scripts/febio_scan_case_a.mjs`
+  - Case A の FEBio 条件探索をまとめて実行し、上位条件を JSON / CSV で残します
 
 - `scripts/export_febio_case.mjs`
   - `simulation.js` を Node VM で読み、Case A/B/C の `.feb` と handoff 一式を出力します
@@ -143,3 +154,13 @@ powershell -ExecutionPolicy Bypass -File scripts/start_febio_bridge.ps1
 
 - 構成や責務を変えたときは、必要に応じて `README.md` と `CODEBASE_STRUCTURE.md` も一緒に更新します。
 - 新しい要素を追加したときは、既存要素と矛盾がないか、古い説明や使われなくなったコード・UI・出力が残っていないかを確認します。
+## FEBio-first Notes
+
+- Main UI path: FEBio only
+- Main result requirement: `isPhysicalFebioResult = true`
+- Architecture note: [FEBIO_FRONTEND_ARCHITECTURE.md](/C:/Users/xiogo/projects/nuclear_simu/FEBIO_FRONTEND_ARCHITECTURE.md)
+- Test command:
+
+```powershell
+node --test tests\febio-front-end.test.mjs
+```

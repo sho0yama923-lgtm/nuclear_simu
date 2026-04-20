@@ -532,9 +532,13 @@ function nearestSnapshotFromTimeline(timeline, time) {
 }
 
 function buildResultFromLogs(sandbox, payload, runDir) {
-  const caseName = payload.inputSpec?.caseName || "A";
-  const params = payload.inputSpec?.params || payload.params || {};
+  const canonicalSpec = payload.canonicalSpec || payload.inputSpec || payload.exportBundle?.canonicalSpec || null;
+  const caseName = canonicalSpec?.caseName || payload.caseName || "A";
+  const params = canonicalSpec?.params || payload.params || {};
   const inputSpec = sandbox.buildSimulationInput(caseName, params);
+  if (canonicalSpec?.parameterDigest) {
+    inputSpec.parameterDigest = canonicalSpec.parameterDigest;
+  }
   const febioInputSpec = sandbox.buildFebioInputSpec(caseName, params, inputSpec);
   const templateData = febioInputSpec.febioTemplateData;
   const logs = buildSnapshotsByName(runDir, templateData.logOutputs || {});
@@ -607,6 +611,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
   const result = {
     caseName,
     params: sandbox.structuredClone(params),
+    parameterDigest: inputSpec.parameterDigest,
     schedule: inputSpec.schedule,
     history: buildHistoryFromSnapshots(
       sandbox,
@@ -642,6 +647,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     },
     captureEstablished: maxContactForce > 0.05,
     captureMaintained: maxContactForce > 0.05,
+    isPhysicalFebioResult: true,
     solverMetadata: sandbox.buildSolverMetadata("febio", {
       source: "febio-cli",
       note: "converted from FEBio logfile output",
@@ -651,6 +657,17 @@ function buildResultFromLogs(sandbox, payload, runDir) {
       runDirectory: runDir,
       inputJson: payload,
       outputMapping,
+    },
+    resultProvenance: {
+      source: "febio-cli",
+      parameterDigest: inputSpec.parameterDigest,
+      exportTimestamp: payload.exportBundle?.exportTimestamp || payload.generatedAt || null,
+      importTimestamp: new Date().toISOString(),
+      digestMatch: canonicalSpec?.parameterDigest ? canonicalSpec.parameterDigest === inputSpec.parameterDigest : null,
+      fileProvenance: {
+        runDirectory: runDir,
+        inputJsonPath: payload.files?.inputJson || null,
+      },
     },
   };
 
@@ -695,6 +712,11 @@ fs.writeFileSync(
   JSON.stringify(
     {
       normalizedResult,
+      isPhysicalFebioResult: true,
+      parameterDigest: normalizedResult.parameterDigest,
+      canonicalSpec: inputPayload.canonicalSpec || inputPayload.inputSpec || null,
+      exportTimestamp: inputPayload.exportBundle?.exportTimestamp || inputPayload.generatedAt || null,
+      importTimestamp: new Date().toISOString(),
       solverMetadata: normalizedResult.solverMetadata,
       outputMapping: normalizedResult.externalResult?.outputMapping || null,
       generatedAt: new Date().toISOString(),

@@ -21,7 +21,7 @@ function createFebioMeshBuilder(thickness) {
       return nodeLookup.get(key);
     }
     const id = nodes.length + 1;
-    nodes.push({ id, x, y, z });
+    nodes.push({ id, x, y, z, nodeGroup });
     nodeLookup.set(key, id);
     return id;
   }
@@ -346,6 +346,8 @@ function buildPipetteGeometry(builder, inputSpec, bounds) {
   return pipette;
 }
 
+// Legacy/fallback mesh builder kept only for debug comparison.
+// Main export path must use buildRefinedFebioGeometry().
 function buildCoarseFebioGeometry(inputSpec) {
   const thickness = Math.max(0.4, inputSpec.geometry.rp * 0.22);
   const bounds = {
@@ -380,6 +382,354 @@ function buildCoarseFebioGeometry(inputSpec) {
     bounds,
     ...builder.finalize(),
   };
+}
+
+function uniqueSortedCuts(values, minGap = 1e-4) {
+  return values
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right)
+    .filter((value, index, array) => index === 0 || Math.abs(value - array[index - 1]) > minGap);
+}
+
+function buildRefinedNucleusMesh(builder, inputSpec, bounds) {
+  const xCuts = uniqueSortedCuts([
+    bounds.nucleusLeft,
+    inputSpec.geometry.xn - inputSpec.geometry.Ln * 0.18,
+    inputSpec.geometry.xn,
+    inputSpec.geometry.xn + inputSpec.geometry.Ln * 0.18,
+    bounds.nucleusRight,
+  ]);
+  const zCuts = uniqueSortedCuts([
+    bounds.nucleusBottom,
+    inputSpec.geometry.yn - inputSpec.geometry.Hn * 0.18,
+    inputSpec.geometry.yn,
+    inputSpec.geometry.yn + inputSpec.geometry.Hn * 0.18,
+    bounds.nucleusTop,
+  ]);
+
+  const blocks = [];
+  for (let zi = 0; zi < zCuts.length - 1; zi += 1) {
+    for (let xi = 0; xi < xCuts.length - 1; xi += 1) {
+      const surfaceNames = {};
+      if (xi === 0) {
+        surfaceNames.xmin = ["nucleus_interface_surface", "nucleus_interface_left_surface"];
+      }
+      if (xi === xCuts.length - 2) {
+        surfaceNames.xmax = ["nucleus_interface_surface", "nucleus_interface_right_surface"];
+      }
+      if (zi === 0) {
+        surfaceNames.zmin = ["nucleus_interface_surface", "nucleus_interface_bottom_surface"];
+      }
+      if (zi === zCuts.length - 2) {
+        surfaceNames.zmax = ["nucleus_interface_surface", "nucleus_interface_top_surface", "nucleus_top_surface"];
+      }
+      const block = builder.addHexBlock("nucleus", xCuts[xi], xCuts[xi + 1], zCuts[zi], zCuts[zi + 1], {
+        material: "nucleus",
+        nodeGroup: "nucleus",
+        surfaceNames,
+      });
+      if (!block) {
+        continue;
+      }
+      blocks.push(block);
+      if (xi === 0) {
+        builder.addToNodeSet("nc_left_nucleus_nodes", block.faces.xmin);
+      }
+      if (xi === xCuts.length - 2) {
+        builder.addToNodeSet("nc_right_nucleus_nodes", block.faces.xmax);
+      }
+      if (zi === 0) {
+        builder.addToNodeSet("nc_bottom_nucleus_nodes", block.faces.zmin);
+      }
+      if (zi === zCuts.length - 2) {
+        builder.addToNodeSet("nc_top_nucleus_nodes", block.faces.zmax);
+      }
+    }
+  }
+  return blocks;
+}
+
+function buildRefinedCellMesh(builder, inputSpec, bounds) {
+  const xCuts = uniqueSortedCuts([
+    bounds.cellLeft,
+    bounds.nucleusLeft,
+    inputSpec.geometry.xn - inputSpec.geometry.Ln * 0.18,
+    inputSpec.geometry.xn,
+    inputSpec.geometry.xn + inputSpec.geometry.Ln * 0.18,
+    bounds.nucleusRight,
+    bounds.cellRight,
+  ]);
+  const zCuts = uniqueSortedCuts([
+    0,
+    bounds.nucleusBottom,
+    inputSpec.geometry.yn - inputSpec.geometry.Hn * 0.18,
+    inputSpec.geometry.yn,
+    inputSpec.geometry.yn + inputSpec.geometry.Hn * 0.18,
+    bounds.nucleusTop,
+    bounds.cellTop,
+  ]);
+
+  const nucleusHole = {
+    x0: bounds.nucleusLeft,
+    x1: bounds.nucleusRight,
+    z0: bounds.nucleusBottom,
+    z1: bounds.nucleusTop,
+  };
+
+  const blocks = [];
+  for (let zi = 0; zi < zCuts.length - 1; zi += 1) {
+    for (let xi = 0; xi < xCuts.length - 1; xi += 1) {
+      const x0 = xCuts[xi];
+      const x1 = xCuts[xi + 1];
+      const z0 = zCuts[zi];
+      const z1 = zCuts[zi + 1];
+      const insideNucleusHole =
+        x0 >= nucleusHole.x0 - 1e-6 &&
+        x1 <= nucleusHole.x1 + 1e-6 &&
+        z0 >= nucleusHole.z0 - 1e-6 &&
+        z1 <= nucleusHole.z1 + 1e-6;
+      if (insideNucleusHole) {
+        continue;
+      }
+
+      const surfaceNames = {};
+      if (Math.abs(z0) < 1e-6) {
+        const centerX = (x0 + x1) / 2;
+        const basalRegion =
+          centerX < inputSpec.geometry.xn - inputSpec.geometry.Ln * 0.12
+            ? "left"
+            : centerX > inputSpec.geometry.xn + inputSpec.geometry.Ln * 0.12
+              ? "right"
+              : "center";
+        surfaceNames.zmin = ["cell_dish_surface", `cell_dish_${basalRegion}_surface`];
+      }
+      if (Math.abs(z1 - bounds.cellTop) < 1e-6) {
+        surfaceNames.zmax = "cell_top_surface";
+      }
+      if (Math.abs(x1 - bounds.nucleusLeft) < 1e-6 && z0 < bounds.nucleusTop && z1 > bounds.nucleusBottom) {
+        surfaceNames.xmax = ["cytoplasm_interface_surface", "cytoplasm_interface_left_surface"];
+      }
+      if (Math.abs(x0 - bounds.nucleusRight) < 1e-6 && z0 < bounds.nucleusTop && z1 > bounds.nucleusBottom) {
+        surfaceNames.xmin = ["cytoplasm_interface_surface", "cytoplasm_interface_right_surface"];
+      }
+      if (Math.abs(z1 - bounds.nucleusBottom) < 1e-6 && x0 < bounds.nucleusRight && x1 > bounds.nucleusLeft) {
+        surfaceNames.zmax = [
+          ...(Array.isArray(surfaceNames.zmax) ? surfaceNames.zmax : surfaceNames.zmax ? [surfaceNames.zmax] : []),
+          "cytoplasm_interface_surface",
+          "cytoplasm_interface_bottom_surface",
+        ];
+      }
+      if (Math.abs(z0 - bounds.nucleusTop) < 1e-6 && x0 < bounds.nucleusRight && x1 > bounds.nucleusLeft) {
+        surfaceNames.zmin = [
+          ...(Array.isArray(surfaceNames.zmin) ? surfaceNames.zmin : surfaceNames.zmin ? [surfaceNames.zmin] : []),
+          "cytoplasm_interface_surface",
+          "cytoplasm_interface_top_surface",
+        ];
+      }
+
+      const block = builder.addHexBlock("cytoplasm", x0, x1, z0, z1, {
+        material: "cytoplasm",
+        nodeGroup: "cytoplasm",
+        surfaceNames,
+      });
+      if (!block) {
+        continue;
+      }
+      blocks.push(block);
+      if (Math.abs(z0) < 1e-6) {
+        builder.addToNodeSet("cell_base_nodes", block.nodeIds);
+        const centerX = (x0 + x1) / 2;
+        if (centerX < inputSpec.geometry.xn - inputSpec.geometry.Ln * 0.12) {
+          builder.addToNodeSet("cd_left_cell_nodes", block.faces.zmin);
+        } else if (centerX > inputSpec.geometry.xn + inputSpec.geometry.Ln * 0.12) {
+          builder.addToNodeSet("cd_right_cell_nodes", block.faces.zmin);
+        } else {
+          builder.addToNodeSet("cd_center_cell_nodes", block.faces.zmin);
+        }
+      }
+      if (Math.abs(x1 - bounds.nucleusLeft) < 1e-6 && z0 < bounds.nucleusTop && z1 > bounds.nucleusBottom) {
+        builder.addToNodeSet("nc_left_cytoplasm_nodes", block.faces.xmax);
+      }
+      if (Math.abs(x0 - bounds.nucleusRight) < 1e-6 && z0 < bounds.nucleusTop && z1 > bounds.nucleusBottom) {
+        builder.addToNodeSet("nc_right_cytoplasm_nodes", block.faces.xmin);
+      }
+      if (Math.abs(z1 - bounds.nucleusBottom) < 1e-6 && x0 < bounds.nucleusRight && x1 > bounds.nucleusLeft) {
+        builder.addToNodeSet("nc_bottom_cytoplasm_nodes", block.faces.zmax);
+      }
+      if (Math.abs(z0 - bounds.nucleusTop) < 1e-6 && x0 < bounds.nucleusRight && x1 > bounds.nucleusLeft) {
+        builder.addToNodeSet("nc_top_cytoplasm_nodes", block.faces.zmin);
+      }
+    }
+  }
+  return blocks;
+}
+
+function buildRefinedFebioGeometry(inputSpec) {
+  const thickness = Math.max(0.6, inputSpec.geometry.rp * 0.28);
+  const bounds = {
+    cellLeft: -inputSpec.geometry.Lc / 2,
+    cellRight: inputSpec.geometry.Lc / 2,
+    cellTop: inputSpec.geometry.Hc,
+    nucleusLeft: inputSpec.geometry.xn - inputSpec.geometry.Ln / 2,
+    nucleusRight: inputSpec.geometry.xn + inputSpec.geometry.Ln / 2,
+    nucleusBottom: inputSpec.geometry.yn - inputSpec.geometry.Hn / 2,
+    nucleusTop: inputSpec.geometry.yn + inputSpec.geometry.Hn / 2,
+    dishThickness: Math.max(1.8, inputSpec.geometry.Hc * 0.2),
+  };
+
+  bounds.nucleusBottom = clamp(bounds.nucleusBottom, 0.8, Math.max(bounds.cellTop - 1.2, 1));
+  bounds.nucleusTop = clamp(bounds.nucleusTop, bounds.nucleusBottom + 0.8, bounds.cellTop - 0.4);
+  bounds.nucleusLeft = clamp(bounds.nucleusLeft, bounds.cellLeft + 0.8, bounds.cellRight - 1.6);
+  bounds.nucleusRight = clamp(bounds.nucleusRight, bounds.nucleusLeft + 0.8, bounds.cellRight - 0.8);
+
+  const builder = createFebioMeshBuilder(thickness);
+  buildRefinedNucleusMesh(builder, inputSpec, bounds);
+  buildRefinedCellMesh(builder, inputSpec, bounds);
+  buildDishGeometry(builder, bounds);
+  buildPipetteGeometry(builder, inputSpec, bounds);
+  builder.addSurfacePair("nucleus_cytoplasm_pair", "cytoplasm_interface_surface", "nucleus_interface_surface");
+  builder.addSurfacePair("cell_dish_pair", "cell_dish_surface", "dish_top_surface");
+  builder.addSurfacePair("pipette_nucleus_pair", "nucleus_top_surface", "pipette_contact_surface");
+  builder.addSurfacePair("pipette_cell_pair", "cell_top_surface", "pipette_contact_surface");
+  return {
+    meshMode: "refined",
+    thickness,
+    bounds,
+    ...builder.finalize(),
+  };
+}
+
+function estimateHexVolume(nodesById, element) {
+  const points = element.nodes.map((id) => nodesById.get(id)).filter(Boolean);
+  if (points.length !== 8) {
+    return 0;
+  }
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const zs = points.map((point) => point.z);
+  return (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)) * (Math.max(...zs) - Math.min(...zs));
+}
+
+function buildElementAdjacency(elements) {
+  const nodeToElements = new Map();
+  elements.forEach((element) => {
+    element.nodes.forEach((nodeId) => {
+      if (!nodeToElements.has(nodeId)) {
+        nodeToElements.set(nodeId, []);
+      }
+      nodeToElements.get(nodeId).push(element.id);
+    });
+  });
+  const adjacency = new Map(elements.map((element) => [element.id, new Set()]));
+  nodeToElements.forEach((elementIds) => {
+    elementIds.forEach((leftId) => {
+      elementIds.forEach((rightId) => {
+        if (leftId !== rightId) {
+          adjacency.get(leftId)?.add(rightId);
+        }
+      });
+    });
+  });
+  return adjacency;
+}
+
+function validateFebioMesh(mesh) {
+  const report = {
+    valid: true,
+    invalidElements: [],
+    zeroOrNegativeVolume: [],
+    duplicatedNodes: [],
+    overlappingNodesAcrossBodies: [],
+    disconnectedRegions: [],
+    aspectRatioWarnings: [],
+    warnings: [],
+  };
+
+  const nodesById = new Map(mesh.nodes.map((node) => [node.id, node]));
+  const coordinateKeys = new Map();
+  mesh.nodes.forEach((node) => {
+    const key = `${node.x.toFixed(6)}|${node.y.toFixed(6)}|${node.z.toFixed(6)}`;
+    if (coordinateKeys.has(key)) {
+      const existingId = coordinateKeys.get(key);
+      const existingNode = nodesById.get(existingId);
+      if ((existingNode?.nodeGroup || "global") === (node.nodeGroup || "global")) {
+        report.duplicatedNodes.push([existingId, node.id]);
+      } else {
+        report.overlappingNodesAcrossBodies.push({
+          ids: [existingId, node.id],
+          groups: [existingNode?.nodeGroup || "global", node.nodeGroup || "global"],
+        });
+      }
+    } else {
+      coordinateKeys.set(key, node.id);
+    }
+  });
+
+  mesh.elements.forEach((element) => {
+    if (element.type !== "hex8" || element.nodes.length !== 8) {
+      report.invalidElements.push(element.id);
+      return;
+    }
+    const volume = estimateHexVolume(nodesById, element);
+    if (!(volume > 0)) {
+      report.zeroOrNegativeVolume.push(element.id);
+    }
+    const points = element.nodes.map((id) => nodesById.get(id)).filter(Boolean);
+    if (points.length === 8) {
+      const spans = [
+        Math.max(...points.map((point) => point.x)) - Math.min(...points.map((point) => point.x)),
+        Math.max(...points.map((point) => point.y)) - Math.min(...points.map((point) => point.y)),
+        Math.max(...points.map((point) => point.z)) - Math.min(...points.map((point) => point.z)),
+      ].filter((span) => span > 1e-6);
+      if (spans.length) {
+        const ratio = Math.max(...spans) / Math.min(...spans);
+        if (ratio > 12) {
+          report.aspectRatioWarnings.push({ elementId: element.id, aspectRatio: ratio });
+        }
+      }
+    }
+  });
+
+  const adjacency = buildElementAdjacency(mesh.elements);
+  Object.entries(mesh.elementSets).forEach(([name, ids]) => {
+    if (!ids.length) {
+      return;
+    }
+    const visited = new Set();
+    const queue = [ids[0]];
+    while (queue.length) {
+      const current = queue.shift();
+      if (visited.has(current)) {
+        continue;
+      }
+      visited.add(current);
+      (adjacency.get(current) || []).forEach((neighbor) => {
+        if (ids.includes(neighbor) && !visited.has(neighbor)) {
+          queue.push(neighbor);
+        }
+      });
+    }
+    if (visited.size !== ids.length) {
+      report.disconnectedRegions.push({
+        elementSet: name,
+        connectedCount: visited.size,
+        expectedCount: ids.length,
+      });
+    }
+  });
+
+  report.valid =
+    !report.invalidElements.length &&
+    !report.zeroOrNegativeVolume.length &&
+    !report.duplicatedNodes.length &&
+    !report.disconnectedRegions.length;
+  if (report.overlappingNodesAcrossBodies.length) {
+    report.warnings.push("overlapping interface nodes detected across independent bodies");
+  }
+  if (report.aspectRatioWarnings.length) {
+    report.warnings.push("high aspect ratio elements detected");
+  }
+  return report;
 }
 
 function buildFebioLogOutputs(mesh, templateData) {
@@ -429,7 +779,225 @@ function buildFebioLogOutputs(mesh, templateData) {
         surface: "pipette_contact_surface",
         delimiter: ",",
       },
+      {
+        type: "face_data",
+        name: "nucleus_cytoplasm_interface_surface",
+        file: "febio_interface_nucleus_cytoplasm.csv",
+        data: "contact gap;contact pressure",
+        surface: "nucleus_interface_surface",
+        delimiter: ",",
+      },
+      {
+        type: "face_data",
+        name: "cell_dish_interface_surface",
+        file: "febio_interface_cell_dish.csv",
+        data: "contact gap;contact pressure",
+        surface: "cell_dish_surface",
+        delimiter: ",",
+      },
     ],
+  };
+}
+
+function buildMembraneModelSpec(inputSpec) {
+  const membraneModel = inputSpec.membraneModel || "cortex_proxy";
+  if (membraneModel === "shell_membrane_placeholder") {
+    return {
+      type: "shell_membrane_placeholder",
+      status: "partial-shell-placeholder",
+      notes: [
+        "shell membrane topology is not exported as dedicated shell elements yet",
+        "thresholds and tension are preserved for a later shell serializer",
+      ],
+      tension: inputSpec.membrane.Tm,
+      thresholds: {
+        global: inputSpec.membrane.sig_m_crit,
+        top_neck: inputSpec.membrane.sig_m_crit_top,
+        side: inputSpec.membrane.sig_m_crit_side,
+        basal: inputSpec.membrane.sig_m_crit_basal,
+      },
+    };
+  }
+  return {
+    type: "cortex_proxy",
+    status: "implemented-proxy",
+    notes: ["membrane remains a cortex proxy in the FEBio path"],
+    tension: inputSpec.membrane.Tm,
+    thresholds: {
+      global: inputSpec.membrane.sig_m_crit,
+      top_neck: inputSpec.membrane.sig_m_crit_top,
+      side: inputSpec.membrane.sig_m_crit_side,
+      basal: inputSpec.membrane.sig_m_crit_basal,
+    },
+  };
+}
+
+function deriveRelaxationTime(elasticModulus, viscosity) {
+  return Math.max(Number(viscosity || 0) / Math.max(Number(elasticModulus || 0), 1e-6), 1e-4);
+}
+
+function deriveRelaxationStrength(elasticModulus, viscosity) {
+  const ratio = Number(viscosity || 0) / Math.max(Number(elasticModulus || 0), 1e-6);
+  return clamp(ratio / (1 + ratio), 0.05, 0.45);
+}
+
+function buildViscoelasticMaterialSpec(name, domain, elastic, viscous, optionalNonlinear = null) {
+  const eta = Number(viscous?.eta || 0);
+  const hasViscoelasticBranch = eta > 0;
+  return {
+    name,
+    domain,
+    status: hasViscoelasticBranch
+      ? "implemented-single-branch-viscoelastic / planned-nonlinear"
+      : "implemented-elastic / planned-viscoelastic",
+    type: hasViscoelasticBranch ? "viscoelastic" : "neo-Hookean",
+    febioMaterialType: hasViscoelasticBranch ? "viscoelastic" : "neo-Hookean",
+    elastic: {
+      model: "neo-Hookean",
+      E: elastic.E,
+      v: elastic.v,
+    },
+    viscous: {
+      eta,
+      implemented: hasViscoelasticBranch,
+      febioType: hasViscoelasticBranch ? "single-branch relaxation" : "none",
+      relaxationTime: hasViscoelasticBranch ? deriveRelaxationTime(elastic.E, eta) : null,
+      relaxationStrength: hasViscoelasticBranch ? deriveRelaxationStrength(elastic.E, eta) : null,
+    },
+    optionalNonlinear: {
+      alpha: Number(optionalNonlinear?.alpha || 0),
+      status: Number(optionalNonlinear?.alpha || 0) > 0 ? "planned-not-serialized" : "not-requested",
+    },
+  };
+}
+
+function buildCohesiveApproximation(interfaceSpec, fallbackScale) {
+  const normalStiffness = Number(interfaceSpec.normalStiffness || 0);
+  const tangentialStiffness = Number(interfaceSpec.tangentialStiffness || 0);
+  const criticalNormalStress = Number(interfaceSpec.criticalNormalStress || 0);
+  const criticalShearStress = Number(interfaceSpec.criticalShearStress || 0);
+  const fractureEnergy = Number(interfaceSpec.fractureEnergy || 0);
+  return {
+    type: "sticky",
+    mode: "cohesive-approximation",
+    status: "partial-cohesive-approximation",
+    penalty: Math.max(normalStiffness * fallbackScale, 0.05),
+    tangentialPenalty: Math.max(tangentialStiffness * fallbackScale, 0.05),
+    maxTraction: Math.max(criticalNormalStress, 0.05),
+    tangentialLimit: Math.max(criticalShearStress, 0.01),
+    snapTolerance: clamp(fractureEnergy / Math.max(criticalNormalStress, 0.05), 0.02, 0.5),
+    searchTolerance: Number(interfaceSpec.tolerance || 0.05),
+    frictionProxy: clamp(criticalShearStress / Math.max(criticalNormalStress, 1e-6), 0, 2),
+    notes: [
+      "serialized as a sticky-contact cohesive approximation",
+      "normal/tangential stiffness and traction limits are preserved for later true cohesive serialization",
+    ],
+  };
+}
+
+function buildNodeLookup(mesh) {
+  return new Map(mesh.nodes.map((node) => [node.id, node]));
+}
+
+function pairNodeSetsByCoordinate(mesh, primarySetName, secondarySetName) {
+  const nodeLookup = buildNodeLookup(mesh);
+  const primaryIds = mesh.nodeSets[primarySetName] || [];
+  const secondaryIds = mesh.nodeSets[secondarySetName] || [];
+  const secondaryByCoord = new Map();
+  secondaryIds.forEach((id) => {
+    const node = nodeLookup.get(id);
+    if (!node) {
+      return;
+    }
+    const key = `${node.x.toFixed(6)}|${node.y.toFixed(6)}|${node.z.toFixed(6)}`;
+    if (!secondaryByCoord.has(key)) {
+      secondaryByCoord.set(key, []);
+    }
+    secondaryByCoord.get(key).push(id);
+  });
+  const pairs = [];
+  primaryIds.forEach((id) => {
+    const node = nodeLookup.get(id);
+    if (!node) {
+      return;
+    }
+    const key = `${node.x.toFixed(6)}|${node.y.toFixed(6)}|${node.z.toFixed(6)}`;
+    const secondaryMatches = secondaryByCoord.get(key);
+    if (!secondaryMatches?.length) {
+      return;
+    }
+    const partnerId = secondaryMatches.shift();
+    pairs.push([id, partnerId]);
+  });
+  return pairs;
+}
+
+function buildCohesiveLawPoints(spec, areaScale = 1) {
+  const kn = Number(spec.normalStiffness || 0);
+  const sig = Math.max(Number(spec.criticalNormalStress || 0), 1e-6);
+  const gc = Math.max(Number(spec.fractureEnergy || 0), 1e-6);
+  const delta0 = Math.max(sig / Math.max(kn, 1e-6), 1e-4);
+  const deltaF = Math.max(delta0 + (2 * gc) / sig, delta0 * 2.5);
+  const peakForce = sig * areaScale;
+  return [
+    [0, 0],
+    [delta0, peakForce],
+    [deltaF, 0],
+    [deltaF * 1.05, 0],
+  ];
+}
+
+function buildDiscreteCohesiveInterface(mesh, name, spec, regionPairs, idBase = {}) {
+  const sets = [];
+  const materials = [];
+  const loadControllers = [];
+  let nextMaterialId = idBase.materialIdStart || 200;
+  let nextLoadControllerId = idBase.loadControllerIdStart || 300;
+  let nextDiscreteId = idBase.discreteIdStart || 1;
+
+  regionPairs.forEach((regionPair) => {
+    const pairs = pairNodeSetsByCoordinate(mesh, regionPair.primaryNodeSet, regionPair.secondaryNodeSet);
+    if (!pairs.length) {
+      return;
+    }
+    const setName = `${name}_${regionPair.region}_springs`;
+    const discreteElements = pairs.map((pair) => ({
+      id: nextDiscreteId++,
+      nodes: pair,
+    }));
+    const areaScale = Math.max(regionPair.areaScale || 1 / pairs.length, 1e-4);
+    const loadCurveId = nextLoadControllerId++;
+    loadControllers.push({
+      id: loadCurveId,
+      type: "loadcurve",
+      interpolate: "LINEAR",
+      extend: "CONSTANT",
+      points: buildCohesiveLawPoints(spec, areaScale),
+    });
+    materials.push({
+      id: nextMaterialId++,
+      name: `${setName}_material`,
+      type: "nonlinear spring",
+      measure: "elongation",
+      scale: 1,
+      forceLoadCurveId: loadCurveId,
+      region: regionPair.region,
+      status: "implemented-sidecar",
+    });
+    sets.push({
+      name: setName,
+      region: regionPair.region,
+      elements: discreteElements,
+      materialName: `${setName}_material`,
+    });
+  });
+
+  return {
+    type: "discrete-cohesive-springs",
+    status: sets.length ? "implemented-sidecar / not solver-primary" : "planned-no-node-pairs",
+    sets,
+    materials,
+    loadControllers,
   };
 }
 
@@ -444,7 +1012,9 @@ function buildFebioLogOutputs(mesh, templateData) {
 // TODO: add solver comparison mode once FEBio produces real outputs
 function buildFebioTemplateData(inputSpec) {
   const schedule = inputSpec.schedule;
-  const mesh = buildCoarseFebioGeometry(inputSpec);
+  const mesh = buildRefinedFebioGeometry(inputSpec);
+  const meshValidation = validateFebioMesh(mesh);
+  const membraneModel = buildMembraneModelSpec(inputSpec);
   const febioTargets = buildFebioRigidTargets(inputSpec);
   const initialTarget = febioTargets.initialTarget;
   const initialPipetteCenter = [
@@ -497,8 +1067,54 @@ function buildFebioTemplateData(inputSpec) {
       },
     };
   });
+  const discreteCohesive = {
+    nucleusCytoplasm: buildDiscreteCohesiveInterface(
+      mesh,
+      "nucleus_cytoplasm",
+      {
+        normalStiffness: inputSpec.interfaces.Kn_nc,
+        criticalNormalStress: inputSpec.interfaces.sig_nc_crit,
+        fractureEnergy: inputSpec.interfaces.Gc_nc,
+      },
+      [
+        { region: "left", primaryNodeSet: "nc_left_nucleus_nodes", secondaryNodeSet: "nc_left_cytoplasm_nodes" },
+        { region: "right", primaryNodeSet: "nc_right_nucleus_nodes", secondaryNodeSet: "nc_right_cytoplasm_nodes" },
+        { region: "top", primaryNodeSet: "nc_top_nucleus_nodes", secondaryNodeSet: "nc_top_cytoplasm_nodes" },
+        { region: "bottom", primaryNodeSet: "nc_bottom_nucleus_nodes", secondaryNodeSet: "nc_bottom_cytoplasm_nodes" },
+      ],
+      { materialIdStart: 200, loadControllerIdStart: 300, discreteIdStart: 1 },
+    ),
+    cellDish: buildDiscreteCohesiveInterface(
+      mesh,
+      "cell_dish",
+      {
+        normalStiffness: inputSpec.interfaces.Kn_cd,
+        criticalNormalStress: inputSpec.interfaces.sig_cd_crit,
+        fractureEnergy: inputSpec.interfaces.Gc_cd,
+      },
+      [
+        { region: "left", primaryNodeSet: "cd_left_cell_nodes", secondaryNodeSet: "dish_fixed_nodes" },
+        { region: "center", primaryNodeSet: "cd_center_cell_nodes", secondaryNodeSet: "dish_fixed_nodes" },
+        { region: "right", primaryNodeSet: "cd_right_cell_nodes", secondaryNodeSet: "dish_fixed_nodes" },
+      ],
+      { materialIdStart: 400, loadControllerIdStart: 500, discreteIdStart: 1001 },
+    ),
+  };
 
   const templateData = {
+    status: {
+      buildMode: mesh.meshMode || "refined",
+      isPlaceholder: false,
+      meshValidated: meshValidation.valid,
+      membraneModel: membraneModel.type,
+      notes: [
+        ...membraneModel.notes,
+        "nucleus/cytoplasm viscoelastic terms are serialized as a single-branch FEBio viscoelastic approximation",
+        "interface fracture parameters are exported through a cohesive-ready sticky approximation until true cohesive XML is introduced",
+        "discrete cohesive spring sidecar sets are exported for future solver-primary cohesive activation",
+      ],
+    },
+    parameterDigest: inputSpec.parameterDigest,
     coordinateSystem: structuredClone(inputSpec.coordinates || COORDINATE_SYSTEM_SPEC),
     geometry: {
       mesh: {
@@ -509,6 +1125,7 @@ function buildFebioTemplateData(inputSpec) {
         elementSets: mesh.elementSets,
         surfacePairs: mesh.surfacePairs,
       },
+      meshValidation,
       nucleus: {
         shape: "ellipse",
         width: inputSpec.geometry.Ln,
@@ -523,12 +1140,9 @@ function buildFebioTemplateData(inputSpec) {
       },
       membrane: {
         attachment: "cytoplasm_outer_surface",
-        thresholds: {
-          global: inputSpec.membrane.sig_m_crit,
-          top_neck: inputSpec.membrane.sig_m_crit_top,
-          side: inputSpec.membrane.sig_m_crit_side,
-          basal: inputSpec.membrane.sig_m_crit_basal,
-        },
+        model: membraneModel.type,
+        status: membraneModel.status,
+        thresholds: structuredClone(membraneModel.thresholds),
       },
       dish: {
         type: "rigid_plane",
@@ -543,32 +1157,60 @@ function buildFebioTemplateData(inputSpec) {
     materials: {
       nucleus: {
         id: 1,
-        name: "nucleus",
-        type: "neo-Hookean",
-        domain: "nucleus",
-        E: inputSpec.material.En,
-        v: inputSpec.material.nun,
-        eta: inputSpec.material.etan,
-        alphaNonlinear: inputSpec.material.alpha_nonlinear,
+        ...buildViscoelasticMaterialSpec(
+          "nucleus",
+          "nucleus",
+          {
+          E: inputSpec.material.En,
+          v: inputSpec.material.nun,
+          },
+          { eta: inputSpec.material.etan },
+          { alpha: inputSpec.material.alpha_nonlinear },
+        ),
       },
       cytoplasm: {
         id: 2,
-        name: "cytoplasm",
-        type: "neo-Hookean",
-        domain: "cytoplasm",
-        E: inputSpec.material.Ec,
-        v: inputSpec.material.nuc,
-        eta: inputSpec.material.etac,
+        ...buildViscoelasticMaterialSpec(
+          "cytoplasm",
+          "cytoplasm",
+          {
+          E: inputSpec.material.Ec,
+          v: inputSpec.material.nuc,
+          },
+          { eta: inputSpec.material.etac },
+        ),
       },
-      membrane: { id: 3, name: "membrane", type: "membrane-placeholder", domain: null, tension: inputSpec.membrane.Tm },
-      dish: { id: 4, name: "dish", type: "neo-Hookean", domain: "dish", E: Math.max(inputSpec.material.Ec * 40, 250), v: 0.3 },
+      membrane: {
+        id: 3,
+        name: "membrane",
+        type: membraneModel.type,
+        domain: null,
+        status: membraneModel.status,
+        tension: membraneModel.tension,
+        thresholds: structuredClone(membraneModel.thresholds),
+        notes: [...membraneModel.notes],
+      },
+      dish: {
+        id: 4,
+        name: "dish",
+        type: "neo-Hookean",
+        domain: "dish",
+        status: "implemented",
+        elastic: {
+          E: Math.max(inputSpec.material.Ec * 40, 250),
+          v: 0.3,
+        },
+      },
       pipette: {
         id: 5,
         name: "pipette_rigid",
         type: "rigid body",
         domain: "pipette",
-        E: Math.max(inputSpec.material.En * 60, 600),
-        v: 0.25,
+        status: "implemented-rigid",
+        elastic: {
+          E: Math.max(inputSpec.material.En * 60, 600),
+          v: 0.25,
+        },
         density: 1,
         center_of_mass: initialPipetteCenter,
         isRigid: true,
@@ -577,30 +1219,64 @@ function buildFebioTemplateData(inputSpec) {
     interfaces: {
       nucleusCytoplasm: {
         type: "tied-elastic",
+        status: "partial-cohesive-ready / tied-elastic-active",
         surfacePair: mesh.surfacePairs.nucleus_cytoplasm_pair,
-        Kn: Math.max(inputSpec.interfaces.Kn_nc * 0.18, 0.08),
-        Kt: Math.max(inputSpec.interfaces.Kt_nc * 0.18, 0.06),
-        sigCrit: inputSpec.interfaces.sig_nc_crit,
-        tauCrit: inputSpec.interfaces.tau_nc_crit,
-        gc: inputSpec.interfaces.Gc_nc,
+        normalStiffness: inputSpec.interfaces.Kn_nc,
+        tangentialStiffness: inputSpec.interfaces.Kt_nc,
+        criticalNormalStress: inputSpec.interfaces.sig_nc_crit,
+        criticalShearStress: inputSpec.interfaces.tau_nc_crit,
+        fractureEnergy: inputSpec.interfaces.Gc_nc,
+        penalty: {
+          Kn: Math.max(inputSpec.interfaces.Kn_nc * 0.18, 0.08),
+          Kt: Math.max(inputSpec.interfaces.Kt_nc * 0.18, 0.06),
+        },
         tolerance: 0.05,
+        cohesiveApproximation: buildCohesiveApproximation(
+          {
+            normalStiffness: inputSpec.interfaces.Kn_nc,
+            tangentialStiffness: inputSpec.interfaces.Kt_nc,
+            criticalNormalStress: inputSpec.interfaces.sig_nc_crit,
+            criticalShearStress: inputSpec.interfaces.tau_nc_crit,
+            fractureEnergy: inputSpec.interfaces.Gc_nc,
+            tolerance: 0.05,
+          },
+          0.18,
+        ),
       },
       cellDish: {
         type: "tied-elastic",
+        status: "partial-cohesive-ready / tied-elastic-active",
         surfacePair: mesh.surfacePairs.cell_dish_pair,
-        Kn: Math.max(inputSpec.interfaces.Kn_cd * 0.12, 0.12),
-        Kt: Math.max(inputSpec.interfaces.Kt_cd * 0.12, 0.08),
-        sigCrit: inputSpec.interfaces.sig_cd_crit,
-        tauCrit: inputSpec.interfaces.tau_cd_crit,
-        gc: inputSpec.interfaces.Gc_cd,
+        normalStiffness: inputSpec.interfaces.Kn_cd,
+        tangentialStiffness: inputSpec.interfaces.Kt_cd,
+        criticalNormalStress: inputSpec.interfaces.sig_cd_crit,
+        criticalShearStress: inputSpec.interfaces.tau_cd_crit,
+        fractureEnergy: inputSpec.interfaces.Gc_cd,
+        penalty: {
+          Kn: Math.max(inputSpec.interfaces.Kn_cd * 0.12, 0.12),
+          Kt: Math.max(inputSpec.interfaces.Kt_cd * 0.12, 0.08),
+        },
         adhesionPattern: inputSpec.adhesionPattern,
         adhesionSeed: inputSpec.adhesionSeed,
         tolerance: 0.05,
+        cohesiveApproximation: buildCohesiveApproximation(
+          {
+            normalStiffness: inputSpec.interfaces.Kn_cd,
+            tangentialStiffness: inputSpec.interfaces.Kt_cd,
+            criticalNormalStress: inputSpec.interfaces.sig_cd_crit,
+            criticalShearStress: inputSpec.interfaces.tau_cd_crit,
+            fractureEnergy: inputSpec.interfaces.Gc_cd,
+            tolerance: 0.05,
+          },
+          0.12,
+        ),
       },
     },
+    discreteCohesive,
     contact: {
       pipetteNucleus: {
         type: "sticky",
+        status: "partial-releaseable-hold",
         mode: "capture-hold",
         tolerance: 0.2,
         searchTolerance: inputSpec.operation.contact_tol,
@@ -612,9 +1288,16 @@ function buildFebioTemplateData(inputSpec) {
         friction: Math.max(inputSpec.operation.mu_p, 0),
         maxTraction: Math.max(inputSpec.operation.Fhold * 0.08, 0.3),
         snapTolerance: clamp(inputSpec.geometry.rp * 0.06, 0.08, 0.45),
+        releaseCondition: {
+          type: "traction-or-slip-threshold",
+          tractionLimit: Math.max(inputSpec.operation.Fhold * 0.08, 0.3),
+          slipDistance: clamp(inputSpec.geometry.rp * 0.08, 0.1, 0.6),
+          note: "modeled with sticky release approximation until a dedicated hold-release law is available",
+        },
       },
       pipetteCell: {
         type: "sliding-elastic",
+        status: "implemented-secondary-contact",
         mode: "secondary-contact-proxy",
         tolerance: 0.2,
         searchTolerance: inputSpec.operation.contact_tol * 1.2,
@@ -639,12 +1322,19 @@ function buildFebioTemplateData(inputSpec) {
       },
     },
     steps: stepSequence,
+    boundaryConditions: [
+      { name: "fix_dish", target: "dish_fixed_nodes", type: "zero displacement", dofs: ["x", "y", "z"] },
+      { name: "support_cell_base_z", target: "cell_base_nodes", type: "zero displacement", dofs: ["z"] },
+      { name: "section_plane_lock", target: "deformable_nodes_set", type: "zero displacement", dofs: ["y"] },
+    ],
     outputRequests: [
-      { field: "displacement", target: "nodes" },
-      { field: "interface damage", target: "cohesive surfaces" },
-      { field: "interface traction", target: "cohesive surfaces" },
-      { field: "contact force", target: "pipette contact" },
-      { field: "membrane stress proxy", target: "membrane regions" },
+      { field: "displacement", target: "nodes", status: "implemented", source: "plotfile+node_log" },
+      { field: "interface damage", target: "interfaces", status: "planned-cohesive", source: "not yet emitted by current serializer" },
+      { field: "interface traction", target: "interfaces", status: "partial-face-pressure-proxy", source: "face_data contact pressure proxy" },
+      { field: "contact force", target: "pipette contact", status: "implemented", source: "rigid_body_data+face_data" },
+      { field: "contact state", target: "pipette-nucleus", status: "partial-proxy", source: "sticky contact pressure/gap proxy" },
+      { field: "reaction force", target: "nodes", status: "implemented", source: "node_log" },
+      { field: "membrane stress proxy", target: "membrane regions", status: membraneModel.type === "cortex_proxy" ? "implemented-proxy" : "planned-shell", source: membraneModel.type === "cortex_proxy" ? "post-process proxy" : "planned shell output" },
     ],
   };
   // TODO: buildFebioTemplateData から .feb XML を生成
@@ -714,18 +1404,32 @@ function formatVector(values) {
 }
 
 function serializeMaterialXml(material) {
+  if (material.febioMaterialType === "viscoelastic") {
+    // FEBio material choice: viscoelastic wrapper with a neo-Hookean elastic base
+    // and a single relaxation branch derived from the UI viscosity parameter.
+    return `    <material id="${material.id}" name="${escapeXml(material.name)}" type="viscoelastic">
+      <elastic type="neo-Hookean">
+        <E>${Number(material.elastic?.E || 0).toFixed(6)}</E>
+        <v>${Number(material.elastic?.v || 0.3).toFixed(6)}</v>
+      </elastic>
+      <g1>${Number(material.viscous?.relaxationStrength || 0).toFixed(6)}</g1>
+      <t1>${Number(material.viscous?.relaxationTime || 0).toFixed(6)}</t1>
+      <!-- viscosity eta=${Number(material.viscous?.eta || 0).toFixed(6)} -->
+      <!-- optionalNonlinear alpha=${Number(material.optionalNonlinear?.alpha || 0).toFixed(6)} status=${escapeXml(material.optionalNonlinear?.status || "n/a")} -->
+    </material>`;
+  }
   if (material.type === "rigid body") {
     const centerOfMass = material.center_of_mass || [0, 0, 0];
     return `    <material id="${material.id}" name="${escapeXml(material.name)}" type="rigid body">
       <density>${Number(material.density || 1).toFixed(6)}</density>
       <center_of_mass>${formatVector(centerOfMass)}</center_of_mass>
-      <E>${Number(material.E || 0).toFixed(6)}</E>
-      <v>${Number(material.v || 0.3).toFixed(6)}</v>
+      <E>${Number(material.elastic?.E || 0).toFixed(6)}</E>
+      <v>${Number(material.elastic?.v || 0.3).toFixed(6)}</v>
     </material>`;
   }
   return `    <material id="${material.id}" name="${escapeXml(material.name)}" type="${escapeXml(material.type)}">
-      <E>${Number(material.E || 0).toFixed(6)}</E>
-      <v>${Number(material.v || 0.3).toFixed(6)}</v>
+      <E>${Number(material.elastic?.E || 0).toFixed(6)}</E>
+      <v>${Number(material.elastic?.v || 0.3).toFixed(6)}</v>
     </material>`;
 }
 
@@ -740,10 +1444,14 @@ ${facets
     </Surface>`;
 }
 
-function serializeTiedContactXml(name, spec) {
-  return `    <contact name="${escapeXml(name)}" type="${escapeXml(spec.type)}" surface_pair="${escapeXml(spec.surfacePair.name)}">
-      <penalty>${Number(spec.Kn || 1).toFixed(6)}</penalty>
-      <tolerance>${Number(spec.tolerance || 0.2).toFixed(6)}</tolerance>
+function serializeCohesiveReadyInterfaceXml(name, spec) {
+  const approx = spec.cohesiveApproximation || {};
+  return `    <contact name="${escapeXml(name)}" type="tied-elastic" surface_pair="${escapeXml(spec.surfacePair.name)}">
+      <penalty>${Number(spec.penalty?.Kn || spec.normalStiffness || 1).toFixed(6)}</penalty>
+      <tolerance>${Number(spec.tolerance || approx.searchTolerance || 0.2).toFixed(6)}</tolerance>
+      <!-- cohesive-ready normalStiffness=${Number(spec.normalStiffness || 0).toFixed(6)} tangentialStiffness=${Number(spec.tangentialStiffness || 0).toFixed(6)} -->
+      <!-- cohesive-ready criticalNormalStress=${Number(spec.criticalNormalStress || 0).toFixed(6)} criticalShearStress=${Number(spec.criticalShearStress || 0).toFixed(6)} fractureEnergy=${Number(spec.fractureEnergy || 0).toFixed(6)} -->
+      <!-- cohesive-ready mappedPenaltyN=${Number(approx.penalty || spec.penalty?.Kn || 0).toFixed(6)} mappedPenaltyT=${Number(approx.tangentialPenalty || spec.penalty?.Kt || 0).toFixed(6)} mappedMaxTraction=${Number(approx.maxTraction || 0).toFixed(6)} mappedSnapTol=${Number(approx.snapTolerance || 0).toFixed(6)} status=${escapeXml(spec.status || "n/a")} -->
     </contact>`;
 }
 
@@ -771,6 +1479,7 @@ function serializeStickyContactXml(name, spec) {
       <search_tolerance>${Number(spec.searchTolerance || 0.01).toFixed(6)}</search_tolerance>
       <max_traction>${Number(spec.maxTraction || 0).toFixed(6)}</max_traction>
       <snap_tol>${Number(spec.snapTolerance || 0.1).toFixed(6)}</snap_tol>
+      <!-- releaseable-hold friction=${Number(spec.friction || 0).toFixed(6)} releaseTraction=${Number(spec.releaseCondition?.tractionLimit || spec.maxTraction || 0).toFixed(6)} slipDistance=${Number(spec.releaseCondition?.slipDistance || 0).toFixed(6)} status=${escapeXml(spec.status || "n/a")} -->
     </contact>`;
 }
 
@@ -805,11 +1514,39 @@ function serializeLogfileSection(logOutputs = {}, materialIdMap = new Map()) {
         return `      <rigid_body_data name="${escapeXml(spec.name)}" file="${escapeXml(spec.file)}" data="${escapeXml(spec.data)}" delim="${escapeXml(spec.delimiter || ",")}">${remappedIds.join(",")}</rigid_body_data>`;
       },
     ),
+    ...(logOutputs.faceData || []).map(
+      (spec) =>
+        `      <face_data name="${escapeXml(spec.name)}" file="${escapeXml(spec.file)}" data="${escapeXml(spec.data)}" delim="${escapeXml(spec.delimiter || ",")}" surface="${escapeXml(spec.surface)}" />`,
+    ),
   ];
   if (!entries.length) {
     return "";
   }
   return `    <logfile>\n${entries.join("\n")}\n    </logfile>`;
+}
+
+function serializeDiscreteSetXml(discreteSet) {
+  return `    <DiscreteSet name="${escapeXml(discreteSet.name)}">
+${discreteSet.elements.map((element) => `      <delem id="${element.id}">${element.nodes.join(",")}</delem>`).join("\n")}
+    </DiscreteSet>`;
+}
+
+function serializeDiscreteMaterialXml(material) {
+  return `    <discrete_material id="${material.id}" name="${escapeXml(material.name)}" type="nonlinear spring">
+      <scale>${Number(material.scale || 1).toFixed(6)}</scale>
+      <measure>${escapeXml(material.measure || "elongation")}</measure>
+      <force lc="${material.forceLoadCurveId}">1.0</force>
+    </discrete_material>`;
+}
+
+function serializeLoadControllerXml(controller) {
+  return `    <load_controller id="${controller.id}" type="${escapeXml(controller.type || "loadcurve")}">
+      <interpolate>${escapeXml(controller.interpolate || "LINEAR")}</interpolate>
+      <extend>${escapeXml(controller.extend || "CONSTANT")}</extend>
+      <points>
+${controller.points.map((point) => `        <point>${Number(point[0]).toFixed(6)}, ${Number(point[1]).toFixed(6)}</point>`).join("\n")}
+      </points>
+    </load_controller>`;
 }
 
 function serializeFebioTemplateToXml(templateData) {
@@ -839,6 +1576,11 @@ ${partElements
   const nodeSetsXml = Object.entries(mesh.nodeSets).map(
     ([name, ids]) => `    <NodeSet name="${escapeXml(name)}">${ids.join(",")}</NodeSet>`,
   );
+  const discreteSets = [
+    ...(templateData.discreteCohesive?.nucleusCytoplasm?.sets || []),
+    ...(templateData.discreteCohesive?.cellDish?.sets || []),
+  ];
+  const discreteSetsXml = discreteSets.map((set) => serializeDiscreteSetXml(set));
   const surfacePairsXml = Object.values(mesh.surfacePairs).map(
     (pair) => `    <SurfacePair name="${escapeXml(pair.name)}">
       <primary>${escapeXml(pair.primary)}</primary>
@@ -852,8 +1594,8 @@ ${partElements
     )
     .join("\n");
   const contactXml = [
-    serializeTiedContactXml("nucleus_cytoplasm_interface", templateData.interfaces.nucleusCytoplasm),
-    serializeTiedContactXml("cell_dish_interface", templateData.interfaces.cellDish),
+    serializeCohesiveReadyInterfaceXml("nucleus_cytoplasm_interface", templateData.interfaces.nucleusCytoplasm),
+    serializeCohesiveReadyInterfaceXml("cell_dish_interface", templateData.interfaces.cellDish),
     templateData.contact.pipetteNucleus.type === "sticky"
       ? serializeStickyContactXml("pipette_nucleus_contact", templateData.contact.pipetteNucleus)
       : serializeSlidingContactXml("pipette_nucleus_contact", templateData.contact.pipetteNucleus),
@@ -881,6 +1623,35 @@ ${serializeRigidDisplacementXml(templateData.rigid.pipette.materialName, "z", st
     })
     .join("\n");
   const logfileXml = serializeLogfileSection(templateData.logOutputs, materialIdMap);
+  const outputStatusXml = templateData.outputRequests
+    .map(
+      (request) =>
+        `      <!-- ${escapeXml(request.field)} | target=${escapeXml(request.target)} | status=${escapeXml(request.status)} | source=${escapeXml(request.source || "n/a")} -->`,
+    )
+    .join("\n");
+  const discreteMaterials = [
+    ...(templateData.discreteCohesive?.nucleusCytoplasm?.materials || []),
+    ...(templateData.discreteCohesive?.cellDish?.materials || []),
+  ];
+  const discreteControllers = [
+    ...(templateData.discreteCohesive?.nucleusCytoplasm?.loadControllers || []),
+    ...(templateData.discreteCohesive?.cellDish?.loadControllers || []),
+  ];
+  const discreteSidecarXml = discreteMaterials.length
+    ? [
+        "  <!-- cohesive discrete sidecar (not solver-active yet)",
+        ...discreteSets.map((set) => `       set ${set.name} region=${set.region} count=${set.elements.length}`),
+        ...discreteMaterials.map(
+          (material) =>
+            `       discrete_material ${material.name} type=${material.type} lc=${material.forceLoadCurveId} status=${material.status}`,
+        ),
+        ...discreteControllers.map(
+          (controller) =>
+            `       load_controller ${controller.id} points=${controller.points.map((point) => `${point[0].toFixed(6)},${point[1].toFixed(6)}`).join(" | ")}`,
+        ),
+        "  -->",
+      ].join("\n")
+    : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <febio_spec version="4.0">
@@ -895,11 +1666,13 @@ ${nodesXml}
 ${elementsByPart.join("\n")}
 ${surfacesXml.join("\n")}
 ${nodeSetsXml.join("\n")}
+${discreteSetsXml.join("\n")}
 ${surfacePairsXml.join("\n")}
   </Mesh>
   <MeshDomains>
 ${meshDomainsXml}
   </MeshDomains>
+${discreteSidecarXml}
   <Boundary>
     <bc name="fix_dish" node_set="dish_fixed_nodes" type="zero displacement">
       <x_dof>1</x_dof>
@@ -924,6 +1697,7 @@ ${stepXml}
   </Step>
   <Output>
 ${logfileXml}
+${outputStatusXml}
     <plotfile type="febio">
       <var type="displacement" />
       <var type="stress" />
@@ -939,7 +1713,22 @@ function exportFebioXmlContent(inputSpec) {
   return serializeFebioTemplateToXml(templateData);
 }
 
-function buildFebioInputSpec(caseName, params, inputSpec = buildSimulationInput(caseName, params)) {
+function buildExpectedFebioOutputs(caseName) {
+  const baseName = `case_${caseName}`;
+  return {
+    feb: `${baseName}.feb`,
+    plot: `${baseName}.xplt`,
+    log: `${baseName}.log`,
+    resultJson: `${baseName}_result.json`,
+    rigidBodyLog: "febio_rigid_pipette.csv",
+    interfaceLogs: [
+      "febio_interface_nucleus_cytoplasm.csv",
+      "febio_interface_cell_dish.csv",
+    ],
+  };
+}
+
+function serializeCanonicalSpec(inputSpec) {
   return {
     caseName: inputSpec.caseName,
     params: structuredClone(inputSpec.params),
@@ -948,43 +1737,61 @@ function buildFebioInputSpec(caseName, params, inputSpec = buildSimulationInput(
     material: structuredClone(inputSpec.material),
     interfaces: structuredClone(inputSpec.interfaces),
     membrane: structuredClone(inputSpec.membrane),
+    membraneModel: inputSpec.membraneModel || "cortex_proxy",
     operation: structuredClone(inputSpec.operation),
     adhesionPattern: inputSpec.adhesionPattern,
     adhesionSeed: inputSpec.adhesionSeed,
+    parameterDigest: inputSpec.parameterDigest,
+    validationReport: structuredClone(inputSpec.validationReport),
+    parameterTable: structuredClone(inputSpec.parameterTable),
     schedule: serializeSchedule(inputSpec.schedule),
+  };
+}
+
+function buildFebioRunBundle(inputSpec) {
+  const febioTemplateData = inputSpec.febioTemplateData || buildFebioTemplateData(inputSpec);
+  const febXml = serializeFebioTemplateToXml(febioTemplateData);
+  const exportReady = Boolean(
+    inputSpec.validationReport?.valid &&
+      febioTemplateData?.geometry?.meshValidation?.valid,
+  );
+  return {
+    parameterDigest: inputSpec.parameterDigest,
+    canonicalSpec: serializeCanonicalSpec(inputSpec),
+    templateData: febioTemplateData,
+    febXml,
+    expectedOutputs: buildExpectedFebioOutputs(inputSpec.caseName),
+    exportTimestamp: new Date().toISOString(),
+    exportReady,
+    solverMetadata: inputSpec.solverMetadata || buildSolverMetadata("febio", { source: "febio-export-bundle" }),
+  };
+}
+
+function buildFebioInputSpec(caseName, params, inputSpec = buildSimulationInput(caseName, params)) {
+  return {
+    ...inputSpec,
+    coordinates: structuredClone(inputSpec.coordinates || COORDINATE_SYSTEM_SPEC),
     febioTemplateData: buildFebioTemplateData(inputSpec),
     solverMetadata: buildSolverMetadata("febio", {
-      source: "FEBio bridge (mock)",
-      note: "not yet solved by FEBio",
+      source: "febio-export-bundle",
     }),
   };
 }
 
 function exportFebioJson(inputSpec) {
-  const febioXml = exportFebioXmlContent(inputSpec);
-  const serializedInputSpec = {
-    ...structuredClone({
-      caseName: inputSpec.caseName,
-      params: inputSpec.params,
-      coordinates: inputSpec.coordinates,
-      geometry: inputSpec.geometry,
-      material: inputSpec.material,
-      interfaces: inputSpec.interfaces,
-      membrane: inputSpec.membrane,
-      operation: inputSpec.operation,
-      adhesionPattern: inputSpec.adhesionPattern,
-      adhesionSeed: inputSpec.adhesionSeed,
-    }),
-    schedule: serializeSchedule(inputSpec.schedule),
-  };
+  const bundle = buildFebioRunBundle(inputSpec);
   return JSON.stringify(
     {
-      inputSpec: serializedInputSpec,
-      febioTemplateData: inputSpec.febioTemplateData || buildFebioTemplateData(inputSpec),
-      febioXml,
-      febioXmlStub: febioXml,
+      parameterDigest: bundle.parameterDigest,
+      canonicalSpec: bundle.canonicalSpec,
+      inputSpec: bundle.canonicalSpec,
+      febioTemplateData: bundle.templateData,
+      templateData: bundle.templateData,
+      febioXml: bundle.febXml,
+      febXml: bundle.febXml,
+      exportBundle: bundle,
       handoffManifest: buildFebioHandoffManifest(inputSpec),
-      solverMetadata: inputSpec.solverMetadata || buildSolverMetadata("febio", { source: "FEBio bridge (mock)" }),
+      solverMetadata: bundle.solverMetadata,
       uiMetadata: {
         selectedCase: appState.ui.selectedCase,
         selectedMode: appState.ui.selectedMode,
@@ -998,49 +1805,79 @@ function exportFebioJson(inputSpec) {
 }
 
 function importFebioResult(febioResultJson, inputSpec) {
-  const baseResult = febioResultJson.baseResult ? { ...febioResultJson.baseResult } : {};
+  const payload = febioResultJson.normalizedResult || febioResultJson.result || febioResultJson;
+  const importedDigest =
+    payload.parameterDigest ||
+    febioResultJson.parameterDigest ||
+    febioResultJson.exportBundle?.parameterDigest ||
+    febioResultJson.canonicalSpec?.parameterDigest;
+  const digestMatch = Boolean(importedDigest && inputSpec.parameterDigest && importedDigest === inputSpec.parameterDigest);
+  const baseResult = { ...payload };
   baseResult.caseName ??= inputSpec.caseName;
   baseResult.params ??= structuredClone(inputSpec.params);
   baseResult.schedule ??= inputSpec.schedule;
-  // FEM handoff point: map FEBio cohesive/contact output back into the common
-  // app result schema, including localNc/localCd/membraneRegions.
+  baseResult.parameterDigest ??= importedDigest || inputSpec.parameterDigest;
+  baseResult.isPhysicalFebioResult = Boolean(baseResult.isPhysicalFebioResult) && digestMatch;
+  // FEM handoff point: map FEBio cohesive/contact output back into the canonical
+  // result schema, including localNc/localCd/membraneRegions and provenance.
   baseResult.solverMetadata = buildSolverMetadata("febio", {
-    source: febioResultJson.mock ? "FEBio bridge (mock)" : "febio-import",
-    note: febioResultJson.mock ? "not yet solved by FEBio" : "",
+    source: baseResult.solverMetadata?.source || (baseResult.isPhysicalFebioResult ? "febio-cli" : "febio-import-nonphysical"),
+    digestMatch,
+    note: digestMatch ? "" : "parameter digest mismatch or missing digest",
+    ...(baseResult.solverMetadata || {}),
   });
+  baseResult.resultProvenance = {
+    source: baseResult.solverMetadata.source,
+    parameterDigest: baseResult.parameterDigest,
+    digestMatch,
+    importTimestamp: febioResultJson.importTimestamp || new Date().toISOString(),
+    exportTimestamp:
+      febioResultJson.exportTimestamp ||
+      febioResultJson.exportBundle?.exportTimestamp ||
+      febioResultJson.canonicalSpec?.exportTimestamp ||
+      null,
+    fileProvenance: febioResultJson.fileProvenance || null,
+  };
   baseResult.externalResult = febioResultJson;
   return baseResult;
 }
 
+// Main FEBio-first execution wrapper used by the current UI.
+// Legacy lightweight execution has been moved to the optional legacy module.
 function runFebioSimulation(caseName, params, inputSpec = buildSimulationInput(caseName, params)) {
   const febioInputSpec = buildFebioInputSpec(caseName, params, inputSpec);
-  const exportedJson = exportFebioJson(febioInputSpec);
-  const exportedXml = exportFebioXmlContent(febioInputSpec);
-  // Future CLI handoff point: write exportedJson to disk, invoke FEBio CLI, then import converted JSON outputs here.
-  const mockBaseResult = runLightweightSimulation(caseName, params, inputSpec);
-  return importFebioResult(
-    {
-      mock: true,
-      exportedJson,
-      exportedXml,
-      templateData: febioInputSpec.febioTemplateData,
-      baseResult: mockBaseResult,
+  const bundle = buildFebioRunBundle(febioInputSpec);
+  return {
+    caseName,
+    params: structuredClone(febioInputSpec.params),
+    parameterDigest: febioInputSpec.parameterDigest,
+    isPhysicalFebioResult: false,
+    solverMetadata: buildSolverMetadata("febio", {
+      source: "febio-export-ready",
+      note: bundle.exportReady ? "awaiting FEBio result" : "export blocked by validation",
+    }),
+    resultProvenance: {
+      source: "febio-export-ready",
+      parameterDigest: febioInputSpec.parameterDigest,
+      exportTimestamp: bundle.exportTimestamp,
+      importTimestamp: null,
+      digestMatch: null,
     },
-    febioInputSpec,
-  );
+    exportReady: bundle.exportReady,
+    validationReport: febioInputSpec.validationReport,
+    meshValidation: febioInputSpec.febioTemplateData?.geometry?.meshValidation || null,
+  };
 }
 
-// Solver layer: single public dispatch entry used by the UI.
-function runSimulation(caseName, params, solverMode = appState.ui.solverMode || "lightweight") {
-  const resolvedMode = SOLVER_MODES.includes(solverMode) ? solverMode : "lightweight";
+// FEBio-first main execution path.
+// The only supported default flow is:
+// UI input -> canonical spec -> FEBio bundle -> imported physical FEBio result.
+function runSimulation(caseName, params) {
   const inputSpec = buildSimulationInput(caseName, params);
-  const rawResult =
-    resolvedMode === "febio"
-      ? runFebioSimulation(caseName, params, inputSpec)
-      : runLightweightSimulation(caseName, params, inputSpec);
-  rawResult.solverMetadata ??= buildSolverMetadata(resolvedMode, {
-    source: resolvedMode === "febio" ? "FEBio bridge (mock)" : "lightweight-js-surrogate",
-    note: resolvedMode === "febio" ? "not yet solved by FEBio" : "",
+  const rawResult = runFebioSimulation(caseName, params, inputSpec);
+  rawResult.solverMetadata ??= buildSolverMetadata("febio", {
+    source: "febio-export-ready",
+    note: "awaiting FEBio result",
   });
   return normalizeSimulationResult(rawResult, inputSpec);
 }
@@ -1077,6 +1914,7 @@ function buildFebioHandoffManifest(inputSpec) {
     generatedAt: new Date().toISOString(),
     appSchemaVersion: APP_SCHEMA_VERSION,
     caseName,
+    parameterDigest: inputSpec.parameterDigest,
     selectedSolverMode: appState.ui.solverMode,
     solverMetadata: {
       solverMode: solverInfo.solverMode,
@@ -1093,11 +1931,11 @@ function buildFebioHandoffManifest(inputSpec) {
       cliScript: "scripts/run_febio_case.ps1",
       commandExample: `powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile ${baseName}.feb`,
       expectedOutputs: [`${baseName}.log`, `${baseName}.xplt`, `${baseName}.feb`],
-      note: "The in-app febio mode is still a bridge mock. The exported .feb is intended for external FEBio execution.",
+      note: "The main UI path exports and runs FEBio externally, then imports the physical result JSON back into the app.",
     },
     importBack: {
-      supportedNow: "normalized app result JSON",
-      nextStep: "convert FEBio outputs into the app result schema before using 結果読込",
+      supportedNow: "normalized physical FEBio result JSON",
+      nextStep: "convert FEBio outputs into the canonical app result schema before using 結果読込",
     },
     parameterSummary: {
       puncture: { x: inputSpec.geometry.xp, z: inputSpec.geometry.zp },
@@ -1119,6 +1957,7 @@ function buildFebioHandoffReadme(manifest) {
     "FEBio handoff bundle",
     `generatedAt: ${manifest.generatedAt}`,
     `caseName: ${manifest.caseName}`,
+    `parameterDigest: ${manifest.parameterDigest}`,
     `solver source shown in app: ${manifest.solverMetadata.source}`,
     "",
     "Files in this bundle:",
@@ -1133,7 +1972,7 @@ function buildFebioHandoffReadme(manifest) {
     "4. If you want to bring results back into this app, convert FEBio outputs into the normalized app result JSON schema first.",
     "",
     "Important note:",
-    "The browser app can generate FEBio inputs, but the in-app febio solver mode is still a mock bridge and does not run FEBio itself.",
+    "The browser app is a FEBio front-end. Main results should come from imported physical FEBio outputs only.",
   ].join("\n");
 }
 
@@ -1141,16 +1980,37 @@ function exportCurrentCaseAsFebioJson() {
   const caseName = appState.ui.selectedCase || "C";
   const params = collectParams();
   const febioInputSpec = buildFebioInputSpec(caseName, params);
+  appState.exportContext = buildFebioRunBundle(febioInputSpec);
+  if (!appState.exportContext.exportReady) {
+    if (typeof renderAwaitingResult === "function") {
+      renderAwaitingResult(appState.exportContext);
+    }
+    return null;
+  }
   // Export bundle = normalized simulation input + FEBio template data + solver metadata.
   downloadTextFile(`febio_case_${caseName}_input.json`, exportFebioJson(febioInputSpec));
+  if (typeof renderAwaitingResult === "function") {
+    renderAwaitingResult(appState.exportContext);
+  }
+  return appState.exportContext;
 }
 
 function exportFebioXml(inputSpec = null) {
   const caseName = inputSpec?.caseName || appState.ui.selectedCase || "C";
   const resolvedInput =
     inputSpec || buildFebioInputSpec(caseName, collectParams(), buildSimulationInput(caseName, collectParams()));
+  appState.exportContext = buildFebioRunBundle(resolvedInput);
+  if (!appState.exportContext.exportReady) {
+    if (typeof renderAwaitingResult === "function") {
+      renderAwaitingResult(appState.exportContext);
+    }
+    return "";
+  }
   const xml = exportFebioXmlContent(resolvedInput);
   downloadTextFile(`case_${caseName}.feb`, xml, "application/xml;charset=utf-8");
+  if (typeof renderAwaitingResult === "function") {
+    renderAwaitingResult(appState.exportContext);
+  }
   return xml;
 }
 
@@ -1159,6 +2019,13 @@ function exportFebioHandoffBundle(inputSpec = null) {
   const params = inputSpec?.params || collectParams();
   const resolvedInput =
     inputSpec || buildFebioInputSpec(caseName, params, buildSimulationInput(caseName, params));
+  appState.exportContext = buildFebioRunBundle(resolvedInput);
+  if (!appState.exportContext.exportReady) {
+    if (typeof renderAwaitingResult === "function") {
+      renderAwaitingResult(appState.exportContext);
+    }
+    return null;
+  }
   const baseName = `case_${sanitizeFilenameSegment(caseName)}`;
   const manifest = buildFebioHandoffManifest(resolvedInput);
   const xml = exportFebioXmlContent(resolvedInput);
@@ -1189,9 +2056,48 @@ function exportFebioHandoffBundle(inputSpec = null) {
 
 const FEBIO_BRIDGE_BASE_URL = "http://127.0.0.1:8765";
 
+function flushUiFrame() {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => resolve());
+      return;
+    }
+    setTimeout(resolve, 0);
+  });
+}
+
+function setFebioRunStage(stage, detail = "", tone = "") {
+  appState.febioBridge.runStage = stage;
+  appState.febioBridge.runDetail = detail || stage;
+  appState.febioBridge.runTone = tone;
+  appState.febioBridge.lastUpdatedAt = new Date().toISOString();
+  if (tone === "is-error") {
+    appState.febioBridge.lastError = detail || stage;
+  }
+  updateFebioRunStatus();
+  if (!isPhysicalMainResult(appState.latest) && typeof renderAwaitingResult === "function") {
+    renderAwaitingResult(appState.exportContext);
+  }
+}
+
+function updateFebioRunStatus() {
+  if (!elements.febioRunStatus) {
+    return;
+  }
+  const stage = appState.febioBridge?.runStage || "idle";
+  const detail = appState.febioBridge?.runDetail || "awaiting user action";
+  const updatedAt = appState.febioBridge?.lastUpdatedAt || "n/a";
+  elements.febioRunStatus.textContent = `${stage} | ${detail} | ${updatedAt}`;
+  elements.febioRunStatus.classList.remove("is-error", "is-busy", "is-ready");
+  if (appState.febioBridge?.runTone) {
+    elements.febioRunStatus.classList.add(appState.febioBridge.runTone);
+  }
+}
+
 function setFebioBridgeStatus(text, tone = "") {
   appState.febioBridge.statusText = text;
   if (!elements.febioBridgeStatus) {
+    updateFebioRunStatus();
     return;
   }
   elements.febioBridgeStatus.textContent = text;
@@ -1199,6 +2105,7 @@ function setFebioBridgeStatus(text, tone = "") {
   if (tone) {
     elements.febioBridgeStatus.classList.add(tone);
   }
+  updateFebioRunStatus();
 }
 
 async function fetchFebioBridge(pathname, options = {}) {
@@ -1218,6 +2125,7 @@ async function refreshFebioBridgeStatus() {
     const payload = await fetchFebioBridge("/health", { method: "GET" });
     appState.febioBridge.available = true;
     appState.febioBridge.busy = Boolean(payload.busy);
+    appState.febioBridge.lastError = payload.lastError || "";
     const label = payload.busy
       ? `bridge: busy (${payload.activeCase || "running"})`
       : "bridge: ready";
@@ -1236,22 +2144,40 @@ async function runFebioViaBridge() {
   const params = collectParams();
   appState.ui.solverMode = "febio";
   syncSolverModeControl();
+  setFebioRunStage("preparing export", `building FEBio bundle for case ${caseName}`, "is-busy");
+  await flushUiFrame();
+  appState.exportContext = buildFebioRunBundle(buildFebioInputSpec(caseName, params, buildSimulationInput(caseName, params)));
+  if (!appState.exportContext.exportReady) {
+    setFebioRunStage("export blocked", "validation or mesh checks failed", "is-error");
+    if (typeof renderAwaitingResult === "function") {
+      renderAwaitingResult(appState.exportContext);
+    }
+    throw new Error("FEBio export is blocked by validation or mesh errors");
+  }
   appState.febioBridge.busy = true;
   setFebioBridgeStatus(`bridge: running case ${caseName}`, "is-busy");
+  setFebioRunStage("requesting bridge run", `sending case ${caseName} to FEBio bridge`, "is-busy");
+  await flushUiFrame();
   try {
     const payload = await fetchFebioBridge("/run", {
       method: "POST",
       body: JSON.stringify({ caseName, params }),
     });
+    setFebioRunStage("importing result", `reading physical FEBio output for case ${caseName}`, "is-busy");
+    await flushUiFrame();
     const normalized = loadExternalResult(payload.resultPayload);
+    setFebioRunStage("rendering result", `updating the UI with case ${caseName}`, "is-busy");
+    await flushUiFrame();
     appState.febioBridge.available = true;
     appState.febioBridge.busy = false;
     setFebioBridgeStatus(`bridge: loaded case ${caseName}`, "is-ready");
+    setFebioRunStage("completed", `physical FEBio result loaded for case ${caseName}`, "is-ready");
     return normalized;
   } catch (error) {
     appState.febioBridge.available = false;
     appState.febioBridge.busy = false;
     setFebioBridgeStatus(`bridge: ${error.message}`, "is-error");
+    setFebioRunStage("failed", error.message, "is-error");
     throw error;
   }
 }
@@ -1278,24 +2204,69 @@ async function viewFebioBridgeResult() {
 
 // Imported results are already normalized before they reach the UI state.
 function applyImportedResult(result) {
+  if (!isPhysicalMainResult(result)) {
+    const digestMismatch = result?.resultProvenance?.digestMatch === false;
+    appState.exportContext = {
+      ...(appState.exportContext || {}),
+      lastImportWarning: digestMismatch
+        ? "parameter digest mismatch: imported FEBio result was rejected as main result"
+        : "non-physical FEBio result was rejected as main result",
+      lastImportTimestamp: new Date().toISOString(),
+    };
+    if (typeof renderAwaitingResult === "function") {
+      renderAwaitingResult(appState.exportContext);
+    }
+    return result;
+  }
   appState.ui.solverMode = result.solverMetadata?.solverMode || appState.ui.solverMode;
   appState.ui.selectedCase = result.caseName || appState.ui.selectedCase;
   appState.ui.selectedMode = "case";
   appState.comparisonRuns = [result];
+  appState.exportContext = {
+    ...(appState.exportContext || {}),
+    lastImportTimestamp: result.resultProvenance?.importTimestamp || new Date().toISOString(),
+    lastImportWarning: "",
+    lastImportedDigest: result.parameterDigest,
+    lastImportedSource: result.resultProvenance?.source || result.solverMetadata?.source || "",
+  };
   syncRunButtons();
   syncSolverModeControl();
   renderLatest(result);
+  return result;
 }
 
 function loadExternalResult(resultJson) {
   const payload = typeof resultJson === "string" ? JSON.parse(resultJson) : resultJson;
   const rawResult = payload.result || payload.normalizedResult || payload.baseResult || payload.febioResult || payload;
   rawResult.solverMetadata ??= payload.solverMetadata;
-  const caseName = rawResult.caseName || payload.inputSpec?.caseName || appState.ui.selectedCase || "C";
-  const params = rawResult.params || payload.inputSpec?.params || collectParams();
+  const canonicalSpec = payload.canonicalSpec || payload.inputSpec || null;
+  const caseName = rawResult.caseName || canonicalSpec?.caseName || appState.ui.selectedCase || "C";
+  const params = rawResult.params || canonicalSpec?.params || collectParams();
   const inputSpec = buildSimulationInput(caseName, params);
-  // External results are normalized through the same schema path as local solver outputs.
+  if (canonicalSpec?.parameterDigest) {
+    inputSpec.parameterDigest = canonicalSpec.parameterDigest;
+  }
+  // External results are normalized through the canonical FEBio path.
   const normalized = normalizeSimulationResult(rawResult, inputSpec);
+  const expectedDigest = canonicalSpec?.parameterDigest || appState.exportContext?.parameterDigest || null;
+  const importedDigest = normalized.parameterDigest || payload.parameterDigest || null;
+  const digestMatch = Boolean(expectedDigest && importedDigest && expectedDigest === importedDigest);
+  normalized.isPhysicalFebioResult = Boolean(normalized.isPhysicalFebioResult || payload.isPhysicalFebioResult) && digestMatch;
+  normalized.resultProvenance = {
+    ...(normalized.resultProvenance || {}),
+    parameterDigest: normalized.parameterDigest,
+    source: normalized.resultProvenance?.source || normalized.solverMetadata?.source || "febio-import",
+    importTimestamp:
+      normalized.resultProvenance?.importTimestamp || payload.importTimestamp || new Date().toISOString(),
+    exportTimestamp:
+      normalized.resultProvenance?.exportTimestamp || payload.exportTimestamp || payload.exportBundle?.exportTimestamp || null,
+    digestMatch,
+  };
+  normalized.solverMetadata = buildSolverMetadata("febio", {
+    ...(normalized.solverMetadata || {}),
+    source: normalized.solverMetadata?.source || "febio-import",
+    note: digestMatch ? normalized.solverMetadata?.note || "imported external result" : "parameter digest mismatch",
+  });
   applyImportedResult(normalized);
   return normalized;
 }

@@ -1,7 +1,7 @@
 // -----------------------------------------------------------------------------
 // rendering
 // -----------------------------------------------------------------------------
-function describeDisplayedResult(result) {
+function describeDisplayedResultLegacyDebug(result) {
   const solverInfo = describeSolverMetadata(result.solverMetadata);
   const normalizedSource = String(solverInfo.source || "").toLowerCase();
   const isMock =
@@ -39,6 +39,11 @@ function describeDisplayedResult(result) {
     detail: "ブラウザ内の軽量近似シミュレーション結果を表示中",
   };
 }
+
+window.__NUCLEAR_SIMU_DEBUG__ = {
+  ...(window.__NUCLEAR_SIMU_DEBUG__ || {}),
+  describeDisplayedResultLegacy: describeDisplayedResultLegacyDebug,
+};
 
 function renderDisplayModeBanner(result) {
   if (!elements.displayModeBanner) {
@@ -1051,7 +1056,7 @@ function togglePlayback() {
 // -----------------------------------------------------------------------------
 // UI actions
 // -----------------------------------------------------------------------------
-function renderLatest(result) {
+function renderLatestLegacy(result) {
   appState.latest = result;
   stopPlayback();
   const lastFrame = result.history.length - 1;
@@ -1070,7 +1075,7 @@ function renderLatest(result) {
   renderPlaybackFrame(lastFrame);
 }
 
-function executeCase(caseName) {
+function executeCaseLegacy(caseName) {
   const params = collectParams();
   const result = runSimulation(caseName, params, appState.ui.solverMode);
   appState.ui.selectedCase = caseName;
@@ -1081,7 +1086,7 @@ function executeCase(caseName) {
   renderLatest(result);
 }
 
-function executeAllCases() {
+function executeAllCasesLegacy() {
   const params = collectParams();
   appState.ui.selectedMode = "all";
   appState.comparisonRuns = ["A", "B", "C"].map((caseName) =>
@@ -1108,7 +1113,7 @@ function executeAllCases() {
   renderLatest(latest);
 }
 
-function executeSweep() {
+function executeSweepLegacy() {
   const parameter = elements.sweepParameter.value;
   const start = Number(elements.sweepStart.value);
   const end = Number(elements.sweepEnd.value);
@@ -1140,7 +1145,7 @@ function executeSweep() {
   renderSweep();
 }
 
-function bindButtons() {
+function bindButtonsLegacy() {
   if (elements.solverMode) {
     elements.solverMode.addEventListener("change", () => {
       appState.ui.solverMode = elements.solverMode.value;
@@ -1157,13 +1162,6 @@ function bindButtons() {
   elements.febioRun?.addEventListener("click", async () => {
     try {
       await runFebioViaBridge();
-    } catch (error) {
-      console.error(error);
-    }
-  });
-  elements.febioView?.addEventListener("click", async () => {
-    try {
-      await viewFebioBridgeResult();
     } catch (error) {
       console.error(error);
     }
@@ -1198,6 +1196,429 @@ function bindButtons() {
   });
 }
 
+// -----------------------------------------------------------------------------
+// FEBio-first UI overrides
+// -----------------------------------------------------------------------------
+function describeDisplayedResult(result) {
+  if (isPhysicalMainResult(result)) {
+    const solverInfo = describeSolverMetadata(result.solverMetadata);
+    return {
+      title: "FEBio result",
+      short: "FEBio",
+      pillClass: "source-febio",
+      detail:
+        solverInfo.note === "imported external result"
+          ? `imported physical FEBio result (${solverInfo.label})`
+          : `physical FEBio result (${solverInfo.label})`,
+    };
+  }
+
+  return {
+    title: "awaiting FEBio result",
+    short: "awaiting",
+    pillClass: "source-awaiting",
+    detail: "export ready / awaiting FEBio result",
+  };
+};
+
+var shouldRenderAsMainResult = function shouldRenderAsMainResult(result) {
+  return isPhysicalMainResult(result);
+};
+
+renderDisplayModeBanner = function renderDisplayModeBanner(result) {
+  if (!elements.displayModeBanner) {
+    return;
+  }
+  const displayInfo = describeDisplayedResult(result);
+  elements.displayModeBanner.innerHTML = `
+    <span class="label-pill display-mode-pill ${displayInfo.pillClass}">${displayInfo.title}</span>
+    <span>${displayInfo.detail}</span>
+  `;
+};
+
+function clearResultVisuals(message) {
+  const placeholder = `<p class="subtle">${message}</p>`;
+  elements.classificationCard.innerHTML = placeholder;
+  elements.eventLog.innerHTML = placeholder;
+  elements.metricsTable.innerHTML = placeholder;
+  elements.timelineTable.innerHTML = placeholder;
+  elements.localBreakdown.innerHTML = placeholder;
+  elements.stressChart.innerHTML = placeholder;
+  elements.motionChart.innerHTML = placeholder;
+  elements.comparisonTable.innerHTML = `<p class="subtle">physical FEBio result only</p>`;
+  elements.sweepResults.innerHTML = `<p class="subtle">deprecated in main FEBio path</p>`;
+}
+
+function formatDigestMatch(value) {
+  return value === true ? "yes" : value === false ? "no" : "pending";
+}
+
+function renderRunCard(run) {
+  const provenance = run.resultProvenance || {};
+  const physical = shouldRenderAsMainResult(run);
+  if (physical) {
+    return `
+      <div class="comparison-card">
+        <strong>${run.caseName}</strong>
+        <span class="label-pill ${OUTCOME_STYLES[run.classification]}">${run.classification}</span>
+        <span class="subtle">parameterDigest ${run.parameterDigest || "n/a"}</span>
+        <span class="subtle">source ${provenance.source || run.solverMetadata?.source || "n/a"}</span>
+        <span class="subtle">digestMatch ${formatDigestMatch(provenance.digestMatch)}</span>
+        <span class="subtle">export ${provenance.exportTimestamp || "n/a"} | import ${provenance.importTimestamp || "n/a"}</span>
+        <span class="subtle">firstFailure ${run.firstFailureSite || "n/a"} | mechanism ${run.dominantMechanism || "n/a"}</span>
+      </div>
+    `;
+  }
+  return `
+    <div class="comparison-card">
+      <strong>${run.caseName || appState.ui.selectedCase || "case"}</strong>
+      <span class="label-pill info">awaiting import</span>
+      <span class="subtle">parameterDigest ${run.parameterDigest || provenance.parameterDigest || "n/a"}</span>
+      <span class="subtle">source ${provenance.source || run.solverMetadata?.source || "febio-export-ready"}</span>
+      <span class="subtle">digestMatch ${formatDigestMatch(provenance.digestMatch)}</span>
+      <span class="subtle">export ${provenance.exportTimestamp || "n/a"} | import ${provenance.importTimestamp || "n/a"}</span>
+    </div>
+  `;
+}
+
+function buildCurrentExportContext(caseName = appState.ui.selectedCase || "C") {
+  const params = collectParams();
+  const spec = buildFebioInputSpec(caseName, params, buildSimulationInput(caseName, params));
+  return buildFebioRunBundle(spec);
+}
+
+function updateActionAvailability(exportContext) {
+  const hasValidationErrors = Boolean(exportContext?.canonicalSpec?.validationReport && !exportContext.canonicalSpec.validationReport.valid);
+  const hasMeshErrors = Boolean(exportContext?.templateData?.geometry?.meshValidation && !exportContext.templateData.geometry.meshValidation.valid);
+  const bridgeBusy = Boolean(appState.febioBridge?.busy);
+  [elements.exportFebioJson, elements.exportFebioXml, elements.exportFebioHandoff, elements.febioRun].forEach((button) => {
+    if (button) {
+      button.disabled = hasValidationErrors || hasMeshErrors || bridgeBusy;
+    }
+  });
+  if (elements.febioRun) {
+    elements.febioRun.textContent = bridgeBusy ? "FEBio Running..." : "FEBio Run";
+  }
+}
+
+var renderAwaitingResult = function renderAwaitingResult(exportContext = null) {
+  const context = exportContext || appState.exportContext || null;
+  appState.latest = null;
+  const digest = context?.parameterDigest || "n/a";
+  const exportTime = context?.exportTimestamp || "not exported yet";
+  const validation = context?.canonicalSpec?.validationReport || context?.validationReport || null;
+  const meshValidation = context?.templateData?.geometry?.meshValidation || context?.meshValidation || null;
+  const validationText =
+    validation && validation.valid
+      ? "validation: ok"
+      : validation
+        ? `validation errors: ${validation.errorCount}`
+        : "validation: not yet checked";
+  const meshText =
+    meshValidation && meshValidation.valid
+      ? "mesh validation: ok"
+      : meshValidation
+        ? "mesh validation: failed"
+        : "mesh validation: not yet checked";
+  const importWarning = appState.exportContext?.lastImportWarning
+    ? `<p class="summary-note">${appState.exportContext.lastImportWarning}</p>`
+    : "";
+  const bridgeStage = appState.febioBridge?.runStage || "idle";
+  const bridgeDetail = appState.febioBridge?.runDetail || "awaiting user action";
+  const bridgeUpdatedAt = appState.febioBridge?.lastUpdatedAt || "n/a";
+  const bridgeError = appState.febioBridge?.lastError
+    ? `<p class="summary-note status-note is-error">${appState.febioBridge.lastError}</p>`
+    : "";
+  elements.summaryBand.innerHTML = `
+    <div>
+      <p class="eyebrow">export ready</p>
+      <h2>${appState.ui.selectedCase || "C"} / awaiting FEBio result</h2>
+      <p><span class="label-pill display-mode-pill source-awaiting">awaiting FEBio result</span></p>
+      <p class="summary-note status-note ${appState.febioBridge?.runTone || ""}">current step: ${bridgeStage}</p>
+      <p class="summary-note">detail: ${bridgeDetail}</p>
+      <p class="summary-note">solver source: febio-cli expected</p>
+      <p class="summary-note">parameter digest: ${digest}</p>
+      <p class="summary-note">export time: ${exportTime}</p>
+      <p class="summary-note">${validationText}</p>
+      <p class="summary-note">${meshText}</p>
+      <p class="summary-note">result provenance: waiting for imported physical FEBio output</p>
+      <p class="summary-note">export ready: ${context?.exportReady ? "yes" : "no"}</p>
+      <p class="summary-note">last status update: ${bridgeUpdatedAt}</p>
+      ${importWarning}
+      ${bridgeError}
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <strong>${bridgeStage}</strong>
+        <span class="subtle">current FEBio step</span>
+      </div>
+      <div class="summary-card">
+        <strong>${digest}</strong>
+        <span class="subtle">parameter digest</span>
+      </div>
+      <div class="summary-card">
+        <strong>${appState.febioBridge?.statusText || "bridge: unknown"}</strong>
+        <span class="subtle">bridge status</span>
+      </div>
+    </div>
+  `;
+  renderDisplayModeBanner(null);
+  clearResultVisuals("export ready / awaiting FEBio result");
+  stopPlayback();
+  updateActionAvailability(context);
+};
+
+renderSummary = function renderSummary(result) {
+  if (!shouldRenderAsMainResult(result)) {
+    renderAwaitingResult(appState.exportContext);
+    return;
+  }
+  const caseMeta = CASE_DESCRIPTIONS[result.caseName];
+  const solverInfo = describeSolverMetadata(result.solverMetadata);
+  const displayInfo = describeDisplayedResult(result);
+  const provenance = result.resultProvenance || {};
+  elements.summaryBand.innerHTML = `
+    <div>
+      <p class="eyebrow">latest physical FEBio result</p>
+      <h2>${result.caseName} / ${result.classification}</h2>
+      <p><span class="label-pill display-mode-pill ${displayInfo.pillClass}">${displayInfo.title}</span></p>
+      <p class="lede">
+        核-細胞質損傷 ${formatNumber(result.damage.nc)} | 細胞-ディッシュ損傷 ${formatNumber(result.damage.cd)} | 膜損傷 ${formatNumber(result.damage.membrane)}
+      </p>
+      <p class="summary-note">${caseMeta.label} | ${caseMeta.summary}</p>
+      <p class="summary-note">${displayInfo.detail}</p>
+      <p class="summary-note">solver source: ${solverInfo.label}</p>
+      <p class="summary-note">parameter digest: ${result.parameterDigest || "n/a"}</p>
+      <p class="summary-note">export time: ${provenance.exportTimestamp || "n/a"} | import time: ${provenance.importTimestamp || "n/a"}</p>
+      <p class="summary-note">result provenance: ${provenance.source || solverInfo.source}</p>
+      <p class="summary-note">digest match: ${formatDigestMatch(provenance.digestMatch)}</p>
+      ${solverInfo.note ? `<p class="summary-note">${solverInfo.note}</p>` : ""}
+    </div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <strong>${formatNumber(result.peaks.peakHoldForce)}</strong>
+        <span class="subtle">保持力最大値</span>
+      </div>
+      <div class="summary-card">
+        <strong>${formatNumber(result.peaks.peakMembraneStress)}</strong>
+        <span class="subtle">膜応力最大値</span>
+      </div>
+      <div class="summary-card">
+        <strong>${formatNumber(result.contactAngle, 1)} deg</strong>
+        <span class="subtle">接触角</span>
+      </div>
+      <div class="summary-card">
+        <strong>${formatNumber(result.holdStiffnessEffective)}</strong>
+        <span class="subtle">有効保持剛性</span>
+      </div>
+    </div>
+  `;
+};
+
+renderComparison = function renderComparison() {
+  if (!appState.comparisonRuns.length) {
+    elements.comparisonTable.innerHTML = "<p>physical FEBio result comparison will appear after importing matched results.</p>";
+    return;
+  }
+  elements.comparisonTable.innerHTML = `
+    <div class="comparison-grid">
+      ${appState.comparisonRuns.map((run) => renderRunCard(run)).join("")}
+    </div>
+  `;
+};
+
+renderSweep = function renderSweep() {
+  if (!appState.sweepRuns.length) {
+    elements.sweepResults.innerHTML = "<p>sweep is legacy/deprecated in the main physical FEBio path.</p>";
+    return;
+  }
+  elements.sweepResults.innerHTML = `
+    <div class="sweep-grid">
+      ${appState.sweepRuns
+        .map((run) => `
+          <div class="sweep-card">
+            <strong>${run.parameter || "parameter"} = ${formatNumber(run.value || 0)}</strong>
+            <span class="label-pill info">${run.status || "awaiting import"}</span>
+            <span class="subtle">parameterDigest ${run.parameterDigest || "n/a"}</span>
+            <span class="subtle">source ${run.resultProvenance?.source || run.solverMetadata?.source || "n/a"}</span>
+            <span class="subtle">digestMatch ${formatDigestMatch(run.resultProvenance?.digestMatch)}</span>
+          </div>
+        `)
+        .join("")}
+    </div>
+  `;
+};
+
+renderLatest = function renderLatest(result) {
+  if (!shouldRenderAsMainResult(result)) {
+    renderAwaitingResult(appState.exportContext);
+    return;
+  }
+  appState.latest = result;
+  stopPlayback();
+  const lastFrame = result.history.length - 1;
+  elements.playbackSlider.max = String(Math.max(lastFrame, 0));
+  elements.playbackSlider.value = String(Math.max(lastFrame, 0));
+  renderSummary(result);
+  renderDisplayModeBanner(result);
+  renderClassification(result);
+  renderEvents(result);
+  renderMetrics(result);
+  renderTimeline(result);
+  renderLocalBreakdown(result);
+  renderCharts(result);
+  renderComparison();
+  renderSweep();
+  renderPlaybackFrame(Math.max(lastFrame, 0));
+};
+
+executeCase = function executeCase(caseName) {
+  appState.ui.selectedCase = caseName;
+  appState.ui.selectedMode = "case";
+  elements.sweepCase.value = caseName;
+  appState.comparisonRuns = [];
+  appState.sweepRuns = [];
+  syncRunButtons();
+  appState.exportContext = buildCurrentExportContext(caseName);
+  renderAwaitingResult(appState.exportContext);
+};
+
+executeAllCases = function executeAllCases() {
+  appState.ui.selectedMode = "all";
+  syncRunButtons();
+  appState.comparisonRuns = ["A", "B", "C"].map((caseName) => {
+    const context = buildCurrentExportContext(caseName);
+    return {
+      caseName,
+      parameterDigest: context.parameterDigest,
+      solverMetadata: { solverMode: "febio", source: "febio-export-ready" },
+      resultProvenance: {
+        source: "febio-export-ready",
+        parameterDigest: context.parameterDigest,
+        exportTimestamp: context.exportTimestamp,
+        importTimestamp: null,
+        digestMatch: null,
+      },
+      isPhysicalFebioResult: false,
+    };
+  });
+  appState.exportContext = buildCurrentExportContext(appState.ui.selectedCase || "C");
+  appState.exportContext.lastImportWarning = "run-all is deprecated in the main physical FEBio path";
+  renderAwaitingResult(appState.exportContext);
+};
+
+executeSweep = function executeSweep() {
+  appState.ui.selectedMode = "sweep";
+  syncRunButtons();
+  appState.exportContext = buildCurrentExportContext(appState.ui.selectedCase || "C");
+  appState.sweepRuns = [
+    {
+      parameter: elements.sweepParameter.value || "n/a",
+      value: Number(elements.sweepStart.value || 0),
+      status: "awaiting import",
+      parameterDigest: appState.exportContext.parameterDigest,
+      solverMetadata: { solverMode: "febio", source: "febio-export-ready" },
+      resultProvenance: {
+        source: "febio-export-ready",
+        parameterDigest: appState.exportContext.parameterDigest,
+        exportTimestamp: appState.exportContext.exportTimestamp,
+        importTimestamp: null,
+        digestMatch: null,
+      },
+    },
+  ];
+  appState.exportContext.lastImportWarning = "parameter sweep is deprecated in the main physical FEBio path";
+  renderAwaitingResult(appState.exportContext);
+};
+
+bindButtons = function bindButtons() {
+  if (elements.solverMode) {
+    elements.solverMode.innerHTML = `<option value="febio">FEBio</option>`;
+    elements.solverMode.value = "febio";
+    elements.solverMode.disabled = true;
+  }
+  window.__markFebioButtonPointer = function __markFebioButtonPointer() {
+    if (typeof setFebioRunStage === "function") {
+      setFebioRunStage("pointer detected", "FEBio Run button received pointer input", "is-busy");
+    }
+    if (typeof setFebioBridgeStatus === "function") {
+      setFebioBridgeStatus("bridge: click detected", "is-busy");
+    }
+    if (typeof window.__runFebioFromButton === "function") {
+      setTimeout(() => {
+        window.__runFebioFromButton();
+      }, 0);
+    }
+  };
+  window.__runFebioFromButton = async function __runFebioFromButton() {
+    try {
+      if (appState?.febioBridge?.dispatching) {
+        return;
+      }
+      if (appState?.febioBridge) {
+        appState.febioBridge.dispatching = true;
+      }
+      if (appState?.febioBridge) {
+        appState.febioBridge.runClickCount = (appState.febioBridge.runClickCount || 0) + 1;
+      }
+      if (typeof setFebioRunStage === "function") {
+        setFebioRunStage("button pressed", "dispatching FEBio run from UI", "is-busy");
+      }
+      await runFebioViaBridge();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      if (appState?.febioBridge) {
+        appState.febioBridge.dispatching = false;
+      }
+    }
+  };
+  elements.runCaseA.addEventListener("click", () => executeCase("A"));
+  elements.runCaseB.addEventListener("click", () => executeCase("B"));
+  elements.runCaseC.addEventListener("click", () => executeCase("C"));
+  elements.runAll.addEventListener("click", executeAllCases);
+  elements.runSweep.addEventListener("click", executeSweep);
+  elements.exportFebioJson?.addEventListener("click", exportCurrentCaseAsFebioJson);
+  elements.exportFebioXml?.addEventListener("click", () => exportFebioXml());
+  elements.exportFebioHandoff?.addEventListener("click", () => exportFebioHandoffBundle());
+  if (elements.febioRun) {
+    elements.febioRun.onclick = window.__runFebioFromButton;
+    elements.febioRun.onpointerdown = window.__markFebioButtonPointer;
+  }
+  elements.importResult?.addEventListener("click", () => {
+    elements.importResultFile?.click();
+  });
+  elements.importResultFile?.addEventListener("change", () => {
+    const [file] = elements.importResultFile.files || [];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      loadExternalResult(String(reader.result || ""));
+      elements.importResultFile.value = "";
+    };
+    reader.readAsText(file);
+  });
+  elements.resetDefaults.addEventListener("click", () => {
+    resetDefaults();
+    executeCase(appState.ui.selectedCase || "C");
+  });
+  elements.playbackToggle.addEventListener("click", togglePlayback);
+  elements.playbackReset.addEventListener("click", () => {
+    stopPlayback();
+    renderPlaybackFrame(0);
+  });
+  elements.playbackSlider.addEventListener("input", () => {
+    stopPlayback();
+    renderPlaybackFrame(Number(elements.playbackSlider.value));
+  });
+  elements.runAll.disabled = true;
+  elements.runSweep.disabled = true;
+  elements.runAll.title = "deprecated in main FEBio path";
+  elements.runSweep.title = "deprecated in main FEBio path";
+};
+
 function initialize() {
   organizeWorkspaceLayout();
   populateFields();
@@ -1207,10 +1628,46 @@ function initialize() {
   syncRunButtons();
   syncSolverModeControl();
   refreshFebioBridgeStatus();
+  try {
+    document.addEventListener(
+      "click",
+      (event) => {
+        const target = event?.target;
+        const label = [
+          target?.tagName || "unknown",
+          target?.id ? `#${target.id}` : "",
+          target?.textContent ? `:${String(target.textContent).trim().slice(0, 24)}` : "",
+        ].join("");
+        if (typeof setFebioBridgeStatus === "function") {
+          setFebioBridgeStatus(`bridge: click ${label}`, "is-busy");
+        }
+      },
+      true,
+    );
+  } catch (error) {
+    console.error(error);
+  }
   renderComparison();
   renderSweep();
   executeCase("C");
+  try {
+    const search = window?.location?.search || "";
+    if (search && typeof URLSearchParams === "function") {
+      const params = new URLSearchParams(search);
+      if (params.get("autorun") === "febio-run") {
+        setTimeout(() => {
+          if (typeof window.__runFebioFromButton === "function") {
+            window.__runFebioFromButton();
+          }
+        }, 150);
+      }
+    }
+  } catch (error) {
+    console.error(error);
+  }
 }
 
-initialize();
+if (!window.__NUCLEAR_SIMU_SKIP_AUTO_INIT__) {
+  initialize();
+}
 
