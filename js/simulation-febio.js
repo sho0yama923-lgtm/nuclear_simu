@@ -2054,7 +2054,20 @@ function exportFebioHandoffBundle(inputSpec = null) {
   return manifest;
 }
 
-const FEBIO_BRIDGE_BASE_URL = "http://127.0.0.1:8765";
+const FEBIO_BRIDGE_DEFAULT_BASE_URL = "http://127.0.0.1:8765";
+
+function resolveFebioBridgeBaseUrl() {
+  try {
+    const protocol = window?.location?.protocol || "";
+    const origin = window?.location?.origin || "";
+    if ((protocol === "http:" || protocol === "https:") && origin && origin !== "null") {
+      return origin;
+    }
+  } catch (error) {
+    // ignore and fall back to the explicit localhost bridge URL
+  }
+  return FEBIO_BRIDGE_DEFAULT_BASE_URL;
+}
 
 function flushUiFrame() {
   return new Promise((resolve) => {
@@ -2109,7 +2122,7 @@ function setFebioBridgeStatus(text, tone = "") {
 }
 
 async function fetchFebioBridge(pathname, options = {}) {
-  const response = await fetch(`${FEBIO_BRIDGE_BASE_URL}${pathname}`, {
+  const response = await fetch(`${resolveFebioBridgeBaseUrl()}${pathname}`, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
   });

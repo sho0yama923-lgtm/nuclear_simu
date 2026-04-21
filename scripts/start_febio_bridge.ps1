@@ -1,7 +1,8 @@
 param(
   [int]$Port = 8765,
   [string]$BridgeHost = "127.0.0.1",
-  [string]$FebioExe = ""
+  [string]$FebioExe = "",
+  [switch]$OpenApp
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,6 +22,9 @@ if ($FebioExe) {
 
 Push-Location $projectRoot
 try {
+  if ($OpenApp) {
+    Start-Process "http://$BridgeHost`:$Port/"
+  }
   & node @nodeArgs
 }
 finally {

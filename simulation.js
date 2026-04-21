@@ -970,11 +970,11 @@ function organizeWorkspaceLayout() {
     if (!elements.febioRun && elements.exportFebioJson?.parentNode) {
       const febioRunButton = elements.exportFebioJson.cloneNode(true);
       febioRunButton.id = "febio-run";
-      febioRunButton.textContent = "FEBio Run";
+      febioRunButton.textContent = "FEBio実行";
       febioRunButton.title = "FEBio を実行して結果を読み込み、表示まで行います";
       febioRunButton.setAttribute("onclick", "window.__runFebioFromButton && window.__runFebioFromButton(); return false;");
       febioRunButton.setAttribute("onpointerdown", "window.__markFebioButtonPointer && window.__markFebioButtonPointer();");
-      (elements.exportFebioHandoff || elements.exportFebioXml || elements.exportFebioJson).insertAdjacentElement("afterend", febioRunButton);
+      (elements.exportFebioXml || elements.exportFebioJson).insertAdjacentElement("afterend", febioRunButton);
       elements.febioRun = febioRunButton;
     }
     if (!elements.febioRunStatus && elements.febioRun?.parentNode) {
@@ -997,6 +997,63 @@ function organizeWorkspaceLayout() {
       elements.importResult.insertAdjacentElement("afterend", status);
       elements.febioBridgeStatus = status;
     }
+    elements.runCaseA.textContent = "ケースA";
+    elements.runCaseB.textContent = "ケースB";
+    elements.runCaseC.textContent = "ケースC";
+    elements.resetDefaults.textContent = "既定値に戻す";
+    elements.importResult.textContent = "結果JSON読込";
+    elements.exportFebioJson.textContent = "入力JSON保存";
+    if (elements.exportFebioXml) {
+      elements.exportFebioXml.textContent = "FEBio入力(.feb)保存";
+    }
+    if (elements.febioRun) {
+      elements.febioRun.textContent = "FEBio実行";
+      elements.febioRun.title = "FEBio を実行して結果を読み込み、表示まで行います";
+    }
+    elements.runAll?.remove();
+    elements.runSweep?.remove();
+    elements.exportFebioHandoff?.remove();
+    elements.exportFebioHandoff = null;
+    elements.solverMode?.closest(".inline-select")?.remove();
+
+    const buildActionSection = (title, nodes, extraClass = "") => {
+      const section = document.createElement("div");
+      section.className = `action-section ${extraClass}`.trim();
+      const sectionTitle = document.createElement("p");
+      sectionTitle.className = "action-section-title";
+      sectionTitle.textContent = title;
+      const row = document.createElement("div");
+      row.className = "actions action-button-row";
+      nodes.filter(Boolean).forEach((node) => row.appendChild(node));
+      section.appendChild(sectionTitle);
+      section.appendChild(row);
+      return section;
+    };
+
+    const toolbarTitle = document.createElement("div");
+    toolbarTitle.className = "group-header";
+    const toolbarHeading = document.createElement("h2");
+    toolbarHeading.textContent = "FEBio操作";
+    toolbarTitle.appendChild(toolbarHeading);
+
+    const statusSection = document.createElement("div");
+    statusSection.className = "action-section action-section-status";
+    const statusTitle = document.createElement("p");
+    statusTitle.className = "action-section-title";
+    statusTitle.textContent = "状態";
+    const statusRow = document.createElement("div");
+    statusRow.className = "actions action-button-row action-status-row";
+    [elements.febioRunStatus, elements.febioBridgeStatus].filter(Boolean).forEach((node) => statusRow.appendChild(node));
+    statusSection.appendChild(statusTitle);
+    statusSection.appendChild(statusRow);
+
+    runGroup.replaceChildren(
+      toolbarTitle,
+      buildActionSection("ケース選択", [elements.runCaseA, elements.runCaseB, elements.runCaseC], "action-section-cases"),
+      buildActionSection("実行", [elements.febioRun, elements.importResult, elements.resetDefaults], "action-section-execution"),
+      buildActionSection("出力", [elements.exportFebioXml, elements.exportFebioJson], "action-section-export"),
+      statusSection,
+    );
     simulationActions.appendChild(runGroup);
   }
 

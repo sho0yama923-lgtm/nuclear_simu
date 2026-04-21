@@ -64,6 +64,43 @@ function sendText(res, statusCode, message) {
   res.end(message);
 }
 
+const STATIC_CONTENT_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".md": "text/markdown; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+};
+
+function safeResolveStaticPath(projectRoot, requestPathname) {
+  const pathname = decodeURIComponent(requestPathname || "/");
+  if (pathname === "/" || pathname === "/app" || pathname === "/index.html") {
+    return path.join(projectRoot, "index.html");
+  }
+  const relativePath = pathname.replace(/^\/+/, "");
+  const resolved = path.resolve(projectRoot, relativePath);
+  if (!resolved.startsWith(projectRoot)) {
+    return null;
+  }
+  return resolved;
+}
+
+function sendStaticFile(res, filePath) {
+  if (!filePath || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    sendJson(res, 404, { ok: false, error: "Static file not found" });
+    return;
+  }
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = STATIC_CONTENT_TYPES[ext] || "application/octet-stream";
+  res.writeHead(200, {
+    "Content-Type": contentType,
+    "Cache-Control": "no-store, must-revalidate",
+    "Access-Control-Allow-Origin": "*",
+  });
+  res.end(fs.readFileSync(filePath));
+}
+
 function readRequestBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -278,6 +315,14 @@ const server = http.createServer(async (req, res) => {
         });
       }
       return;
+    }
+
+    if (req.method === "GET") {
+      const staticPath = safeResolveStaticPath(projectRoot, requestUrl.pathname);
+      if (staticPath) {
+        sendStaticFile(res, staticPath);
+        return;
+      }
     }
 
     sendJson(res, 404, { ok: false, error: "Not found" });

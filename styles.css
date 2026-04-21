@@ -497,6 +497,27 @@ canvas {
   padding: 18px 20px;
 }
 
+.action-section {
+  display: grid;
+  gap: 8px;
+}
+
+.action-section-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.action-button-row {
+  align-items: center;
+}
+
+.action-status-row {
+  gap: 12px;
+}
+
 .dot {
   display: inline-block;
   width: 10px;

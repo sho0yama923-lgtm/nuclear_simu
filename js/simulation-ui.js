@@ -1287,6 +1287,30 @@ function buildCurrentExportContext(caseName = appState.ui.selectedCase || "C") {
   return buildFebioRunBundle(spec);
 }
 
+function normalizeFebioActionUi() {
+  elements.runCaseA && (elements.runCaseA.textContent = "ケースA");
+  elements.runCaseB && (elements.runCaseB.textContent = "ケースB");
+  elements.runCaseC && (elements.runCaseC.textContent = "ケースC");
+  elements.resetDefaults && (elements.resetDefaults.textContent = "既定値に戻す");
+  elements.importResult && (elements.importResult.textContent = "結果JSON読込");
+  elements.exportFebioJson && (elements.exportFebioJson.textContent = "入力JSON保存");
+  elements.exportFebioXml && (elements.exportFebioXml.textContent = "FEBio入力(.feb)保存");
+  if (elements.febioRun) {
+    elements.febioRun.textContent = appState.febioBridge?.busy ? "FEBio実行中..." : "FEBio実行";
+    elements.febioRun.title = "FEBio を実行して結果を読み込み、表示まで行います";
+  }
+  elements.runAll?.remove();
+  elements.runSweep?.remove();
+  elements.exportFebioHandoff?.remove();
+  elements.solverMode?.closest(".inline-select")?.remove();
+
+  const sectionTitles = Array.from(document.querySelectorAll(".simulation-toolbar .action-section-title"));
+  if (sectionTitles[0]) sectionTitles[0].textContent = "ケース選択";
+  if (sectionTitles[1]) sectionTitles[1].textContent = "実行";
+  if (sectionTitles[2]) sectionTitles[2].textContent = "出力";
+  if (sectionTitles[3]) sectionTitles[3].textContent = "状態";
+}
+
 function updateActionAvailability(exportContext) {
   const hasValidationErrors = Boolean(exportContext?.canonicalSpec?.validationReport && !exportContext.canonicalSpec.validationReport.valid);
   const hasMeshErrors = Boolean(exportContext?.templateData?.geometry?.meshValidation && !exportContext.templateData.geometry.meshValidation.valid);
@@ -1297,8 +1321,9 @@ function updateActionAvailability(exportContext) {
     }
   });
   if (elements.febioRun) {
-    elements.febioRun.textContent = bridgeBusy ? "FEBio Running..." : "FEBio Run";
+    elements.febioRun.textContent = bridgeBusy ? "FEBio実行中..." : "FEBio実行";
   }
+  normalizeFebioActionUi();
 }
 
 var renderAwaitingResult = function renderAwaitingResult(exportContext = null) {
@@ -1621,10 +1646,12 @@ bindButtons = function bindButtons() {
 
 function initialize() {
   organizeWorkspaceLayout();
+  normalizeFebioActionUi();
   populateFields();
   bindFieldListeners();
   fillSweepControls();
   bindButtons();
+  normalizeFebioActionUi();
   syncRunButtons();
   syncSolverModeControl();
   refreshFebioBridgeStatus();

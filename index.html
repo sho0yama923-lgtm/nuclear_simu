@@ -223,8 +223,25 @@
       </main>
     </div>
 
-    <script src="./simulation.js?v=20260420h"></script>
-    <script src="./js/simulation-febio.js?v=20260420h"></script>
-    <script src="./js/simulation-ui.js?v=20260420h"></script>
+    <script>
+      (function redirectFileModeToLocalhost() {
+        if (window.location.protocol !== "file:") {
+          return;
+        }
+        fetch("http://127.0.0.1:8765/health", { method: "GET" })
+          .then(function (response) {
+            if (!response.ok) {
+              return;
+            }
+            window.location.replace("http://127.0.0.1:8765/");
+          })
+          .catch(function () {
+            // bridge is offline; stay in file-mode fallback
+          });
+      })();
+    </script>
+    <script src="./simulation.js?v=20260421c"></script>
+    <script src="./js/simulation-febio.js?v=20260421c"></script>
+    <script src="./js/simulation-ui.js?v=20260421c"></script>
   </body>
 </html>

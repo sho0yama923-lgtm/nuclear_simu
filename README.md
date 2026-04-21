@@ -1,38 +1,85 @@
 # 核単離シミュレータ
 
-ブラウザで条件設定と可視化を行い、FEBio へ渡す `.feb` を出力できるシミュレータです。
+FEBio を実計算本体とし、ブラウザ UI を
+
+- パラメータ入力
+- FEBio 入力生成
+- 実行補助
+- 結果表示
+
+に特化させたフロントエンドです。
 
 ## 現在の構成
 
-- `lightweight`
-  - アプリ内の JS 縮約モデルをその場で実行します
-- `febio`
-  - UI / schema / export は FEBio bridge を通ります
-  - ただしアプリ内 solver はまだ mock です
+- 主経路
+  - UI 入力
+  - canonical spec 正規化
+  - FEBio template / `.feb` XML 生成
+  - bridge 経由で FEBio 実行
+  - 結果 import
+  - physical FEBio result 表示
+- 旧 lightweight / mock
+  - 互換用途の legacy 扱い
+  - 主 UI / 主結果には使いません
 
 重要:
 
-- `.feb` XML の生成は実装済みです
-- 外部の `febio4.exe` に渡して CLI 実行するスクリプトも入っています
-- ただしアプリの `febio` ボタン自体がブラウザ内から FEBio を直接起動するわけではありません
+- 主表示は physical FEBio result 前提です
+- `isPhysicalFebioResult = true` でない結果は main result に採用しません
+- 推奨実行経路は `file://index.html` 直開きではなく `http://127.0.0.1:8765/` です
 
 ## 起動
 
+まず bridge を起動します。
+
 ```powershell
-Start-Process 'C:\Users\xiogo\projects\nuclear_simu\index.html'
+powershell -ExecutionPolicy Bypass -File scripts/start_febio_bridge.ps1 -OpenApp
 ```
+
+その後、ブラウザでは次を開きます。
+
+- [http://127.0.0.1:8765/](http://127.0.0.1:8765/)
+
+補足:
+
+- `index.html` を直接開いた場合でも、bridge が起動済みなら localhost 側へ自動リダイレクトします
+- bridge が止まっていると `FEBio実行` は動きません
 
 ## ブラウザ側でできること
 
-- Case A / B / C 実行
-- 全ケース比較
-- パラメータスイープ
-- 断面図 / 上面図の表示
-- `FEBio JSON保存`
-- `FEBio XML保存`
-- `FEBio引き渡し一式`
+### ケース選択
+- `ケースA`
+- `ケースB`
+- `ケースC`
 
-パラメータ欄の単位表記は内部 solver と揃えてあります。
+### 実行
+- `FEBio実行`
+  - `.feb` 生成
+  - bridge 経由の FEBio 実行
+  - result JSON import
+  - physical result 表示
+- `結果JSON読込`
+- `既定値に戻す`
+
+### 出力
+- `FEBio入力(.feb)保存`
+- `入力JSON保存`
+
+### 状態
+- `bridge` 状態
+- `FEBio実行` の進行状態
+
+主 UI から外したもの:
+
+- `全ケース実行`
+- `パラメータスイープ`
+- `FEBio引き渡し一式`
+- `FEBio View`
+
+## 単位
+
+パラメータ欄の単位表記は内部 solver / FEBio 前提に合わせています。
+
 - 幾何・移動量: `um`
 - 応力・弾性率: `kPa`
 - 粘性: `kPa·s`
@@ -42,74 +89,61 @@ Start-Process 'C:\Users\xiogo\projects\nuclear_simu\index.html'
 
 ## FEBio 実行フロー
 
-### 1. ブラウザから出力
+1. UI 値を canonical spec に正規化
+2. `buildFebioTemplateData()` で templateData を生成
+3. `serializeFebioTemplateToXml()` で `.feb` XML を生成
+4. `buildFebioRunBundle()` で export bundle を生成
+5. bridge が FEBio CLI を呼ぶ
+6. `convert_febio_output.mjs` が result JSON を作る
+7. UI が imported physical result を表示する
 
-次のいずれかを使います。
+## CLI からの出力 / 実行
 
-- `FEBio XML保存`
-  - `.feb` だけ保存
-- `FEBio引き渡し一式`
-  - `.feb` / input JSON / manifest / README をまとめて保存
-
-### 2. CLI から出力
-
-ブラウザを開かずに `.feb` を作るなら次です。
+### `.feb` を作る
 
 ```powershell
 node scripts/export_febio_case.mjs --case A --out-dir febio_exports\A
 ```
 
-一式を出力します。
-
-- `case_A.feb`
-- `febio_case_A_input.json`
-- `febio_case_A_manifest.json`
-- `febio_case_A_README.txt`
-
-### 3. FEBio を実行
-
-既存の `.feb` を実行するなら次です。
+### 既存 `.feb` を実行する
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile febio_exports\A\case_A.feb
 ```
 
-`.feb` 生成から実行までまとめてやるなら次です。
+### 出力から実行までまとめる
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/export_and_run_febio_case.ps1 -CaseName A
 ```
 
-## 追加したスクリプト
-
-- `scripts/febio_scan_case_a.mjs`
-  - Case A の FEBio 条件探索をまとめて実行し、上位条件を JSON / CSV で残します
+## 追加スクリプト
 
 - `scripts/export_febio_case.mjs`
-  - `simulation.js` を Node VM で読み、Case A/B/C の `.feb` と handoff 一式を出力します
+  - ケース条件から `.feb` と companion input JSON を生成
 - `scripts/run_febio_case.ps1`
-  - `febio4.exe` を探して `.feb` を実行します
+  - FEBio CLI 実行と postprocess 呼び出し
 - `scripts/export_and_run_febio_case.ps1`
-  - 出力と実行を 1 回で行います
+  - export と run をまとめて実行
+- `scripts/convert_febio_output.mjs`
+  - FEBio 出力を app result JSON へ変換
+- `scripts/febio_bridge_server.mjs`
+  - UI 配信と API を兼ねる localhost bridge
+- `scripts/start_febio_bridge.ps1`
+  - bridge 起動用ラッパ
+- `scripts/febio_scan_case_a.mjs`
+  - Case A の FEBio 条件探索
 
 ## 実行確認
 
 この環境では次を確認済みです。
 
 - `C:\Program Files\FEBioStudio\bin\febio4.exe` を検出
-- `node scripts/export_febio_case.mjs --case A --out-dir febio_exports\A`
-- `powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile febio_exports\A\case_A.feb`
-- `case_A.log` と `case_A.xplt` の生成
-
-現状の `.feb` は「まず FEBio で読めて回る」ことを優先した最小構成です。接触や cohesive を本格反映した高忠実度版は次段階です。
-
-## 出力物
-
-実行後は例えば次ができます。
-
-- `febio_exports\A\run\case_A.log`
-- `febio_exports\A\run\case_A.xplt`
-- `febio_exports\A\run\case_A_cli.log`
+- bridge 起動後に `http://127.0.0.1:8765/health` が 200
+- `http://127.0.0.1:8765/` から UI 配信
+- `.feb` 生成
+- FEBio CLI 実行
+- result JSON 生成と UI 表示
 
 ## 今後の差し込み位置
 
@@ -127,39 +161,27 @@ powershell -ExecutionPolicy Bypass -File scripts/export_and_run_febio_case.ps1 -
 - `simulation.js`
 - `index.html`
 - `styles.css`
-- `FEBIO_HANDOFF.md`
-- `scripts/export_febio_case.mjs`
-- `scripts/run_febio_case.ps1`
-- `scripts/export_and_run_febio_case.ps1`
+- `js/simulation-febio.js`
+- `js/simulation-ui.js`
+- `scripts/febio_bridge_server.mjs`
+- `scripts/start_febio_bridge.ps1`
 
-## FEBio UI Bridge
+## ドキュメント
 
-- UI から `FEBio Run` / `FEBio View` を使うときは、先に localhost bridge を起動します。
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/start_febio_bridge.ps1
-```
-
-- bridge は `febio_exports\ui_bridge\case_A` のような固定出力先へ export / run / result import をまとめます。
-- 詳細は [FEBIO_UI_BRIDGE.md](./FEBIO_UI_BRIDGE.md) を参照してください。
-
-## Code Structure
-
-- 繧ｳ繝ｼ繝峨・蛻晄悄繝ｫ繝ｼ繝ｫ縺ｨ蜷榊燕隱ｬ譏弱・ [CODEBASE_STRUCTURE.md](./CODEBASE_STRUCTURE.md)
-- パラメータと `lightweight` / `FEBio` の対応整理: [PARAMETER_MAPPING.md](./PARAMETER_MAPPING.md)
-- FEBio 出力と app result の対応整理: [FEBIO_OUTPUT_MAPPING.md](./FEBIO_OUTPUT_MAPPING.md)
-- UI から FEBio を実行する bridge: [FEBIO_UI_BRIDGE.md](./FEBIO_UI_BRIDGE.md)
+- コード分割と責務: [CODEBASE_STRUCTURE.md](./CODEBASE_STRUCTURE.md)
+- パラメータ対応表: [PARAMETER_MAPPING.md](./PARAMETER_MAPPING.md)
+- FEBio 出力対応表: [FEBIO_OUTPUT_MAPPING.md](./FEBIO_OUTPUT_MAPPING.md)
+- bridge 説明: [FEBIO_UI_BRIDGE.md](./FEBIO_UI_BRIDGE.md)
+- FEBio-first 設計メモ: [FEBIO_FRONTEND_ARCHITECTURE.md](./FEBIO_FRONTEND_ARCHITECTURE.md)
 
 ## Maintenance Rules
 
-- 構成や責務を変えたときは、必要に応じて `README.md` と `CODEBASE_STRUCTURE.md` も一緒に更新します。
-- 新しい要素を追加したときは、既存要素と矛盾がないか、古い説明や使われなくなったコード・UI・出力が残っていないかを確認します。
-## FEBio-first Notes
+- 構成、実行フロー、UI、export/import、bridge、物理モデルを変更したときは、関連する md ファイルも同じ変更セットで更新します。
+- `README.md` と `CODEBASE_STRUCTURE.md` は最低限の更新対象とし、必要に応じて `FEBIO_UI_BRIDGE.md`、`FEBIO_FRONTEND_ARCHITECTURE.md`、対応表も更新します。
+- 新しい要素を追加したときは、既存要素と矛盾していないか、古い説明や使われなくなった UI・helper・export/import 経路が残っていないかを確認します。
+- 「今の主経路」が何かを、コード、UI、md の 3 つで一致させます。
 
-- Main UI path: FEBio only
-- Main result requirement: `isPhysicalFebioResult = true`
-- Architecture note: [FEBIO_FRONTEND_ARCHITECTURE.md](/C:/Users/xiogo/projects/nuclear_simu/FEBIO_FRONTEND_ARCHITECTURE.md)
-- Test command:
+## テスト
 
 ```powershell
 node --test tests\febio-front-end.test.mjs
