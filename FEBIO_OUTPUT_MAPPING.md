@@ -34,39 +34,44 @@
 
 `templateData.interfaceRegions.localNc` に定義された node set の組を使います。
 
-| region | nucleus 側ログ | cytoplasm 側ログ | app result |
-|---|---|---|---|
-| `left` | `febio_nc_left_nucleus.csv` | `febio_nc_left_cytoplasm.csv` | `localNc.left.*` |
-| `right` | `febio_nc_right_nucleus.csv` | `febio_nc_right_cytoplasm.csv` | `localNc.right.*` |
-| `top` | `febio_nc_top_nucleus.csv` | `febio_nc_top_cytoplasm.csv` | `localNc.top.*` |
-| `bottom` | `febio_nc_bottom_nucleus.csv` | `febio_nc_bottom_cytoplasm.csv` | `localNc.bottom.*` |
+| region | face log | nucleus 側ログ | cytoplasm 側ログ | app result |
+|---|---|---|---|---|
+| `left` | `febio_interface_nc_left.csv` | `febio_nc_left_nucleus.csv` | `febio_nc_left_cytoplasm.csv` | `localNc.left.*` |
+| `right` | `febio_interface_nc_right.csv` | `febio_nc_right_nucleus.csv` | `febio_nc_right_cytoplasm.csv` | `localNc.right.*` |
+| `top` | `febio_interface_nc_top.csv` | `febio_nc_top_nucleus.csv` | `febio_nc_top_cytoplasm.csv` | `localNc.top.*` |
+| `bottom` | `febio_interface_nc_bottom.csv` | `febio_nc_bottom_nucleus.csv` | `febio_nc_bottom_cytoplasm.csv` | `localNc.bottom.*` |
 
-各 region では、左右差または上下差から
+各 region では、まず face log から
 
 - `normalStress`
-- `shearStress`
 - `damage`
+
+を優先的に推定し、さらに node set 差から
+
+- `shearStress`
 - `peakNormal`
 - `peakShear`
 - `firstFailureTime`
 - `firstFailureMode`
 
-を推定します。
+を補完します。
 
 計算方法:
-- 左右面では `x` 差を normal、`z` 差を shear とみなす
-- 上下面では `z` 差を normal、`x` 差を shear とみなす
-- `Kn_nc`, `Kt_nc`, `sig_nc_crit`, `tau_nc_crit`, `Gc_nc` を使って reduced-order damage を再構成する
+- face log の `contact pressure` を normal stress として優先使用
+- face log の `contact gap` と `sig_nc_crit`, `Gc_nc` を使って damage を再構成
+- shear は引き続き node set 差から推定
+- 左右面では `x` 差を normal proxy、`z` 差を shear proxy とみなす
+- 上下面では `z` 差を normal proxy、`x` 差を shear proxy とみなす
 
 ## 3. 細胞-ディッシュ界面 `localCd`
 
 `templateData.interfaceRegions.localCd` に定義された node set を使います。
 
-| region | cell 側ログ | app result |
-|---|---|---|
-| `left` | `febio_cd_left_cell.csv` | `localCd.left.*` |
-| `center` | `febio_cd_center_cell.csv` | `localCd.center.*` |
-| `right` | `febio_cd_right_cell.csv` | `localCd.right.*` |
+| region | face log | cell 側ログ | app result |
+|---|---|---|---|
+| `left` | `febio_interface_cd_left.csv` | `febio_cd_left_cell.csv` | `localCd.left.*` |
+| `center` | `febio_interface_cd_center.csv` | `febio_cd_center_cell.csv` | `localCd.center.*` |
+| `right` | `febio_interface_cd_right.csv` | `febio_cd_right_cell.csv` | `localCd.right.*` |
 
 各 region では、平均変位から
 
@@ -81,9 +86,9 @@
 を推定します。
 
 計算方法:
-- `z` 変位を normal
-- `x` 変位を shear
-- `Kn_cd`, `Kt_cd`, `sig_cd_crit`, `tau_cd_crit`, `Gc_cd` を使って reduced-order damage を再構成する
+- face log の `contact pressure` を normal stress として優先使用
+- face log の `contact gap` と `sig_cd_crit`, `Gc_cd` を使って damage を再構成
+- `x` 変位を shear proxy として補う
 
 ## 4. 膜 `membraneRegions`
 
@@ -163,7 +168,7 @@
 いまは次の点に注意が必要です。
 
 - `.xplt` はまだ直接読んでいない
-- 界面 traction/damage を FEBio の native cohesive output から直接読んでいない
+- `nucleus-cytoplasm` は face_data を使って normal / gap を native 寄りに読んでいるが、true cohesive damage / tangential traction はまだ未読込
 - `localNc` / `localCd` は node set 変位差から再構成した reduced-order 指標
 - 膜は proxy であり、FEBio の membrane/shell 解析結果ではない
 - rigid body 出力の列解釈は現在 `id, x, z, Fx, Fz` を前提にしている

@@ -95,11 +95,11 @@
 
 | UI key | 意味 | lightweight | FEBio template | `.feb` XML |
 |---|---|---|---|---|
-| `Kn_nc` | 核-細胞質 法線剛性 | 直接使用 | `nucleusCytoplasm.Kn = max(Kn_nc * 0.18, 0.08)` | penalty として反映 |
-| `Kt_nc` | 核-細胞質 せん断剛性 | 直接使用 | `nucleusCytoplasm.Kt = max(Kt_nc * 0.18, 0.06)` | 現 serializer では未使用 |
-| `sig_nc_crit` | 核-細胞質 法線閾値 | 直接使用 | template metadata `sigCrit` | まだ未反映 |
-| `tau_nc_crit` | 核-細胞質 せん断閾値 | 直接使用 | template metadata `tauCrit` | まだ未反映 |
-| `Gc_nc` | 核-細胞質 破壊エネルギー | 直接使用 | template metadata `gc` | まだ未反映 |
+| `Kn_nc` | 核-細胞質 法線剛性 | 直接使用 | `nucleusCytoplasm.Kn = max(Kn_nc * 0.18, 0.08)` | sticky cohesive approximation の penalty として反映 |
+| `Kt_nc` | 核-細胞質 せん断剛性 | 直接使用 | `nucleusCytoplasm.Kt = max(Kt_nc * 0.18, 0.06)` | comment / metadata と shear proxy に反映 |
+| `sig_nc_crit` | 核-細胞質 法線閾値 | 直接使用 | template metadata `sigCrit` | sticky cohesive approximation の `max_traction` として反映 |
+| `tau_nc_crit` | 核-細胞質 せん断閾値 | 直接使用 | template metadata `tauCrit` | friction proxy / shear proxy に反映 |
+| `Gc_nc` | 核-細胞質 破壊エネルギー | 直接使用 | template metadata `gc` | sticky cohesive approximation の `snap_tol` と import damage proxy に反映 |
 | `Kn_cd` | 細胞-ディッシュ 法線剛性 | 直接使用 | `cellDish.Kn = max(Kn_cd * 0.12, 0.12)` | penalty として反映 |
 | `Kt_cd` | 細胞-ディッシュ せん断剛性 | 直接使用 | `cellDish.Kt = max(Kt_cd * 0.12, 0.08)` | 現 serializer では未使用 |
 | `sig_cd_crit` | 細胞-ディッシュ 法線閾値 | 直接使用 | template metadata `sigCrit` | まだ未反映 |
@@ -109,9 +109,12 @@
 | `adhesionSeed` | 接着 seed | `random_patchy` の再現性に使用 | template metadata に保持 | まだ未反映 |
 
 補足:
-- 現在の FEBio 側 interface は `tied-elastic` 最小構成です。
-- そのため template には `Kt`, `sigCrit`, `tauCrit`, `gc` を持っていますが、現 serializer は主に `penalty` と `tolerance` だけを書いています。
-- 本来の cohesive/traction-separation に寄せる次段階で、ここが `.feb` XML へ本格的に出る想定です。
+- 現在の FEBio 側 interface は
+  - `nucleus-cytoplasm`: solver-primary な `sticky` cohesive approximation
+  - `cell-dish`: `tied-elastic`
+  です。
+- そのため `nucleus-cytoplasm` では `sigCrit` と `Gc` が active law 側にも入り始めていますが、まだ true traction-separation ではありません。
+- `cell-dish` は引き続き cohesive-ready metadata 保持が中心で、本格 cohesive 化は次段階です。
 
 ## Operation / Capture
 

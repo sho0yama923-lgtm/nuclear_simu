@@ -214,6 +214,12 @@ function createLocalRegionState() {
     damage: 0,
     peakNormal: 0,
     peakShear: 0,
+    nativeGap: 0,
+    contactFraction: 0,
+    minContactFraction: 1,
+    sourceNormal: "unavailable",
+    sourceDamage: "unavailable",
+    sourceShear: "unavailable",
     firstFailureTime: null,
     firstFailureMode: null,
   };
@@ -229,12 +235,25 @@ function createMembraneRegionState() {
   };
 }
 
+function normalizeInterfaceCriteria(crits = {}) {
+  return {
+    Kn: Number(crits.normalStiffness ?? crits.Kn ?? 0),
+    Kt: Number(crits.tangentialStiffness ?? crits.Kt ?? 0),
+    sigCrit: Number(crits.criticalNormalStress ?? crits.sigCrit ?? 0),
+    tauCrit: Number(crits.criticalShearStress ?? crits.tauCrit ?? 0),
+    gc: Number(crits.fractureEnergy ?? crits.gc ?? 0),
+  };
+}
+
 function buildSnapshotsByName(runDir, logOutputs) {
   const lookup = {};
   for (const spec of logOutputs.nodeData || []) {
     lookup[spec.name] = parseLogDataFile(path.join(runDir, spec.file));
   }
   for (const spec of logOutputs.rigidBodyData || []) {
+    lookup[spec.name] = parseLogDataFile(path.join(runDir, spec.file));
+  }
+  for (const spec of logOutputs.faceData || []) {
     lookup[spec.name] = parseLogDataFile(path.join(runDir, spec.file));
   }
   return lookup;
@@ -266,12 +285,16 @@ function buildOutputMappingSummary(templateData) {
       Object.entries(templateData.interfaceRegions.localNc).map(([region, mapping]) => [
         region,
         {
+          faceLogfile: `febio_interface_nc_${region}.csv`,
           nucleusLogfile: `febio_${mapping.nucleusNodeSet.replace(/_nodes$/, "")}.csv`,
           cytoplasmLogfile: `febio_${mapping.cytoplasmNodeSet.replace(/_nodes$/, "")}.csv`,
+          source: "native face_data for normal stress/gap/contact fraction, node proxy for shear",
           mapsTo: [
             `localNc.${region}.normalStress`,
             `localNc.${region}.shearStress`,
             `localNc.${region}.damage`,
+            `localNc.${region}.nativeGap`,
+            `localNc.${region}.contactFraction`,
             `localNc.${region}.peakNormal`,
             `localNc.${region}.peakShear`,
           ],
@@ -282,7 +305,9 @@ function buildOutputMappingSummary(templateData) {
       Object.entries(templateData.interfaceRegions.localCd).map(([region, mapping]) => [
         region,
         {
+          faceLogfile: `febio_interface_cd_${region}.csv`,
           cellLogfile: `febio_${mapping.cellNodeSet.replace(/_nodes$/, "")}.csv`,
+          source: "face_data for normal stress/gap, node proxy for shear",
           mapsTo: [
             `localCd.${region}.normalStress`,
             `localCd.${region}.shearStress`,
@@ -301,6 +326,10 @@ function buildOutputMappingSummary(templateData) {
       firstFailure: {
         source: "earliest localNc/localCd/membrane proxy failure time",
         mapsTo: ["firstFailureSite", "firstFailureMode"],
+      },
+      nativeObservation: {
+        source: "resultProvenance.dataSources",
+        mapsTo: ["resultProvenance.dataSources.localNc", "resultProvenance.dataSources.localCd"],
       },
       classification: {
         source: "classifyRun(normalizedResult)",
@@ -335,6 +364,7 @@ function getPipetteTipOffsetZ(templateData, inputSpec) {
 }
 
 function computeRegionInterfaceState(region, leftSeries, rightSeries, params, crits) {
+  const resolved = normalizeInterfaceCriteria(crits);
   const state = createLocalRegionState();
   const timeline = [];
   const times = Array.from(
@@ -348,55 +378,244 @@ function computeRegionInterfaceState(region, leftSeries, rightSeries, params, cr
     const deltaUz = Math.abs((left[1] || 0) - (right[1] || 0));
     const normalDisplacement = region === "top" || region === "bottom" ? deltaUz : deltaUx;
     const shearDisplacement = region === "top" || region === "bottom" ? deltaUx : deltaUz;
-    const normalStress = crits.Kn * normalDisplacement;
-    const shearStress = crits.Kt * shearDisplacement;
+    const normalStress = resolved.Kn * normalDisplacement;
+    const shearStress = resolved.Kt * shearDisplacement;
     const phi = Math.sqrt(
-      (normalStress / Math.max(crits.sigCrit, 1e-6)) ** 2 +
-      (shearStress / Math.max(crits.tauCrit, 1e-6)) ** 2,
+      (normalStress / Math.max(resolved.sigCrit, 1e-6)) ** 2 +
+      (shearStress / Math.max(resolved.tauCrit, 1e-6)) ** 2,
     );
-    const damage = clamp01(phi <= 1 ? 0 : (phi - 1) / Math.max(crits.gc, 0.05));
+    const damage = clamp01(phi <= 1 ? 0 : (phi - 1) / Math.max(resolved.gc, 0.05));
 
     state.normalStress = normalStress;
     state.shearStress = shearStress;
     state.damage = Math.max(state.damage, damage);
     state.peakNormal = Math.max(state.peakNormal, normalStress);
     state.peakShear = Math.max(state.peakShear, shearStress);
+    state.nativeGap = Math.max(state.nativeGap, normalDisplacement);
+    state.contactFraction = Math.max(0, 1 - damage);
+    state.minContactFraction = Math.min(state.minContactFraction, Math.max(0, 1 - damage));
+    state.sourceNormal = "node-displacement-proxy";
+    state.sourceDamage = "node-displacement-proxy";
+    state.sourceShear = "node-displacement-proxy";
     if (state.firstFailureTime === null && phi >= 1) {
       state.firstFailureTime = time;
       state.firstFailureMode = shearStress >= normalStress ? "shear" : "normal";
     }
-    timeline.push({ time, normalStress, shearStress, damage });
+    timeline.push({
+      time,
+      normalStress,
+      shearStress,
+      damage,
+      nativeGap: normalDisplacement,
+      contactFraction: Math.max(0, 1 - damage),
+      sourceNormal: "node-displacement-proxy",
+      sourceDamage: "node-displacement-proxy",
+      sourceShear: "node-displacement-proxy",
+    });
+  });
+
+  return { state, timeline };
+}
+
+function computeContactFractionFromFaceSnapshot(snapshot, gapScale, tractionThreshold) {
+  if (!snapshot?.records?.length) {
+    return 0;
+  }
+  let engagedCount = 0;
+  snapshot.records.forEach((record) => {
+    const gap = Math.abs(Number(record[1] || 0));
+    const pressure = Math.abs(Number(record[2] || 0));
+    if (pressure >= tractionThreshold || gap <= gapScale * 0.5) {
+      engagedCount += 1;
+    }
+  });
+  return engagedCount / snapshot.records.length;
+}
+
+function computeFaceDrivenInterfaceState(region, faceSeries, fallbackState, crits) {
+  const resolved = normalizeInterfaceCriteria(crits);
+  if (!faceSeries?.length) {
+    return {
+      state: {
+        ...fallbackState.state,
+        sourceNormal: "node-displacement-proxy",
+        sourceDamage: "node-displacement-proxy",
+        sourceShear: "node-displacement-proxy",
+      },
+      timeline: fallbackState.timeline.map((entry) => ({
+        ...entry,
+        sourceNormal: "node-displacement-proxy",
+        sourceDamage: "node-displacement-proxy",
+        sourceShear: "node-displacement-proxy",
+      })),
+    };
+  }
+
+  const state = {
+    ...fallbackState.state,
+    sourceNormal: "native-face-pressure",
+    sourceDamage: "native-face-gap-pressure",
+    sourceShear: "node-displacement-proxy",
+  };
+  const timeline = [];
+  const gapScale = Math.max(resolved.gc / Math.max(resolved.sigCrit, 1e-6), 1e-4);
+  const tractionThreshold = Math.max(resolved.sigCrit * 0.05, 1e-6);
+
+  faceSeries.forEach((snapshot) => {
+    const values = averageRecordColumns(snapshot);
+    const fallbackEntry =
+      nearestSnapshotFromTimeline(fallbackState.timeline, snapshot.time) ||
+      fallbackState.timeline[fallbackState.timeline.length - 1] ||
+      { shearStress: 0 };
+    const normalGap = Math.abs(values[0] || 0);
+    const normalStress = Math.abs(values[1] || 0);
+    const shearStress = fallbackEntry.shearStress || 0;
+    const contactFraction = computeContactFractionFromFaceSnapshot(snapshot, gapScale, tractionThreshold);
+    const tractionPhi = normalStress / Math.max(resolved.sigCrit, 1e-6);
+    const gapPhi = normalGap / gapScale;
+    const damage = clamp01(Math.max(tractionPhi, gapPhi) <= 1 ? 0 : Math.max(tractionPhi, gapPhi) - 1);
+
+    state.normalStress = normalStress;
+    state.shearStress = shearStress;
+    state.damage = Math.max(state.damage, damage);
+    state.peakNormal = Math.max(state.peakNormal, normalStress);
+    state.peakShear = Math.max(state.peakShear, shearStress);
+    state.nativeGap = normalGap;
+    state.contactFraction = contactFraction;
+    state.minContactFraction = Math.min(state.minContactFraction, contactFraction);
+    if (state.firstFailureTime === null && Math.max(tractionPhi, gapPhi) >= 1) {
+      state.firstFailureTime = snapshot.time;
+      state.firstFailureMode = "normal";
+    }
+
+    timeline.push({
+      time: snapshot.time,
+      normalStress,
+      shearStress,
+      damage,
+      nativeGap: normalGap,
+      contactFraction,
+      sourceNormal: "native-face-pressure",
+      sourceDamage: "native-face-gap-pressure",
+      sourceShear: "node-displacement-proxy",
+    });
   });
 
   return { state, timeline };
 }
 
 function computeCellDishRegionState(regionSeries, params, crits) {
+  const resolved = normalizeInterfaceCriteria(crits);
   const state = createLocalRegionState();
   const timeline = [];
   regionSeries.forEach((snapshot) => {
     const values = averageRecordColumns(snapshot);
     const normalDisplacement = Math.abs(values[1] || 0);
     const shearDisplacement = Math.abs(values[0] || 0);
-    const normalStress = crits.Kn * normalDisplacement;
-    const shearStress = crits.Kt * shearDisplacement;
+    const normalStress = resolved.Kn * normalDisplacement;
+    const shearStress = resolved.Kt * shearDisplacement;
     const phi = Math.sqrt(
-      (normalStress / Math.max(crits.sigCrit, 1e-6)) ** 2 +
-      (shearStress / Math.max(crits.tauCrit, 1e-6)) ** 2,
+      (normalStress / Math.max(resolved.sigCrit, 1e-6)) ** 2 +
+      (shearStress / Math.max(resolved.tauCrit, 1e-6)) ** 2,
     );
-    const damage = clamp01(phi <= 1 ? 0 : (phi - 1) / Math.max(crits.gc, 0.05));
+    const damage = clamp01(phi <= 1 ? 0 : (phi - 1) / Math.max(resolved.gc, 0.05));
 
     state.normalStress = normalStress;
     state.shearStress = shearStress;
     state.damage = Math.max(state.damage, damage);
     state.peakNormal = Math.max(state.peakNormal, normalStress);
     state.peakShear = Math.max(state.peakShear, shearStress);
+    state.nativeGap = normalDisplacement;
+    state.contactFraction = Math.max(0, 1 - damage);
+    state.minContactFraction = Math.min(state.minContactFraction, Math.max(0, 1 - damage));
+    state.sourceNormal = "node-displacement-proxy";
+    state.sourceDamage = "node-displacement-proxy";
+    state.sourceShear = "node-displacement-proxy";
     if (state.firstFailureTime === null && phi >= 1) {
       state.firstFailureTime = snapshot.time;
       state.firstFailureMode = shearStress >= normalStress ? "shear" : "normal";
     }
-    timeline.push({ time: snapshot.time, normalStress, shearStress, damage });
+    timeline.push({
+      time: snapshot.time,
+      normalStress,
+      shearStress,
+      damage,
+      nativeGap: normalDisplacement,
+      contactFraction: Math.max(0, 1 - damage),
+      sourceNormal: "node-displacement-proxy",
+      sourceDamage: "node-displacement-proxy",
+      sourceShear: "node-displacement-proxy",
+    });
   });
+  return { state, timeline };
+}
+
+function computeCellDishRegionStateWithFace(regionSeries, faceSeries, crits) {
+  const resolved = normalizeInterfaceCriteria(crits);
+  const fallback = computeCellDishRegionState(regionSeries, null, crits);
+  if (!faceSeries?.length) {
+    fallback.state.sourceNormal = "node-displacement-proxy";
+    fallback.state.sourceDamage = "node-displacement-proxy";
+    fallback.state.sourceShear = "node-displacement-proxy";
+    fallback.timeline = fallback.timeline.map((entry) => ({
+      ...entry,
+      sourceNormal: "node-displacement-proxy",
+      sourceDamage: "node-displacement-proxy",
+      sourceShear: "node-displacement-proxy",
+    }));
+    return fallback;
+  }
+
+  const state = {
+    ...fallback.state,
+    sourceNormal: "native-face-pressure",
+    sourceDamage: "native-face-gap-pressure",
+    sourceShear: "node-displacement-proxy",
+  };
+  const timeline = [];
+  const gapScale = Math.max(resolved.gc / Math.max(resolved.sigCrit, 1e-6), 1e-4);
+  const tractionThreshold = Math.max(resolved.sigCrit * 0.05, 1e-6);
+
+  faceSeries.forEach((snapshot) => {
+    const values = averageRecordColumns(snapshot);
+    const fallbackEntry =
+      nearestSnapshotFromTimeline(fallback.timeline, snapshot.time) ||
+      fallback.timeline[fallback.timeline.length - 1] ||
+      { shearStress: 0 };
+    const normalGap = Math.abs(values[0] || 0);
+    const normalStress = Math.abs(values[1] || 0);
+    const shearStress = fallbackEntry.shearStress || 0;
+    const contactFraction = computeContactFractionFromFaceSnapshot(snapshot, gapScale, tractionThreshold);
+    const tractionPhi = normalStress / Math.max(resolved.sigCrit, 1e-6);
+    const gapPhi = normalGap / gapScale;
+    const damage = clamp01(Math.max(tractionPhi, gapPhi) <= 1 ? 0 : Math.max(tractionPhi, gapPhi) - 1);
+
+    state.normalStress = normalStress;
+    state.shearStress = shearStress;
+    state.damage = Math.max(state.damage, damage);
+    state.peakNormal = Math.max(state.peakNormal, normalStress);
+    state.peakShear = Math.max(state.peakShear, shearStress);
+    state.nativeGap = normalGap;
+    state.contactFraction = contactFraction;
+    state.minContactFraction = Math.min(state.minContactFraction, contactFraction);
+    if (state.firstFailureTime === null && Math.max(tractionPhi, gapPhi) >= 1) {
+      state.firstFailureTime = snapshot.time;
+      state.firstFailureMode = "normal";
+    }
+
+    timeline.push({
+      time: snapshot.time,
+      normalStress,
+      shearStress,
+      damage,
+      nativeGap: normalGap,
+      contactFraction,
+      sourceNormal: "native-face-pressure",
+      sourceDamage: "native-face-gap-pressure",
+      sourceShear: "node-displacement-proxy",
+    });
+  });
+
   return { state, timeline };
 }
 
@@ -423,6 +642,19 @@ function buildMembraneProxy(localNc, membraneSpec) {
   });
 
   return regions;
+}
+
+function summarizeRegionSources(regions) {
+  return Object.fromEntries(
+    Object.entries(regions).map(([region, state]) => [
+      region,
+      {
+        normal: state.sourceNormal || "unknown",
+        damage: state.sourceDamage || "unknown",
+        shear: state.sourceShear || "unknown",
+      },
+    ]),
+  );
 }
 
 function buildHistoryFromSnapshots(
@@ -465,8 +697,13 @@ function buildHistoryFromSnapshots(
             normalStress: entry.normalStress,
             shearStress: entry.shearStress,
             damage: entry.damage,
+            nativeGap: entry.nativeGap ?? 0,
+            contactFraction: entry.contactFraction ?? 0,
             peakNormal: entry.normalStress,
             peakShear: entry.shearStress,
+            sourceNormal: entry.sourceNormal || "unknown",
+            sourceDamage: entry.sourceDamage || "unknown",
+            sourceShear: entry.sourceShear || "unknown",
           }
         : createLocalRegionState();
     });
@@ -479,8 +716,13 @@ function buildHistoryFromSnapshots(
             normalStress: entry.normalStress,
             shearStress: entry.shearStress,
             damage: entry.damage,
+            nativeGap: entry.nativeGap ?? 0,
+            contactFraction: entry.contactFraction ?? 0,
             peakNormal: entry.normalStress,
             peakShear: entry.shearStress,
+            sourceNormal: entry.sourceNormal || "unknown",
+            sourceDamage: entry.sourceDamage || "unknown",
+            sourceShear: entry.sourceShear || "unknown",
           }
         : createLocalRegionState();
     });
@@ -564,11 +806,17 @@ function buildResultFromLogs(sandbox, payload, runDir) {
 
   for (const region of ["left", "right", "top", "bottom"]) {
     const mapped = templateData.interfaceRegions.localNc[region];
-    const computed = computeRegionInterfaceState(
+    const fallback = computeRegionInterfaceState(
       region,
       logs[mapped.nucleusNodeSet] || [],
       logs[mapped.cytoplasmNodeSet] || [],
       params,
+      templateData.interfaces.nucleusCytoplasm,
+    );
+    const computed = computeFaceDrivenInterfaceState(
+      region,
+      logs[`nucleus_cytoplasm_${region}_surface`] || [],
+      fallback,
       templateData.interfaces.nucleusCytoplasm,
     );
     localNc[region] = computed.state;
@@ -577,9 +825,9 @@ function buildResultFromLogs(sandbox, payload, runDir) {
 
   for (const region of ["left", "center", "right"]) {
     const mapped = templateData.interfaceRegions.localCd[region];
-    const computed = computeCellDishRegionState(
+    const computed = computeCellDishRegionStateWithFace(
       logs[mapped.cellNodeSet] || [],
-      params,
+      logs[`cell_dish_${region}_surface`] || [],
       templateData.interfaces.cellDish,
     );
     localCd[region] = computed.state;
@@ -587,6 +835,8 @@ function buildResultFromLogs(sandbox, payload, runDir) {
   }
 
   const membraneRegions = buildMembraneProxy(localNc, inputSpec.membrane);
+  const localNcSourceSummary = summarizeRegionSources(localNc);
+  const localCdSourceSummary = summarizeRegionSources(localCd);
   const lastNucleus = averageRecordColumns(nucleusSeries[nucleusSeries.length - 1]);
   const lastCell = averageRecordColumns(cellSeries[cellSeries.length - 1]);
   const maxNucleusDisp = nucleusSeries.reduce(
@@ -658,6 +908,11 @@ function buildResultFromLogs(sandbox, payload, runDir) {
       inputJson: payload,
       outputMapping,
     },
+    interfaceObservation: {
+      localNcSource: localNcSourceSummary,
+      localCdSource: localCdSourceSummary,
+      membraneSource: "proxy-from-localNc",
+    },
     resultProvenance: {
       source: "febio-cli",
       parameterDigest: inputSpec.parameterDigest,
@@ -667,6 +922,11 @@ function buildResultFromLogs(sandbox, payload, runDir) {
       fileProvenance: {
         runDirectory: runDir,
         inputJsonPath: payload.files?.inputJson || null,
+      },
+      dataSources: {
+        localNc: localNcSourceSummary,
+        localCd: localCdSourceSummary,
+        membrane: "proxy-from-localNc",
       },
     },
   };

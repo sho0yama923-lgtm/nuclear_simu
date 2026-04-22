@@ -93,4 +93,4 @@ node --test tests\febio-front-end.test.mjs
 
 ## Documentation maintenance rule
 - UI、bridge、export/import、physical model、main flow を変更したときは、関連する md も同じ変更セットで更新する
-- 少なくとも `README.md` と `CODEBASE_STRUCTURE.md` は更新対象とし、必要に応じて bridge / architecture / mapping docs も更新する
+- 少なくとも `README.md` と `CODEBASE_STRUCTURE.md` と `PROGRESS.md` は更新対象とし、必要に応じて bridge / architecture / mapping docs も更新する

@@ -272,19 +272,75 @@ function buildFebioRigidTargets(inputSpec) {
   const tangential = makeSectionPoint(getSectionX(lift), getWorldZ(lift));
   const combinedInward = makeSectionPoint(getSectionX(lift) - params.dx_inward * 0.55, getWorldZ(lift));
   const outward = makeSectionPoint(getSectionX(lift) + params.dx_outward, getWorldZ(lift));
+  const stagedInwardMid = makeSectionPoint(getSectionX(lift) - params.dx_inward * 0.45, getWorldZ(lift));
+  const stagedCombinedMid = makeSectionPoint(getSectionX(lift) - params.dx_inward * 0.3, getWorldZ(lift));
 
-  const manipulationTarget =
+  const manipulationTargets =
     inputSpec.caseName === "B"
-      ? tangential
+      ? [
+          {
+            name: "manipulation",
+            phase: "phase3",
+            label: "case-specific manipulation",
+            pos: tangential,
+            operation: { lift: params.dz_lift, inward: 0, tangent: params.ds_tangent },
+          },
+        ]
       : inputSpec.caseName === "C"
-        ? combinedInward
-        : inward;
-  const releaseTarget =
-    inputSpec.caseName === "B"
-      ? tangential
-      : inputSpec.caseName === "C"
-        ? combinedInward
-        : inward;
+        ? [
+            {
+              name: "manipulation-1",
+              phase: "phase3",
+              label: "case-specific manipulation (stage 1)",
+              pos: stagedCombinedMid,
+              operation: {
+                lift: params.dz_lift,
+                inward: params.dx_inward * 0.3,
+                tangent: params.ds_tangent * 0.35,
+              },
+            },
+            {
+              name: "manipulation-2",
+              phase: "phase3",
+              label: "case-specific manipulation (stage 2)",
+              pos: combinedInward,
+              operation: {
+                lift: params.dz_lift,
+                inward: params.dx_inward * 0.55,
+                tangent: params.ds_tangent * 0.85,
+              },
+            },
+          ]
+        : [
+            {
+              name: "manipulation-1",
+              phase: "phase3",
+              label: "case-specific manipulation (stage 1)",
+              pos: stagedInwardMid,
+              operation: {
+                lift: params.dz_lift,
+                inward: params.dx_inward * 0.45,
+                tangent: 0,
+              },
+            },
+            {
+              name: "manipulation-2",
+              phase: "phase3",
+              label: "case-specific manipulation (stage 2)",
+              pos: inward,
+              operation: {
+                lift: params.dz_lift,
+                inward: params.dx_inward,
+                tangent: 0,
+              },
+            },
+          ];
+  const releaseTarget = manipulationTargets[manipulationTargets.length - 1].pos;
+  const enableReleaseTest = Boolean(inputSpec.operation?.enableReleaseTest || inputSpec.debug?.enableReleaseTest);
+  const releaseOutward = makeSectionPoint(
+    getSectionX(releaseTarget) + clamp(params.dx_outward * 0.18, 0.15, 0.6),
+    getWorldZ(releaseTarget),
+  );
 
   return {
     initialTarget,
@@ -292,25 +348,17 @@ function buildFebioRigidTargets(inputSpec) {
       { name: "approach", phase: "phase0", label: "pipette approach", pos: hold, operation: { lift: 0, inward: 0, tangent: 0 } },
       { name: "hold", phase: "phase1", label: "capture / hold", pos: hold, operation: { lift: 0, inward: 0, tangent: 0 } },
       { name: "lift", phase: "phase2", label: "vertical lift", pos: lift, operation: { lift: params.dz_lift, inward: 0, tangent: 0 } },
-      {
-        name: "manipulation",
-        phase: "phase3",
-        label: "case-specific manipulation",
-        pos: manipulationTarget,
-        operation: {
-          lift: params.dz_lift,
-          inward: inputSpec.caseName === "A" ? params.dx_inward : inputSpec.caseName === "C" ? params.dx_inward * 0.55 : 0,
-          tangent: inputSpec.caseName === "B" ? params.ds_tangent : inputSpec.caseName === "C" ? params.ds_tangent * 0.85 : 0,
-        },
-      },
-      {
-        name: "release-test",
-        phase: "total",
-        label: "release test",
-        pos: outward,
-        operation: { lift: params.dz_lift * 1.02, inward: 0, tangent: 0 },
-        previousPos: releaseTarget,
-      },
+      ...manipulationTargets,
+      ...(enableReleaseTest
+        ? [{
+            name: "release-test",
+            phase: "total",
+            label: "release test",
+            pos: releaseOutward,
+            operation: { lift: params.dz_lift * 1.02, inward: 0, tangent: 0 },
+            previousPos: releaseTarget,
+          }]
+        : []),
     ],
   };
 }
@@ -789,10 +837,66 @@ function buildFebioLogOutputs(mesh, templateData) {
       },
       {
         type: "face_data",
+        name: "nucleus_cytoplasm_left_surface",
+        file: "febio_interface_nc_left.csv",
+        data: "contact gap;contact pressure",
+        surface: "nucleus_interface_left_surface",
+        delimiter: ",",
+      },
+      {
+        type: "face_data",
+        name: "nucleus_cytoplasm_right_surface",
+        file: "febio_interface_nc_right.csv",
+        data: "contact gap;contact pressure",
+        surface: "nucleus_interface_right_surface",
+        delimiter: ",",
+      },
+      {
+        type: "face_data",
+        name: "nucleus_cytoplasm_top_surface",
+        file: "febio_interface_nc_top.csv",
+        data: "contact gap;contact pressure",
+        surface: "nucleus_interface_top_surface",
+        delimiter: ",",
+      },
+      {
+        type: "face_data",
+        name: "nucleus_cytoplasm_bottom_surface",
+        file: "febio_interface_nc_bottom.csv",
+        data: "contact gap;contact pressure",
+        surface: "nucleus_interface_bottom_surface",
+        delimiter: ",",
+      },
+      {
+        type: "face_data",
         name: "cell_dish_interface_surface",
         file: "febio_interface_cell_dish.csv",
         data: "contact gap;contact pressure",
         surface: "cell_dish_surface",
+        delimiter: ",",
+      },
+      {
+        type: "face_data",
+        name: "cell_dish_left_surface",
+        file: "febio_interface_cd_left.csv",
+        data: "contact gap;contact pressure",
+        surface: "cell_dish_left_surface",
+        delimiter: ",",
+      },
+      {
+        type: "face_data",
+        name: "cell_dish_center_surface",
+        file: "febio_interface_cd_center.csv",
+        data: "contact gap;contact pressure",
+        surface: "cell_dish_center_surface",
+        delimiter: ",",
+      },
+      {
+        type: "face_data",
+        name: "cell_dish_right_surface",
+        file: "febio_interface_cd_right.csv",
+        data: "contact gap;contact pressure",
+        surface: "cell_dish_right_surface",
         delimiter: ",",
       },
     ],
@@ -877,22 +981,55 @@ function buildCohesiveApproximation(interfaceSpec, fallbackScale) {
   const criticalNormalStress = Number(interfaceSpec.criticalNormalStress || 0);
   const criticalShearStress = Number(interfaceSpec.criticalShearStress || 0);
   const fractureEnergy = Number(interfaceSpec.fractureEnergy || 0);
+  const softStartScale = 0.55;
   return {
     type: "sticky",
     mode: "cohesive-approximation",
     status: "partial-cohesive-approximation",
-    penalty: Math.max(normalStiffness * fallbackScale, 0.05),
-    tangentialPenalty: Math.max(tangentialStiffness * fallbackScale, 0.05),
-    maxTraction: Math.max(criticalNormalStress, 0.05),
-    tangentialLimit: Math.max(criticalShearStress, 0.01),
-    snapTolerance: clamp(fractureEnergy / Math.max(criticalNormalStress, 0.05), 0.02, 0.5),
-    searchTolerance: Number(interfaceSpec.tolerance || 0.05),
-    frictionProxy: clamp(criticalShearStress / Math.max(criticalNormalStress, 1e-6), 0, 2),
+    penalty: Math.max(normalStiffness * fallbackScale * softStartScale, 0.03),
+    tangentialPenalty: Math.max(tangentialStiffness * fallbackScale * softStartScale, 0.03),
+    maxTraction: clamp(criticalNormalStress * softStartScale, 0.03, 0.25),
+    tangentialLimit: clamp(criticalShearStress * softStartScale, 0.01, 0.2),
+    snapTolerance: clamp((fractureEnergy / Math.max(criticalNormalStress, 0.05)) * 0.28, 0.01, 0.12),
+    searchTolerance: Math.max(Number(interfaceSpec.tolerance || 0.05), 0.08),
+    frictionProxy: clamp((criticalShearStress / Math.max(criticalNormalStress, 1e-6)) * 0.35, 0, 0.75),
     notes: [
-      "serialized as a sticky-contact cohesive approximation",
+      "serialized as a sticky-contact cohesive approximation with soft-start stabilization",
       "normal/tangential stiffness and traction limits are preserved for later true cohesive serialization",
     ],
   };
+}
+
+function buildStaticControlForStep(stepName) {
+  const defaults = {
+    timeSteps: 50,
+    stepSize: 0.02,
+  };
+  if (stepName === "approach" || stepName === "lift") {
+    return {
+      timeSteps: 60,
+      stepSize: 1 / 60,
+    };
+  }
+  if (stepName === "hold") {
+    return {
+      timeSteps: 40,
+      stepSize: 0.025,
+    };
+  }
+  if (stepName === "inward" || stepName === "mixed" || stepName.startsWith("manipulation")) {
+    return {
+      timeSteps: stepName === "manipulation-1" ? 90 : 100,
+      stepSize: stepName === "manipulation-1" ? 1 / 90 : 0.01,
+    };
+  }
+  if (stepName === "release-test") {
+    return {
+      timeSteps: 60,
+      stepSize: 1 / 60,
+    };
+  }
+  return defaults;
 }
 
 function buildNodeLookup(mesh) {
@@ -1016,6 +1153,7 @@ function buildFebioTemplateData(inputSpec) {
   const meshValidation = validateFebioMesh(mesh);
   const membraneModel = buildMembraneModelSpec(inputSpec);
   const febioTargets = buildFebioRigidTargets(inputSpec);
+  const releaseTestEnabled = febioTargets.stepTargets.some((step) => step.name === "release-test");
   const initialTarget = febioTargets.initialTarget;
   const initialPipetteCenter = [
     getSectionX(initialTarget),
@@ -1110,7 +1248,11 @@ function buildFebioTemplateData(inputSpec) {
       notes: [
         ...membraneModel.notes,
         "nucleus/cytoplasm viscoelastic terms are serialized as a single-branch FEBio viscoelastic approximation",
-        "interface fracture parameters are exported through a cohesive-ready sticky approximation until true cohesive XML is introduced",
+        "nucleus/cytoplasm is solver-primary as a sticky cohesive approximation; cell-dish remains tied-elastic-active",
+        releaseTestEnabled
+          ? "release-test step is enabled for debug/validation runs"
+          : "release-test step is disabled in the main flow until the hold/release law is stabilized",
+        "main-flow inward manipulation is split into staged targets to reduce the first-step jacobian collapse risk",
         "discrete cohesive spring sidecar sets are exported for future solver-primary cohesive activation",
       ],
     },
@@ -1218,8 +1360,9 @@ function buildFebioTemplateData(inputSpec) {
     },
     interfaces: {
       nucleusCytoplasm: {
-        type: "tied-elastic",
-        status: "partial-cohesive-ready / tied-elastic-active",
+        type: "sticky",
+        status: "partial-true-cohesive / sticky-active",
+        mode: "solver-primary cohesive-approximation",
         surfacePair: mesh.surfacePairs.nucleus_cytoplasm_pair,
         normalStiffness: inputSpec.interfaces.Kn_nc,
         tangentialStiffness: inputSpec.interfaces.Kt_nc,
@@ -1227,10 +1370,10 @@ function buildFebioTemplateData(inputSpec) {
         criticalShearStress: inputSpec.interfaces.tau_nc_crit,
         fractureEnergy: inputSpec.interfaces.Gc_nc,
         penalty: {
-          Kn: Math.max(inputSpec.interfaces.Kn_nc * 0.18, 0.08),
-          Kt: Math.max(inputSpec.interfaces.Kt_nc * 0.18, 0.06),
+          Kn: Math.max(inputSpec.interfaces.Kn_nc * 0.08, 0.03),
+          Kt: Math.max(inputSpec.interfaces.Kt_nc * 0.08, 0.03),
         },
-        tolerance: 0.05,
+        tolerance: 0.08,
         cohesiveApproximation: buildCohesiveApproximation(
           {
             normalStiffness: inputSpec.interfaces.Kn_nc,
@@ -1238,9 +1381,24 @@ function buildFebioTemplateData(inputSpec) {
             criticalNormalStress: inputSpec.interfaces.sig_nc_crit,
             criticalShearStress: inputSpec.interfaces.tau_nc_crit,
             fractureEnergy: inputSpec.interfaces.Gc_nc,
-            tolerance: 0.05,
+            tolerance: 0.08,
           },
           0.18,
+        ),
+        maxTraction: clamp(inputSpec.interfaces.sig_nc_crit * 0.55, 0.03, 0.25),
+        snapTolerance: clamp(
+          (inputSpec.interfaces.Gc_nc / Math.max(inputSpec.interfaces.sig_nc_crit, 0.05)) * 0.28,
+          0.01,
+          0.12,
+        ),
+        searchTolerance: 0.08,
+        searchRadius: Math.max(inputSpec.geometry.rp * 1.1, 0.7),
+        symmetricStiffness: 0,
+        autoPenalty: 1,
+        friction: clamp(
+          (inputSpec.interfaces.tau_nc_crit / Math.max(inputSpec.interfaces.sig_nc_crit, 1e-6)) * 0.35,
+          0,
+          0.75,
         ),
       },
       cellDish: {
@@ -1282,16 +1440,16 @@ function buildFebioTemplateData(inputSpec) {
         searchTolerance: inputSpec.operation.contact_tol,
         searchRadius: Math.max(inputSpec.geometry.rp * 2.2, 1.5),
         surfacePair: mesh.surfacePairs.pipette_nucleus_pair,
-        penalty: Math.max(inputSpec.interfaces.Kn_nc * 0.85, 0.35),
+        penalty: Math.max(inputSpec.interfaces.Kn_nc * 0.45, 0.2),
         symmetricStiffness: 0,
         autoPenalty: 1,
         friction: Math.max(inputSpec.operation.mu_p, 0),
-        maxTraction: Math.max(inputSpec.operation.Fhold * 0.08, 0.3),
-        snapTolerance: clamp(inputSpec.geometry.rp * 0.06, 0.08, 0.45),
+        maxTraction: Math.max(inputSpec.operation.Fhold * 0.05, 0.25),
+        snapTolerance: clamp(inputSpec.geometry.rp * 0.03, 0.05, 0.18),
         releaseCondition: {
           type: "traction-or-slip-threshold",
-          tractionLimit: Math.max(inputSpec.operation.Fhold * 0.08, 0.3),
-          slipDistance: clamp(inputSpec.geometry.rp * 0.08, 0.1, 0.6),
+          tractionLimit: Math.max(inputSpec.operation.Fhold * 0.05, 0.25),
+          slipDistance: clamp(inputSpec.geometry.rp * 0.05, 0.08, 0.3),
           note: "modeled with sticky release approximation until a dedicated hold-release law is available",
         },
       },
@@ -1321,7 +1479,10 @@ function buildFebioTemplateData(inputSpec) {
         },
       },
     },
-    steps: stepSequence,
+    steps: stepSequence.map((step) => ({
+      ...step,
+      controlSettings: buildStaticControlForStep(step.name),
+    })),
     boundaryConditions: [
       { name: "fix_dish", target: "dish_fixed_nodes", type: "zero displacement", dofs: ["x", "y", "z"] },
       { name: "support_cell_base_z", target: "cell_base_nodes", type: "zero displacement", dofs: ["z"] },
@@ -1329,8 +1490,10 @@ function buildFebioTemplateData(inputSpec) {
     ],
     outputRequests: [
       { field: "displacement", target: "nodes", status: "implemented", source: "plotfile+node_log" },
-      { field: "interface damage", target: "interfaces", status: "planned-cohesive", source: "not yet emitted by current serializer" },
-      { field: "interface traction", target: "interfaces", status: "partial-face-pressure-proxy", source: "face_data contact pressure proxy" },
+      { field: "interface damage", target: "nucleus-cytoplasm", status: "partial-native-gap-pressure", source: "region face_data gap+pressure mapped to localNc damage" },
+      { field: "interface traction", target: "nucleus-cytoplasm", status: "implemented-normal / shear-proxy", source: "region face_data pressure for normal, node displacement proxy for shear" },
+      { field: "interface damage", target: "cell-dish", status: "partial-proxy", source: "node displacement proxy with face_data gap/pressure assist" },
+      { field: "interface traction", target: "cell-dish", status: "partial-face-pressure-proxy", source: "face_data pressure for normal, node displacement proxy for shear" },
       { field: "contact force", target: "pipette contact", status: "implemented", source: "rigid_body_data+face_data" },
       { field: "contact state", target: "pipette-nucleus", status: "partial-proxy", source: "sticky contact pressure/gap proxy" },
       { field: "reaction force", target: "nodes", status: "implemented", source: "node_log" },
@@ -1452,6 +1615,24 @@ function serializeCohesiveReadyInterfaceXml(name, spec) {
       <!-- cohesive-ready normalStiffness=${Number(spec.normalStiffness || 0).toFixed(6)} tangentialStiffness=${Number(spec.tangentialStiffness || 0).toFixed(6)} -->
       <!-- cohesive-ready criticalNormalStress=${Number(spec.criticalNormalStress || 0).toFixed(6)} criticalShearStress=${Number(spec.criticalShearStress || 0).toFixed(6)} fractureEnergy=${Number(spec.fractureEnergy || 0).toFixed(6)} -->
       <!-- cohesive-ready mappedPenaltyN=${Number(approx.penalty || spec.penalty?.Kn || 0).toFixed(6)} mappedPenaltyT=${Number(approx.tangentialPenalty || spec.penalty?.Kt || 0).toFixed(6)} mappedMaxTraction=${Number(approx.maxTraction || 0).toFixed(6)} mappedSnapTol=${Number(approx.snapTolerance || 0).toFixed(6)} status=${escapeXml(spec.status || "n/a")} -->
+    </contact>`;
+}
+
+function serializeStickyCohesiveInterfaceXml(name, spec) {
+  const approx = spec.cohesiveApproximation || {};
+  return `    <contact name="${escapeXml(name)}" type="sticky" surface_pair="${escapeXml(spec.surfacePair.name)}">
+      <penalty>${Number(approx.penalty || spec.penalty?.Kn || spec.normalStiffness || 1).toFixed(6)}</penalty>
+      <laugon>0</laugon>
+      <tolerance>${Number(spec.tolerance || approx.searchTolerance || 0.05).toFixed(6)}</tolerance>
+      <minaug>0</minaug>
+      <maxaug>5</maxaug>
+      <search_tolerance>${Number(spec.searchTolerance || approx.searchTolerance || 0.05).toFixed(6)}</search_tolerance>
+      <max_traction>${Number(spec.maxTraction || approx.maxTraction || spec.criticalNormalStress || 0).toFixed(6)}</max_traction>
+      <snap_tol>${Number(spec.snapTolerance || approx.snapTolerance || 0.1).toFixed(6)}</snap_tol>
+      <!-- solver-primary cohesive approximation -->
+      <!-- cohesive normalStiffness=${Number(spec.normalStiffness || 0).toFixed(6)} tangentialStiffness=${Number(spec.tangentialStiffness || 0).toFixed(6)} -->
+      <!-- cohesive criticalNormalStress=${Number(spec.criticalNormalStress || 0).toFixed(6)} criticalShearStress=${Number(spec.criticalShearStress || 0).toFixed(6)} fractureEnergy=${Number(spec.fractureEnergy || 0).toFixed(6)} -->
+      <!-- cohesive frictionProxy=${Number(spec.friction || approx.frictionProxy || 0).toFixed(6)} tangentialPenalty=${Number(approx.tangentialPenalty || spec.penalty?.Kt || 0).toFixed(6)} status=${escapeXml(spec.status || "n/a")} -->
     </contact>`;
 }
 
@@ -1593,9 +1774,16 @@ ${partElements
         `    <SolidDomain name="${escapeXml(material.domain)}" mat="${escapeXml(material.name)}" />`,
     )
     .join("\n");
+  const interfaceXml = [
+    templateData.interfaces.nucleusCytoplasm.type === "sticky"
+      ? serializeStickyCohesiveInterfaceXml("nucleus_cytoplasm_interface", templateData.interfaces.nucleusCytoplasm)
+      : serializeCohesiveReadyInterfaceXml("nucleus_cytoplasm_interface", templateData.interfaces.nucleusCytoplasm),
+    templateData.interfaces.cellDish.type === "sticky"
+      ? serializeStickyCohesiveInterfaceXml("cell_dish_interface", templateData.interfaces.cellDish)
+      : serializeCohesiveReadyInterfaceXml("cell_dish_interface", templateData.interfaces.cellDish),
+  ];
   const contactXml = [
-    serializeCohesiveReadyInterfaceXml("nucleus_cytoplasm_interface", templateData.interfaces.nucleusCytoplasm),
-    serializeCohesiveReadyInterfaceXml("cell_dish_interface", templateData.interfaces.cellDish),
+    ...interfaceXml,
     templateData.contact.pipetteNucleus.type === "sticky"
       ? serializeStickyContactXml("pipette_nucleus_contact", templateData.contact.pipetteNucleus)
       : serializeSlidingContactXml("pipette_nucleus_contact", templateData.contact.pipetteNucleus),
@@ -1604,11 +1792,12 @@ ${partElements
   const rigidRootXml = templateData.rigid?.pipette ? serializeRigidBoundaryXml(templateData.rigid.pipette) : "";
   const stepXml = templateData.steps
     .map((step, index) => {
+      const controlSettings = step.controlSettings || { timeSteps: 25, stepSize: 0.04 };
       return `    <step id="${index + 1}" name="${escapeXml(step.name)}">
     <Control>
       <analysis>static</analysis>
-      <time_steps>25</time_steps>
-      <step_size>0.04</step_size>
+      <time_steps>${Number(controlSettings.timeSteps || 25).toFixed(0)}</time_steps>
+      <step_size>${Number(controlSettings.stepSize || 0.04).toFixed(6)}</step_size>
       <plot_level>PLOT_MAJOR_ITRS</plot_level>
       <output_level>OUTPUT_MAJOR_ITRS</output_level>
       <solver>
