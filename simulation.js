@@ -1848,6 +1848,90 @@ function determineDominantMechanism(result) {
   return "local_shear";
 }
 
+function getCanonicalClassificationApi() {
+  const api = globalThis.__NUCLEAR_SIMU_PUBLIC_API__;
+  if (!api) {
+    return null;
+  }
+  if (
+    typeof api.classifyRun !== "function" ||
+    typeof api.determineDominantMechanism !== "function" ||
+    typeof api.assessDetachment !== "function"
+  ) {
+    return null;
+  }
+  return api;
+}
+
+function buildDetachmentMetrics(localNc, displacements) {
+  const contactAreaRatio = clamp(
+    NC_REGIONS.reduce((sum, region) => sum + (1 - (localNc?.[region]?.damage ?? 0)), 0) / Math.max(NC_REGIONS.length, 1),
+    0,
+    1,
+  );
+  return {
+    contactAreaRatio,
+    relativeNucleusDisplacement: displacements?.nucleus ?? 0,
+    provenance: "proxy",
+  };
+}
+
+function assessDetachmentExplicit(snapshot) {
+  const canonicalApi = getCanonicalClassificationApi();
+  if (canonicalApi) {
+    return canonicalApi.assessDetachment(snapshot);
+  }
+
+  const nativeDamage = Math.max(snapshot?.damage?.nc || 0, ...NC_REGIONS.map((region) => snapshot?.localNc?.[region]?.damage || 0));
+  const geometryRatio = snapshot?.detachmentMetrics?.contactAreaRatio ?? 1;
+  const relativeDisplacement = snapshot?.detachmentMetrics?.relativeNucleusDisplacement ?? snapshot?.displacements?.nucleus ?? 0;
+  return {
+    start: nativeDamage >= 0.45 || geometryRatio <= 0.6 || relativeDisplacement >= 0.18,
+    complete: nativeDamage >= 0.72 && (geometryRatio <= 0.35 || relativeDisplacement >= 0.27),
+    nativePreferred: false,
+    geometryRatio,
+    relativeDisplacement,
+    mode: "proxy-fallback-explicit",
+  };
+}
+
+function maybeMarkDetachmentEvents(state, time, snapshot) {
+  const assessment = assessDetachmentExplicit(snapshot);
+  if (!state.events.detachmentStart && assessment.start) {
+    maybeMarkEvent(
+      state.events,
+      "detachmentStart",
+      time,
+      `detachment start (${assessment.mode}, damage+geometry, areaRatio=${formatNumber(assessment.geometryRatio, 2)})`,
+    );
+  }
+  if (!state.events.detachmentComplete && assessment.complete) {
+    maybeMarkEvent(
+      state.events,
+      "detachmentComplete",
+      time,
+      `detachment complete (${assessment.mode}, damage+geometry, areaRatio=${formatNumber(assessment.geometryRatio, 2)})`,
+    );
+  }
+}
+
+function applyClassification(result) {
+  const canonicalApi = getCanonicalClassificationApi();
+  if (canonicalApi) {
+    result.dominantMechanism = canonicalApi.determineDominantMechanism(result);
+    result.classification = canonicalApi.classifyRun(result);
+    result.dominantMechanism = canonicalApi.determineDominantMechanism(result);
+    result.classificationSource = "canonical-public-api";
+    return result;
+  }
+
+  result.dominantMechanism = determineDominantMechanism(result);
+  result.classification = classifyRun(result);
+  result.dominantMechanism = determineDominantMechanism(result);
+  result.classificationSource = "legacy-compatibility-fallback";
+  return result;
+}
+
 function classifyRun(result) {
   const ncStart = result.events.ncDamageStart?.time ?? Infinity;
   const cdStart = result.events.cdDamageStart?.time ?? Infinity;
@@ -2211,7 +2295,7 @@ function runSimulationLegacyBaseline(caseName, params) {
       nucleus: lengthOf(subtract(state.nucleus, nucleusRest)),
     },
   };
-  result.classification = classifyRun(result);
+  applyClassification(result);
   return result;
 }
 
@@ -2568,10 +2652,7 @@ function finalizeSimulationResult({ caseName, inputSpec, state, cellRest, nucleu
   const firstFailure = findEarliestLocalFailure(result);
   result.firstFailureSite = firstFailure.site;
   result.firstFailureMode = firstFailure.mode;
-  result.classification = "no_capture_general";
-  result.dominantMechanism = determineDominantMechanism(result);
-  result.classification = classifyRun(result);
-  result.dominantMechanism = determineDominantMechanism(result);
+  applyClassification(result);
   return result;
 }
 
@@ -2810,6 +2891,24 @@ function runLightweightSimulation(caseName, params, inputSpec = buildSimulationI
     state.tangentCell += state.velocityTangentCell * NUMERICS.dt * NUMERICS.cellMobility;
     if (!state.pipette.slipped && state.captureEstablished) state.captureMaintained = true;
 
+    const displacements = {
+      cell: lengthOf(subtract(state.cell, cellRest)),
+      nucleus: lengthOf(subtract(state.nucleus, nucleusRest)),
+      tangentCell: Math.abs(state.tangentCell),
+      tangentNucleus: Math.abs(state.tangentNucleus),
+    };
+    const detachmentMetrics = buildDetachmentMetrics(state.localNc, displacements);
+    maybeMarkDetachmentEvents(state, time, {
+      localNc: state.localNc,
+      damage: {
+        nc: state.damageNc,
+        cd: state.damageCd,
+        membrane: state.damageMembrane,
+      },
+      detachmentMetrics,
+      displacements,
+    });
+
     const nucleusStress = Math.hypot(lengthOf(add(holdForceVector, totalNcForce)), Math.abs(forceOnNucleusTangential)) / nucleusArea;
     const cytoplasmStress = Math.hypot(lengthOf(subtract(forceOnCell, adhesionForce)), Math.abs(forceOnCellTangential)) / cellArea;
     peaks.peakNucleusStress = Math.max(peaks.peakNucleusStress, nucleusStress);
@@ -2845,10 +2944,19 @@ function runLightweightSimulation(caseName, params, inputSpec = buildSimulationI
       localNc: cloneLocalInterfaceState(state.localNc),
       localCd: cloneLocalInterfaceState(state.localCd),
       membraneRegions: cloneMembraneState(state.membraneRegions),
+      displacements,
+      detachmentMetrics,
       momentProxy,
     });
   }
 
+  const displacements = {
+    cell: lengthOf(subtract(state.cell, cellRest)),
+    nucleus: lengthOf(subtract(state.nucleus, nucleusRest)),
+    tangentCell: Math.abs(state.tangentCell),
+    tangentNucleus: Math.abs(state.tangentNucleus),
+  };
+  const detachmentMetrics = buildDetachmentMetrics(state.localNc, displacements);
   const result = {
     caseName,
     params: structuredClone(params),
@@ -2865,12 +2973,8 @@ function runLightweightSimulation(caseName, params, inputSpec = buildSimulationI
       nucleus: state.nucleus,
       boundary: lastBoundary,
     },
-    displacements: {
-      cell: lengthOf(subtract(state.cell, cellRest)),
-      nucleus: lengthOf(subtract(state.nucleus, nucleusRest)),
-      tangentCell: Math.abs(state.tangentCell),
-      tangentNucleus: Math.abs(state.tangentNucleus),
-    },
+    displacements,
+    detachmentMetrics,
     localNc: cloneLocalInterfaceState(state.localNc),
     localCd: cloneLocalInterfaceState(state.localCd),
     membraneRegions: cloneMembraneState(state.membraneRegions),
@@ -2880,10 +2984,7 @@ function runLightweightSimulation(caseName, params, inputSpec = buildSimulationI
   const firstFailure = findEarliestLocalFailure(result);
   result.firstFailureSite = firstFailure.site;
   result.firstFailureMode = firstFailure.mode;
-  result.classification = "no_capture_general";
-  result.dominantMechanism = determineDominantMechanism(result);
-  result.classification = classifyRun(result);
-  result.dominantMechanism = determineDominantMechanism(result);
+  applyClassification(result);
   return result;
 }
 

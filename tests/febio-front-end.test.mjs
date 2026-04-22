@@ -40,6 +40,10 @@ test("template serializes to consistent FEBio XML", async () => {
   assert.match(xml, /<t1>/);
   assert.match(xml, /<contact name="nucleus_cytoplasm_interface" type="sticky" surface_pair="nucleus_cytoplasm_pair">/);
   assert.match(xml, /solver-primary cohesive approximation/);
+  assert.match(xml, /<penalty>/);
+  assert.match(xml, /<search_tol>/);
+  assert.match(xml, /<maxaug>12<\/maxaug>/);
+  assert.match(xml, /ramp approach: normalPenalty=/);
   assert.match(xml, /cohesive criticalNormalStress=/);
   assert.match(xml, /<face_data name="nucleus_cytoplasm_left_surface" file="febio_interface_nc_left\.csv"\/>/);
   assert.match(xml, /<DiscreteSet name="nucleus_cytoplasm_left_springs">/);
@@ -53,6 +57,9 @@ test("nucleus-cytoplasm interface uses solver-primary cohesive approximation whi
   const spec = app.buildFebioInputSpec("A", app.DEFAULTS, app.buildSimulationInput("A", app.DEFAULTS));
   assert.equal(spec.febioTemplateData.interfaces.nucleusCytoplasm.type, "sticky");
   assert.match(spec.febioTemplateData.interfaces.nucleusCytoplasm.status, /sticky-active/);
+  assert.equal(spec.febioTemplateData.interfaces.nucleusCytoplasm.stabilization.augmentation.maxPasses, 12);
+  assert.equal(spec.febioTemplateData.interfaces.nucleusCytoplasm.stabilization.ramp[0].step, "approach");
+  assert.equal(spec.febioTemplateData.interfaces.nucleusCytoplasm.stabilization.ramp[2].step, "lift");
   assert.equal(spec.febioTemplateData.interfaces.cellDish.type, "tied-elastic");
 });
 
@@ -114,6 +121,17 @@ test("export/import digest match is preserved", async () => {
   assert.equal(imported.isPhysicalFebioResult, true);
 });
 
+test("FEBio run bundle declares detachment event contract", async () => {
+  const app = await loadApp();
+  const spec = app.buildFebioInputSpec("A", app.DEFAULTS, app.buildSimulationInput("A", app.DEFAULTS));
+  const bundle = app.buildFebioRunBundle(spec);
+  assert.equal(bundle.eventContract.detachment.evaluation, "damage-plus-geometry");
+  assert.equal(bundle.eventContract.detachment.events[0], "detachmentStart");
+  assert.equal(bundle.eventContract.detachment.events[1], "detachmentComplete");
+  assert.equal(bundle.eventContract.detachment.metrics[0], "contactAreaRatio");
+  assert.equal(bundle.templateData.outputs.detachment.payloadPath, "normalizedResult.events");
+});
+
 test("refined mesh validation report is produced", async () => {
   const app = await loadApp();
   const spec = app.buildFebioInputSpec("A", app.DEFAULTS, app.buildSimulationInput("A", app.DEFAULTS));
@@ -134,6 +152,7 @@ test("display helpers prefer physical FEBio results", async () => {
 
 test("classification prefers native detachment signals and keeps proxy fallback explicit", async () => {
   const app = await loadApp();
+  assert.equal(typeof app.assessDetachment, "function");
   const result = {
     captureEstablished: true,
     captureMaintained: true,
@@ -151,6 +170,144 @@ test("classification prefers native detachment signals and keeps proxy fallback 
     peaks: {},
   };
   assert.equal(app.classifyRun(result), "nucleus_detached");
+  assert.equal(app.assessDetachment(result).mode, "native");
+});
+
+test("import supplements detachment events from native-first history", async () => {
+  const app = await loadApp();
+  const spec = app.buildSimulationInput("A", app.DEFAULTS);
+  const imported = app.importFebioResult(
+    {
+      normalizedResult: {
+        caseName: "A",
+        params: spec.params,
+        localNc: {
+          top: { damage: 0.8, provenance: "native-face-data-preferred" },
+        },
+        history: [
+          {
+            time: 1.5,
+            localNc: {
+              top: { damage: 0.2, provenance: "native-face-data-preferred" },
+            },
+            displacements: { nucleus: 0.05 },
+          },
+          {
+            time: 2.5,
+            localNc: {
+              top: { damage: 0.5, provenance: "native-face-data-preferred" },
+            },
+            detachmentMetrics: { contactAreaRatio: 0.55 },
+            displacements: { nucleus: 0.2 },
+          },
+          {
+            time: 3.5,
+            localNc: {
+              top: { damage: 0.8, provenance: "native-face-data-preferred" },
+            },
+            detachmentMetrics: { contactAreaRatio: 0.2 },
+            displacements: { nucleus: 0.35 },
+          },
+        ],
+      },
+    },
+    spec,
+  );
+
+  assert.equal(imported.events.detachmentStart.time, 2.5);
+  assert.equal(imported.events.detachmentComplete.time, 3.5);
+  assert.equal(imported.events.detachmentStart.source, "history-derived");
+  assert.equal(imported.detachmentMetrics.provenance, "proxy/native");
+  assert.equal(imported.classification, "nucleus_detached");
+});
+
+test("import preserves explicit detachment events from external payloads", async () => {
+  const app = await loadApp();
+  const spec = app.buildSimulationInput("A", app.DEFAULTS);
+  const imported = app.importFebioResult(
+    {
+      normalizedResult: {
+        caseName: "A",
+        params: spec.params,
+        detachment: {
+          start: { time: 1.75, detail: "external explicit start", source: "external-explicit" },
+          complete: 3.25,
+        },
+        nativeFaceData: {
+          relativeNucleusDisplacement: 0.28,
+        },
+      },
+    },
+    spec,
+  );
+
+  assert.equal(imported.events.detachmentStart.time, 1.75);
+  assert.equal(imported.events.detachmentStart.source, "external-explicit");
+  assert.equal(imported.events.detachmentComplete.time, 3.25);
+  assert.equal(imported.events.detachmentComplete.source, "payload-detachment-object");
+  assert.equal(imported.resultProvenance.detachmentEvents.start, "external-explicit");
+  assert.equal(imported.resultProvenance.detachmentEvents.complete, "payload-detachment-object");
+  assert.equal(imported.classification, "nucleus_detached");
+});
+
+test("import merges partial localNc payloads without dropping explicit provenance", async () => {
+  const app = await loadApp();
+  const spec = app.buildSimulationInput("A", app.DEFAULTS);
+  const imported = app.importFebioResult(
+    {
+      normalizedResult: {
+        caseName: "A",
+        params: spec.params,
+        localNc: {
+          top: { damage: 0.5, provenance: "native-face-data-preferred" },
+        },
+      },
+    },
+    spec,
+  );
+
+  assert.equal(imported.localNc.top.provenance, "native-face-data-preferred");
+  assert.equal(imported.localNc.left.provenance, "proxy-fallback-explicit");
+  assert.equal(imported.localNc.right.damage, 0);
+});
+
+test("import derives localNc and detachment metrics from native face-data payloads", async () => {
+  const app = await loadApp();
+  const spec = app.buildSimulationInput("A", app.DEFAULTS);
+  const imported = app.importFebioResult(
+    {
+      normalizedResult: {
+        caseName: "A",
+        params: spec.params,
+        faceData: {
+          contactAreaRatio: 0.42,
+          nucleusCytoplasmRegions: [
+            {
+              region: "left",
+              contactPressure: 0.18,
+              shearTraction: 0.09,
+              damage: 0.12,
+            },
+            {
+              region: "top",
+              contactPressure: 0.31,
+              shearTraction: 0.27,
+              contactFraction: 0.34,
+            },
+          ],
+        },
+      },
+    },
+    spec,
+  );
+
+  assert.equal(imported.localNc.left.provenance, "native-face-data-preferred");
+  assert.equal(imported.localNc.left.normalStress, 0.18);
+  assert.equal(imported.localNc.top.shearStress, 0.27);
+  assert.ok(Math.abs(imported.localNc.top.damage - 0.66) < 1e-9);
+  assert.equal(imported.localNc.right.provenance, "proxy-fallback-explicit");
+  assert.equal(imported.detachmentMetrics.contactAreaRatio, 0.42);
+  assert.equal(imported.detachmentMetrics.provenance, "native-face-data-preferred");
 });
 
 test("default FEBio flow does not use lightweight legacy source", async () => {
@@ -180,6 +337,7 @@ test("docs and governance files exist and stay aligned", () => {
   const agent = fs.readFileSync(agentPath, "utf8");
   const progress = fs.readFileSync(progressPath, "utf8");
   const codebase = fs.readFileSync(codebasePath, "utf8");
+  const legacyRuntime = fs.readFileSync(path.resolve("simulation.js"), "utf8");
 
   assert.match(agent, /Skill Usage Rule/);
   assert.match(agent, /src\/model\/schema\.ts/);
@@ -187,13 +345,19 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(agent, /Code Exploration Constraints/);
   assert.match(agent, /Physics Model Priority/);
 
-  assert.match(progress, /1\. nucleus-cytoplasm cohesive の安定化/);
-  assert.match(progress, /2\. `localNc` の native 出力化/);
-  assert.match(progress, /3\. classification の native 化/);
+  assert.match(progress, /1\. nucleus-cytoplasm cohesive stabilization and validation/);
+  assert.match(progress, /2\. `localNc` native shear\/detachment observation migration/);
+  assert.match(progress, /3\. explicit detachment event emission through export and external import/);
   assert.match(progress, /## Update Rules/);
   assert.match(progress, /proxy\/native/);
 
   assert.match(codebase, /src\/model\/schema\.ts/);
   assert.match(codebase, /src\/febio\/export\/index\.ts/);
   assert.match(codebase, /dist\/browser\/main\.js/);
+  assert.match(progress, /native face-data fallback/);
+  assert.match(progress, /soft-start stabilization/);
+  assert.match(progress, /canonical classifier bridge/);
+  assert.match(progress, /explicit detachment contract/);
+  assert.match(legacyRuntime, /__NUCLEAR_SIMU_PUBLIC_API__/);
+  assert.match(legacyRuntime, /classificationSource = "canonical-public-api"/);
 });

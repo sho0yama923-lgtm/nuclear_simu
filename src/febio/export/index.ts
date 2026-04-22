@@ -80,6 +80,23 @@ function buildExpectedFebioOutputs(caseName) {
   };
 }
 
+function buildDetachmentOutputContract() {
+  return {
+    evaluation: "damage-plus-geometry",
+    preferredSource: "native-first / proxy-assisted fallback",
+    events: ["detachmentStart", "detachmentComplete"],
+    metrics: ["contactAreaRatio", "relativeNucleusDisplacement"],
+    payloadPath: "normalizedResult.events",
+  };
+}
+
+function serializeStickyPenaltyRampComments(stabilization = {}) {
+  return (stabilization.ramp || []).map(
+    (entry) =>
+      `    <!-- ramp ${entry.step}: normalPenalty=${Number(entry.normalPenalty || 0).toFixed(6)} tangentialPenalty=${Number(entry.tangentialPenalty || 0).toFixed(6)} frictionProxy=${Number(entry.frictionProxy || 0).toFixed(6)} -->`,
+  );
+}
+
 function serializeCanonicalSpec(inputSpec) {
   return {
     caseName: inputSpec.caseName,
@@ -114,6 +131,7 @@ export function buildFebioTemplateData(inputSpec) {
       membraneModel: membraneModel.type,
       notes: [
         ...membraneModel.notes,
+        ...nucleusCytoplasm.notes,
         "nucleus/cytoplasm viscoelastic terms are serialized as a single-branch FEBio viscoelastic approximation",
         "nucleus/cytoplasm is solver-primary as a sticky cohesive approximation; cell-dish remains tied-elastic-active",
         "release-test step is disabled in the main flow until the hold/release law is stabilized",
@@ -196,6 +214,7 @@ export function buildFebioTemplateData(inputSpec) {
         { name: "nucleus_cytoplasm_top_surface", file: "febio_interface_nc_top.csv" },
         { name: "nucleus_cytoplasm_bottom_surface", file: "febio_interface_nc_bottom.csv" },
       ],
+      detachment: buildDetachmentOutputContract(),
     },
     discreteCohesive: {
       nucleusCytoplasm: {
@@ -207,6 +226,8 @@ export function buildFebioTemplateData(inputSpec) {
 }
 
 export function serializeFebioTemplateToXml(templateData) {
+  const nucleusCytoplasm = templateData.interfaces.nucleusCytoplasm;
+  const stabilization = nucleusCytoplasm.stabilization || {};
   return [
     '<febio_spec version="4.0">',
     "  <Material>",
@@ -228,7 +249,17 @@ export function serializeFebioTemplateToXml(templateData) {
     "  </Step>",
     '  <contact name="nucleus_cytoplasm_interface" type="sticky" surface_pair="nucleus_cytoplasm_pair">',
     "    <!-- solver-primary cohesive approximation -->",
+    `    <penalty>${Number(nucleusCytoplasm.penalty.Kn).toFixed(6)}</penalty>`,
+    "    <auto_penalty>0</auto_penalty>",
+    `    <search_tol>${Number(stabilization.searchTolerance || nucleusCytoplasm.tolerance || 0).toFixed(6)}</search_tol>`,
+    `    <symmetric_stiffness>${stabilization.symmetricStiffness ? 1 : 0}</symmetric_stiffness>`,
+    `    <laugon>${stabilization.augmentation?.enabled ? 1 : 0}</laugon>`,
+    `    <minaug>${Number(stabilization.augmentation?.minPasses || 0).toFixed(0)}</minaug>`,
+    `    <maxaug>${Number(stabilization.augmentation?.maxPasses || 0).toFixed(0)}</maxaug>`,
+    `    <fric_coeff>${Number(nucleusCytoplasm.cohesiveApproximation.frictionProxy).toFixed(6)}</fric_coeff>`,
+    `    <snap_tol>${Number(nucleusCytoplasm.cohesiveApproximation.snapTolerance).toFixed(6)}</snap_tol>`,
     `    <!-- cohesive criticalNormalStress=${Number(templateData.interfaces.nucleusCytoplasm.criticalNormalStress).toFixed(6)} -->`,
+    ...serializeStickyPenaltyRampComments(stabilization),
     "  </contact>",
     "  <!-- cohesive discrete sidecar (not solver-active yet)",
     '  <DiscreteSet name="nucleus_cytoplasm_left_springs">',
@@ -250,6 +281,9 @@ export function buildFebioRunBundle(inputSpec) {
     templateData: febioTemplateData,
     febXml,
     expectedOutputs: buildExpectedFebioOutputs(inputSpec.caseName),
+    eventContract: {
+      detachment: structuredCloneSafe(febioTemplateData.outputs.detachment),
+    },
     exportTimestamp: new Date().toISOString(),
     exportReady,
     solverMetadata: {

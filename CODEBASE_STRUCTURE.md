@@ -20,15 +20,15 @@ Read files in this order for most changes:
 - `src/febio/mesh/index.ts`
   Mesh and surface-pair source of truth.
 - `src/febio/interfaces/nucleusCytoplasm.ts`
-  Nucleus-cytoplasm interface source of truth.
+  Nucleus-cytoplasm interface source of truth, including sticky cohesive stabilization and proxy/native observation ownership.
 - `src/febio/export/index.ts`
-  FEBio template assembly, XML serialization, export bundle entrypoint.
+  FEBio template assembly, XML serialization, export bundle entrypoint, and explicit detachment event contract metadata.
 - `src/febio/import/normalizeFebioResult.ts`
-  Canonical FEBio result normalization entrypoint.
+  Canonical FEBio result normalization entrypoint, including native-first `localNc` merge, native face-data fallback, explicit external detachment event normalization, and detachment event supplementation for imports.
 - `src/results/classification.ts`
-  Native-first classification and detachment interpretation.
+  Native-first classification and detachment interpretation with explicit proxy fallback labeling.
 - `src/public-api.ts`
-  Public API for tests and compatibility integration.
+  Public API for tests and compatibility integration, including canonical classification and detachment assessment bridges.
 - `src/browser/main.ts`
   Browser entry that exposes the public API and boots the legacy compatibility scripts.
 
@@ -40,7 +40,7 @@ Read files in this order for most changes:
 ## Compatibility Bundle
 
 - `simulation.js`
-  Legacy compatibility layer for the browser app. No longer the source of truth for schema or classification.
+  Legacy compatibility layer for the browser app. No longer the source of truth for schema or classification; classification callers and explicit detachment events prefer the canonical public API bridge.
 - `js/simulation-febio.js`
   Legacy FEBio compatibility layer for the browser app.
 - `js/simulation-ui.js`
@@ -54,6 +54,10 @@ Read files in this order for most changes:
   Physics status, priorities, proxy/native status, and update rules.
 - `AGENT.md`
   Exploration constraints, file ownership rules, and physics priorities.
+- `docs/febio/`
+  FEBio architecture notes, handoff docs, bridge notes, and mapping references.
+- `docs/research/`
+  Research-side model notes and calculation-condition references.
 
 ## Tests
 
@@ -74,3 +78,4 @@ Read files in this order for most changes:
 - Prefer source-of-truth files in `src/`.
 - Avoid repo-wide exploration when a skill or AGENT rule already names the target files.
 - Do not use deep imports into internal files when a public `index.ts` exists.
+- Treat root-level FEBio export artifacts as disposable generated files rather than durable project docs.

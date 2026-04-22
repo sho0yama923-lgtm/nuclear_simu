@@ -10,7 +10,7 @@ import {
 } from "./model/index.ts";
 import { buildFebioInputSpec, buildFebioRunBundle, buildFebioTemplateData, serializeFebioTemplateToXml } from "./febio/export/index.ts";
 import { importFebioResult, normalizeExternalFebioPayload, normalizeFebioResult } from "./febio/import/normalizeFebioResult.ts";
-import { classifyRun, determineDominantMechanism } from "./results/classification.ts";
+import { assessDetachment, classifyRun, determineDominantMechanism } from "./results/classification.ts";
 
 export {
   APP_SCHEMA_VERSION,
@@ -28,6 +28,7 @@ export {
   importFebioResult,
   normalizeExternalFebioPayload,
   normalizeFebioResult,
+  assessDetachment,
   classifyRun,
   determineDominantMechanism,
 };

@@ -7,6 +7,53 @@
 3. relevant `.skills/**/SKILL.md`
 4. `PROGRESS.md` when touching physics model, main flow, classification, export/import, or proxy/native dependencies
 
+## Codex Prompt Protocol
+
+Purpose:
+
+- reduce ambiguity in change requests
+- reduce unnecessary repo-wide exploration
+- keep task-specific skills effective by fixing the allowed read set up front
+
+When requesting a change from Codex / an agent, specify as much of the following as possible:
+
+- edit target files
+- files that may be referenced
+- directories that should not be read by default
+- main purpose of the change
+- docs that must be updated in the same change set
+
+Do not rely on ambiguous instructions such as:
+
+- "必要なら関連箇所も見てよい"
+- "適宜必要なファイルを見て"
+- "関連ファイルを探索して"
+
+Prefer bounded requests such as:
+
+```text
+編集対象:
+- src/febio/interfaces/nucleusCytoplasm.ts
+
+参照可:
+- src/model/schema.ts
+- src/febio/import/normalizeFebioResult.ts
+
+参照禁止:
+- legacy/*
+- experiments/*
+- generated/*
+- src/surrogate/*
+
+目的:
+- localNc の native 出力寄り整理
+
+更新対象:
+- PROGRESS.md
+```
+
+If the request does not specify scope, Codex should still stay within the minimum read set defined below rather than expanding to repo-wide exploration by default.
+
 ## Code Exploration Constraints
 
 - Explore in this order:
@@ -33,6 +80,10 @@
   - `CODEBASE_STRUCTURE.md`
   - relevant `.skills/**/SKILL.md`
   - `PROGRESS.md`
+- Token discipline is part of correctness.
+  - If a task can be completed with minimal exploration, keep it minimal.
+  - Do not expand from a local task into repo-wide search unless a concrete blocker appears.
+  - Repeated edit workflows should be codified into `SKILL.md` instead of re-explained in long natural-language prompts every time.
 
 ## Source Of Truth Rules
 
@@ -52,7 +103,7 @@ Rules:
 
 ## File Responsibility Contract
 
-Major files should start with:
+Major files use the following contract header:
 
 ```ts
 /**
@@ -64,7 +115,13 @@ Major files should start with:
  */
 ```
 
-Required:
+Contract strength:
+
+- Source-of-truth files must include the contract header.
+- Newly created major files must include the contract header.
+- Existing files should be backfilled when touched.
+
+Required content:
 
 - state the single responsibility
 - state what the file owns
@@ -105,10 +162,50 @@ Examples:
 ## Skill Usage Rule
 
 - For repetitive tasks, prefer `.skills/**/SKILL.md`.
-- If a matching skill exists, follow the skill before doing repo-wide exploration.
+- If a matching task-specific skill exists, follow the skill before doing repo-wide exploration.
 - Do not read outside the skill's target files unless the skill explicitly allows it or a concrete blocker exists.
+- If a task is small enough to complete with a mature skill, use the skill path instead of expanding the prompt or the read set.
+- Repeated edit workflows should be fixed in `SKILL.md`; daily operation should trend toward "refer to the skill and execute" rather than re-describing the same procedure every time.
 - When a repetitive workflow stabilizes, add a new skill.
 - When a skill becomes stale, update it in the same change set as the code change.
+
+## Skill Layering Rule
+
+Purpose:
+
+- separate normal implementation work from prompt/skill quality evaluation
+- keep empirical evaluation available without turning it into a default token cost
+
+Rules:
+
+- Normal implementation work uses task-specific `SKILL.md` first.
+- `empirical-prompt-tuning` is not a default implementation skill; it is for improving AGENT / SKILL quality and instruction clarity.
+- Newly created or heavily revised `SKILL.md` files may be validated with `empirical-prompt-tuning` when needed.
+- Do not run `empirical-prompt-tuning` on every normal implementation task.
+- If a task-specific skill exists, use that skill first and consider empirical tuning only if the agent behavior is not matching intent or the instruction quality itself is in doubt.
+- empirical tuning is a supplement to implementation skills, not a replacement for them.
+
+`empirical-prompt-tuning` is appropriate when:
+
+- validating a newly created `SKILL.md`
+- validating a heavily revised `SKILL.md`
+- checking whether ambiguity in `AGENT.md` or a task prompt is causing bad agent behavior
+- checking whether the instruction layer is causing unnecessary exploration
+
+`empirical-prompt-tuning` is not appropriate when:
+
+- making a one-off small fix
+- doing a normal local code change
+- a task-specific skill already provides enough guidance to finish the work
+
+When empirical tuning is used, evaluate not only correctness but also exploration efficiency:
+
+- number of files read
+- whether forbidden areas were accessed
+- whether the skill's read order was followed
+- whether repo-wide exploration happened
+
+This keeps skill quality tied to both answer quality and token-efficient execution. Detailed evaluation procedure belongs in the empirical skill itself, not here.
 
 ## Physics Model Priority
 
@@ -168,3 +265,5 @@ Also:
 - bypassing source-of-truth files
 - deep imports
 - repo-wide exploration that is unrelated to the requested change
+- ignoring an available task-specific skill and doing repo-wide exploration anyway
+- running empirical tuning as part of every normal implementation flow
