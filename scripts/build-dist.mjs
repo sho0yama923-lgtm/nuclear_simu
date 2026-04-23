@@ -5,7 +5,7 @@ import url from "node:url";
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const srcRoot = path.join(projectRoot, "src");
-const distRoot = path.join(projectRoot, "dist");
+const distRoot = path.join(projectRoot, "generated", "dist");
 
 async function walk(current) {
   const entries = await fs.readdir(current, { withFileTypes: true });

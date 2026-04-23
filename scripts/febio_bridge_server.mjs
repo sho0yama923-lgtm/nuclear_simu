@@ -170,7 +170,7 @@ function buildCasePaths(outputRoot, caseName) {
 const args = parseArgs(process.argv.slice(2));
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(scriptDir, "..");
-const outputRoot = path.resolve(args.outputRoot || path.join(projectRoot, "febio_exports", "ui_bridge"));
+const outputRoot = path.resolve(args.outputRoot || path.join(projectRoot, "generated", "febio_exports", "ui_bridge"));
 ensureDir(outputRoot);
 
 const bridgeState = {

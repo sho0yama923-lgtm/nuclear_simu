@@ -110,7 +110,14 @@ function loadSimulationModule(projectRoot) {
   return sandbox;
 }
 
-function parseLogDataFile(filePath) {
+function parseFaceDataFields(dataSpec = "") {
+  return String(dataSpec || "")
+    .split(/[;,]/)
+    .map((field) => field.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function parseLogDataFile(filePath, options = {}) {
   if (!fs.existsSync(filePath)) {
     return [];
   }
@@ -119,6 +126,7 @@ function parseLogDataFile(filePath) {
   const snapshots = [];
   let current = null;
   let timeFallback = 0;
+  const dataFields = parseFaceDataFields(options.data);
 
   const flush = () => {
     if (current && current.records.length) {
@@ -136,7 +144,7 @@ function parseLogDataFile(filePath) {
     const timeMatch = line.match(/(?:\*?\s*Time\s*=)\s*([-+0-9.eE]+)/i);
     if (timeMatch) {
       flush();
-      current = { time: Number(timeMatch[1]), records: [] };
+      current = { time: Number(timeMatch[1]), records: [], dataFields };
       continue;
     }
 
@@ -147,7 +155,7 @@ function parseLogDataFile(filePath) {
     const fields = line.split(/[,\s]+/).filter(Boolean);
     if (fields.length >= 2 && /^[-+0-9.eE]+$/.test(fields[0])) {
       if (!current) {
-        current = { time: timeFallback, records: [] };
+        current = { time: timeFallback, records: [], dataFields };
       }
       current.records.push(fields.map(Number));
       continue;
@@ -207,6 +215,24 @@ function clamp01(value) {
   return Math.max(0, Math.min(1, value));
 }
 
+function averageFinite(values) {
+  const finiteValues = values.filter((value) => Number.isFinite(value));
+  if (!finiteValues.length) {
+    return null;
+  }
+  return finiteValues.reduce((sum, value) => sum + value, 0) / finiteValues.length;
+}
+
+function pickFiniteNumber(...values) {
+  for (const value of values) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return numeric;
+    }
+  }
+  return null;
+}
+
 function createLocalRegionState() {
   return {
     normalStress: 0,
@@ -235,6 +261,114 @@ function createMembraneRegionState() {
   };
 }
 
+function hasNativeFaceRegionObservation(localNc = {}) {
+  return Object.values(localNc).some((state) =>
+    String(state?.sourceNormal || "").includes("native-face") ||
+    String(state?.sourceDamage || "").includes("native-face") ||
+    String(state?.sourceShear || "").includes("native-face")
+  );
+}
+
+function buildDetachmentMetricsFromLocalState(localNc = {}, displacements = {}) {
+  const regions = Object.values(localNc);
+  const contactAreaRatio =
+    averageFinite(regions.map((state) => state?.contactFraction)) ??
+    averageFinite(regions.map((state) => (state ? clamp01(1 - (state.damage ?? 0)) : null))) ??
+    1;
+
+  return {
+    contactAreaRatio: clamp01(contactAreaRatio),
+    relativeNucleusDisplacement: Number.isFinite(displacements?.nucleus) ? displacements.nucleus : 0,
+    provenance: hasNativeFaceRegionObservation(localNc) ? "native-face-data-preferred" : "proxy-fallback-explicit",
+  };
+}
+
+function assessDetachmentSnapshot(snapshot, assessDetachmentFn = null) {
+  if (typeof assessDetachmentFn === "function") {
+    return assessDetachmentFn(snapshot);
+  }
+
+  const localNc = snapshot?.localNc || {};
+  const nativeDamage = Math.max(
+    snapshot?.damage?.nc || 0,
+    ...Object.values(localNc).map((state) => state?.damage || 0),
+  );
+  const geometryRatio = snapshot?.detachmentMetrics?.contactAreaRatio ?? 1;
+  const relativeDisplacement =
+    snapshot?.detachmentMetrics?.relativeNucleusDisplacement ?? snapshot?.displacements?.nucleus ?? 0;
+
+  return {
+    start: nativeDamage >= 0.45 || geometryRatio <= 0.6 || relativeDisplacement >= 0.18,
+    complete: nativeDamage >= 0.72 && (geometryRatio <= 0.35 || relativeDisplacement >= 0.27),
+    nativePreferred: hasNativeFaceRegionObservation(localNc),
+    geometryRatio,
+    relativeDisplacement,
+    mode: hasNativeFaceRegionObservation(localNc) ? "native" : "proxy-fallback-explicit",
+  };
+}
+
+function buildDetachmentEvent(key, time, assessment, source = "external-explicit") {
+  if (!Number.isFinite(time)) {
+    return null;
+  }
+
+  const eventLabel = key === "detachmentComplete" ? "detachment complete" : "detachment start";
+  return {
+    time,
+    detail: `${eventLabel} (${assessment.mode}, damage+geometry, areaRatio=${Number(assessment.geometryRatio || 0).toFixed(2)})`,
+    source,
+  };
+}
+
+function attachExplicitDetachmentEvents(result, assessDetachmentFn = null) {
+  result.events ??= {};
+  let detachmentStart = result.events.detachmentStart || null;
+  let detachmentComplete = result.events.detachmentComplete || null;
+
+  for (const entry of result.history || []) {
+    const assessment = assessDetachmentSnapshot(entry, assessDetachmentFn);
+    if (!detachmentStart && assessment.start) {
+      detachmentStart = buildDetachmentEvent("detachmentStart", entry.time, assessment);
+    }
+    if (!detachmentComplete && assessment.complete) {
+      detachmentComplete = buildDetachmentEvent("detachmentComplete", entry.time, assessment);
+    }
+    if (detachmentStart && detachmentComplete) {
+      break;
+    }
+  }
+
+  if (!detachmentStart || !detachmentComplete) {
+    const fallbackTime = result.history?.[result.history.length - 1]?.time ?? 0;
+    const assessment = assessDetachmentSnapshot(result, assessDetachmentFn);
+    if (!detachmentStart && assessment.start) {
+      detachmentStart = buildDetachmentEvent("detachmentStart", fallbackTime, assessment, "external-explicit-final-state");
+    }
+    if (!detachmentComplete && assessment.complete) {
+      detachmentComplete = buildDetachmentEvent(
+        "detachmentComplete",
+        fallbackTime,
+        assessment,
+        "external-explicit-final-state",
+      );
+    }
+  }
+
+  if (detachmentStart) {
+    result.events.detachmentStart = detachmentStart;
+  }
+  if (detachmentComplete) {
+    result.events.detachmentComplete = detachmentComplete;
+  }
+  if (detachmentStart || detachmentComplete) {
+    result.detachment = {
+      evaluation: "damage-plus-geometry",
+      start: detachmentStart,
+      complete: detachmentComplete,
+    };
+  }
+}
+
 function normalizeInterfaceCriteria(crits = {}) {
   return {
     Kn: Number(crits.normalStiffness ?? crits.Kn ?? 0),
@@ -254,12 +388,27 @@ function buildSnapshotsByName(runDir, logOutputs) {
     lookup[spec.name] = parseLogDataFile(path.join(runDir, spec.file));
   }
   for (const spec of logOutputs.faceData || []) {
-    lookup[spec.name] = parseLogDataFile(path.join(runDir, spec.file));
+    lookup[spec.name] = parseLogDataFile(path.join(runDir, spec.file), { data: spec.data });
   }
   return lookup;
 }
 
 function buildOutputMappingSummary(templateData) {
+  const faceDataSource = templateData.outputs?.faceData || templateData.logOutputs?.faceData || [];
+  const plotfileSurfaceSource =
+    templateData.outputs?.plotfileSurfaceData || templateData.logOutputs?.plotfileSurfaceData || [];
+  const faceDataSpecs = Object.fromEntries(
+    faceDataSource.map((entry) => [entry.name, entry]),
+  );
+  const plotfileSurfaceSpecs = plotfileSurfaceSource.reduce((lookup, entry) => {
+    const key = `${entry.interfaceGroup || "unknown"}:${entry.region || entry.name}`;
+    lookup[key] = entry;
+    return lookup;
+  }, {});
+  const pickFaceSpec = (name) => faceDataSpecs[name] || null;
+  const pickPlotfileSurfaceSpec = (interfaceGroup, region) =>
+    plotfileSurfaceSpecs[`${interfaceGroup}:${region}`] || null;
+
   return {
     displacementSources: {
       nucleusNodes: {
@@ -284,11 +433,31 @@ function buildOutputMappingSummary(templateData) {
     localNc: Object.fromEntries(
       Object.entries(templateData.interfaceRegions.localNc).map(([region, mapping]) => [
         region,
-        {
+        (() => {
+          const faceSpec = pickFaceSpec(`nucleus_cytoplasm_${region}_surface`);
+          const plotfileSpec = pickPlotfileSurfaceSpec("localNc", region);
+          return {
           faceLogfile: `febio_interface_nc_${region}.csv`,
           nucleusLogfile: `febio_${mapping.nucleusNodeSet.replace(/_nodes$/, "")}.csv`,
           cytoplasmLogfile: `febio_${mapping.cytoplasmNodeSet.replace(/_nodes$/, "")}.csv`,
-          source: "native face_data for normal stress/gap/contact fraction, node proxy for shear",
+          source: "native face_data for normal stress/gap/contact fraction and tangential traction when available, node proxy fallback for shear",
+          logfileFields: faceSpec?.logfileFields || ["contact gap", "contact pressure"],
+          logfileData: faceSpec?.logfileData || "contact gap;contact pressure",
+          optionalExternalFields: faceSpec?.optionalExternalFields || [],
+          currentCoverage: faceSpec?.currentCoverage || {
+            normal: "native-face-data-preferred",
+            damage: "native-face-data-preferred",
+            shear: "proxy-fallback-explicit",
+          },
+          standardTangentialBridge: plotfileSpec
+            ? {
+                variable: plotfileSpec.variable || "contact traction",
+                surface: plotfileSpec.surface,
+                payloadPath: plotfileSpec.payloadPath,
+                preferredSource: plotfileSpec.preferredSource || "native-plotfile-contact-traction",
+                sectionAxes: plotfileSpec.sectionAxes || null,
+              }
+            : null,
           mapsTo: [
             `localNc.${region}.normalStress`,
             `localNc.${region}.shearStress`,
@@ -298,16 +467,37 @@ function buildOutputMappingSummary(templateData) {
             `localNc.${region}.peakNormal`,
             `localNc.${region}.peakShear`,
           ],
-        },
+          };
+        })(),
       ]),
     ),
     localCd: Object.fromEntries(
       Object.entries(templateData.interfaceRegions.localCd).map(([region, mapping]) => [
         region,
-        {
+        (() => {
+          const faceSpec = pickFaceSpec(`cell_dish_${region}_surface`);
+          const plotfileSpec = pickPlotfileSurfaceSpec("localCd", region);
+          return {
           faceLogfile: `febio_interface_cd_${region}.csv`,
           cellLogfile: `febio_${mapping.cellNodeSet.replace(/_nodes$/, "")}.csv`,
-          source: "face_data for normal stress/gap, node proxy for shear",
+          source: "face_data for normal stress/gap and tangential traction when available, node proxy fallback for shear",
+          logfileFields: faceSpec?.logfileFields || ["contact gap", "contact pressure"],
+          logfileData: faceSpec?.logfileData || "contact gap;contact pressure",
+          optionalExternalFields: faceSpec?.optionalExternalFields || [],
+          currentCoverage: faceSpec?.currentCoverage || {
+            normal: "native-face-data-preferred",
+            damage: "native-face-data-preferred",
+            shear: "proxy-fallback-explicit",
+          },
+          standardTangentialBridge: plotfileSpec
+            ? {
+                variable: plotfileSpec.variable || "contact traction",
+                surface: plotfileSpec.surface,
+                payloadPath: plotfileSpec.payloadPath,
+                preferredSource: plotfileSpec.preferredSource || "native-plotfile-contact-traction",
+                sectionAxes: plotfileSpec.sectionAxes || null,
+              }
+            : null,
           mapsTo: [
             `localCd.${region}.normalStress`,
             `localCd.${region}.shearStress`,
@@ -315,7 +505,8 @@ function buildOutputMappingSummary(templateData) {
             `localCd.${region}.peakNormal`,
             `localCd.${region}.peakShear`,
           ],
-        },
+          };
+        })(),
       ]),
     ),
     derived: {
@@ -336,6 +527,113 @@ function buildOutputMappingSummary(templateData) {
         mapsTo: ["classification", "dominantMechanism"],
       },
     },
+  };
+}
+
+function pickPlotfileSurfaceSeries(payload, interfaceGroup, region) {
+  const candidates = [
+    payload?.plotfileSurfaceData?.[interfaceGroup]?.[region],
+    payload?.bridgeSurfaceData?.[interfaceGroup]?.[region],
+    payload?.plotfileContactTraction?.[interfaceGroup]?.[region],
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length) {
+      return candidate;
+    }
+  }
+  return [];
+}
+
+function resolveSectionTangentialAxis(interfaceGroup, region, entry = null) {
+  const explicitAxis = entry?.sectionAxes?.tangential || entry?.axes?.tangential || entry?.tangentialAxis;
+  if (explicitAxis === "x" || explicitAxis === "z") {
+    return explicitAxis;
+  }
+  if (interfaceGroup === "localNc") {
+    return region === "top" || region === "bottom" ? "x" : "z";
+  }
+  return "x";
+}
+
+function readBridgeVectorComponent(vector, axis) {
+  if (Array.isArray(vector)) {
+    const index = axis === "x" ? 0 : axis === "y" ? 1 : 2;
+    const value = Number(vector[index]);
+    return Number.isFinite(value) ? value : null;
+  }
+  if (vector && typeof vector === "object") {
+    const value = Number(vector[axis]);
+    return Number.isFinite(value) ? value : null;
+  }
+  return null;
+}
+
+function computeTangentialTractionFromPlotfileBridge(interfaceGroup, region, entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const explicit = pickFiniteNumber(
+    entry.tangentialTraction,
+    entry.tangentialStress,
+    entry.shearTraction,
+    entry.shearStress,
+    entry.tangentialMagnitude,
+    entry.contactTractionMagnitude,
+  );
+  if (explicit != null) {
+    return Math.abs(explicit);
+  }
+
+  const vectorSources = [
+    entry.contactTraction,
+    entry.traction,
+    entry.contactTractionVector,
+    entry.vector,
+  ];
+  const tangentialAxis = resolveSectionTangentialAxis(interfaceGroup, region, entry);
+  for (const vector of vectorSources) {
+    const component = readBridgeVectorComponent(vector, tangentialAxis);
+    if (component != null) {
+      return Math.abs(component);
+    }
+  }
+
+  return null;
+}
+
+function nearestBridgeEntry(series, time) {
+  if (!Array.isArray(series) || !series.length) {
+    return null;
+  }
+  const timedEntries = series.filter((entry) => Number.isFinite(entry?.time));
+  if (!timedEntries.length) {
+    return series[0];
+  }
+  return nearestSnapshotFromTimeline(timedEntries, time);
+}
+
+function resolveTangentialShearObservation(interfaceGroup, region, faceSnapshot, bridgeSeries, time, fallbackEntry) {
+  const bridgeEntry = nearestBridgeEntry(bridgeSeries, time);
+  const bridgeShearStress = computeTangentialTractionFromPlotfileBridge(interfaceGroup, region, bridgeEntry);
+  if (bridgeShearStress != null) {
+    return {
+      shearStress: bridgeShearStress,
+      sourceShear: "native-plotfile-contact-traction",
+    };
+  }
+
+  const nativeFaceShearStress = computeTangentialTractionFromFaceSnapshot(faceSnapshot);
+  if (nativeFaceShearStress != null) {
+    return {
+      shearStress: nativeFaceShearStress,
+      sourceShear: "native-face-traction",
+    };
+  }
+
+  return {
+    shearStress: fallbackEntry?.shearStress ?? 0,
+    sourceShear: "node-displacement-proxy",
   };
 }
 
@@ -421,10 +719,11 @@ function computeContactFractionFromFaceSnapshot(snapshot, gapScale, tractionThre
   if (!snapshot?.records?.length) {
     return 0;
   }
+  const layout = resolveFaceSnapshotLayout(snapshot);
   let engagedCount = 0;
   snapshot.records.forEach((record) => {
-    const gap = Math.abs(Number(record[1] || 0));
-    const pressure = Math.abs(Number(record[2] || 0));
+    const gap = Math.abs(Number(record[layout.valueOffset + layout.gapFieldIndex] || 0));
+    const pressure = Math.abs(Number(record[layout.valueOffset + layout.pressureFieldIndex] || 0));
     if (pressure >= tractionThreshold || gap <= gapScale * 0.5) {
       engagedCount += 1;
     }
@@ -432,7 +731,155 @@ function computeContactFractionFromFaceSnapshot(snapshot, gapScale, tractionThre
   return engagedCount / snapshot.records.length;
 }
 
-function computeFaceDrivenInterfaceState(region, faceSeries, fallbackState, crits) {
+function inferFaceSnapshotValueOffsetHeuristic(snapshot) {
+  const records = snapshot?.records || [];
+  if (!records.length) {
+    return 1;
+  }
+
+  const hasTwoLeadingIntegerColumns = records.every((record) => {
+    const first = Number(record?.[0]);
+    const second = Number(record?.[1]);
+    return Number.isFinite(first) && Number.isInteger(first) && Number.isFinite(second) && Number.isInteger(second) && record.length >= 4;
+  });
+  if (hasTwoLeadingIntegerColumns) {
+    return 2;
+  }
+
+  const hasLeadingEntityId = records.every((record) => {
+    const first = Number(record?.[0]);
+    return Number.isFinite(first) && Number.isInteger(first) && record.length >= 3;
+  });
+
+  return hasLeadingEntityId ? 1 : 0;
+}
+
+function pickMostCommonNonNegative(values) {
+  if (!values.length) {
+    return null;
+  }
+  const counts = new Map();
+  values.forEach((value) => {
+    if (!Number.isInteger(value) || value < 0) {
+      return;
+    }
+    counts.set(value, (counts.get(value) || 0) + 1);
+  });
+  if (!counts.size) {
+    return null;
+  }
+  let bestValue = null;
+  let bestCount = -1;
+  counts.forEach((count, value) => {
+    if (count > bestCount) {
+      bestValue = value;
+      bestCount = count;
+    }
+  });
+  return bestValue;
+}
+
+function resolveFaceSnapshotLayout(snapshot) {
+  const records = snapshot?.records || [];
+  const dataFields = Array.isArray(snapshot?.dataFields) ? snapshot.dataFields : [];
+  const expectedValueCount = dataFields.length || null;
+  const inferredOffsets = expectedValueCount
+    ? records
+      .map((record) => record.length - expectedValueCount)
+      .filter((value) => Number.isInteger(value) && value >= 0)
+    : [];
+  const valueOffset =
+    (inferredOffsets.length === records.length && inferredOffsets.length
+      ? inferredOffsets[0]
+      : pickMostCommonNonNegative(inferredOffsets)) ??
+    inferFaceSnapshotValueOffsetHeuristic(snapshot);
+
+  const gapFieldIndex = Math.max(
+    0,
+    dataFields.findIndex((field) => field.includes("gap")),
+  );
+  const pressureFieldIndex = (() => {
+    const descriptorIndex = dataFields.findIndex(
+      (field) => field.includes("pressure") && !field.includes("traction"),
+    );
+    if (descriptorIndex >= 0) {
+      return descriptorIndex;
+    }
+    return gapFieldIndex === 0 ? 1 : 0;
+  })();
+  const tangentialFieldIndices = dataFields.length
+    ? dataFields
+      .map((field, index) => ({ field, index }))
+      .filter(({ field }) =>
+        (field.includes("traction") || field.includes("tangential") || field.includes("shear")) &&
+        !field.includes("pressure"))
+      .map(({ index }) => index)
+    : [];
+
+  return {
+    valueOffset,
+    gapFieldIndex,
+    pressureFieldIndex,
+    tangentialFieldIndices,
+  };
+}
+
+function inferFaceSnapshotValueOffset(snapshot) {
+  return resolveFaceSnapshotLayout(snapshot).valueOffset;
+}
+
+function averageFaceSnapshotColumns(snapshot) {
+  if (!snapshot?.records?.length) {
+    return [];
+  }
+  const valueOffset = inferFaceSnapshotValueOffset(snapshot);
+  const width = Math.max(0, snapshot.records[0].length - valueOffset);
+  const sums = new Array(width).fill(0);
+
+  snapshot.records.forEach((record) => {
+    for (let index = 0; index < width; index += 1) {
+      sums[index] += Number(record[index + valueOffset] || 0);
+    }
+  });
+
+  return sums.map((value) => value / snapshot.records.length);
+}
+
+function computeTangentialTractionFromFaceSnapshot(snapshot) {
+  if (!snapshot?.records?.length) {
+    return null;
+  }
+  const layout = resolveFaceSnapshotLayout(snapshot);
+
+  let sawTangentialColumn = false;
+  let sumMagnitude = 0;
+  let count = 0;
+
+  snapshot.records.forEach((record) => {
+    const tangentialValues = layout.tangentialFieldIndices.length
+      ? layout.tangentialFieldIndices.map((fieldIndex) => record[layout.valueOffset + fieldIndex])
+      : record.slice(layout.valueOffset + 2);
+    const tangentialComponents = tangentialValues
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value));
+
+    if (!tangentialComponents.length) {
+      return;
+    }
+
+    sawTangentialColumn = true;
+    sumMagnitude += Math.hypot(...tangentialComponents);
+    count += 1;
+  });
+
+  if (!sawTangentialColumn || count === 0) {
+    return null;
+  }
+
+  return sumMagnitude / count;
+}
+
+function computeFaceDrivenInterfaceState(region, faceSeries, fallbackState, crits, bridgeSeries = []) {
   const resolved = normalizeInterfaceCriteria(crits);
   if (!faceSeries?.length) {
     return {
@@ -462,14 +909,24 @@ function computeFaceDrivenInterfaceState(region, faceSeries, fallbackState, crit
   const tractionThreshold = Math.max(resolved.sigCrit * 0.05, 1e-6);
 
   faceSeries.forEach((snapshot) => {
-    const values = averageRecordColumns(snapshot);
+    const layout = resolveFaceSnapshotLayout(snapshot);
+    const values = averageFaceSnapshotColumns(snapshot);
     const fallbackEntry =
       nearestSnapshotFromTimeline(fallbackState.timeline, snapshot.time) ||
       fallbackState.timeline[fallbackState.timeline.length - 1] ||
       { shearStress: 0 };
-    const normalGap = Math.abs(values[0] || 0);
-    const normalStress = Math.abs(values[1] || 0);
-    const shearStress = fallbackEntry.shearStress || 0;
+    const normalGap = Math.abs(values[layout.gapFieldIndex] || 0);
+    const normalStress = Math.abs(values[layout.pressureFieldIndex] || 0);
+    const shearObservation = resolveTangentialShearObservation(
+      "localNc",
+      region,
+      snapshot,
+      bridgeSeries,
+      snapshot.time,
+      fallbackEntry,
+    );
+    const shearStress = shearObservation.shearStress;
+    const shearSource = shearObservation.sourceShear;
     const contactFraction = computeContactFractionFromFaceSnapshot(snapshot, gapScale, tractionThreshold);
     const tractionPhi = normalStress / Math.max(resolved.sigCrit, 1e-6);
     const gapPhi = normalGap / gapScale;
@@ -497,8 +954,10 @@ function computeFaceDrivenInterfaceState(region, faceSeries, fallbackState, crit
       contactFraction,
       sourceNormal: "native-face-pressure",
       sourceDamage: "native-face-gap-pressure",
-      sourceShear: "node-displacement-proxy",
+      sourceShear: shearSource,
     });
+
+    state.sourceShear = shearSource;
   });
 
   return { state, timeline };
@@ -550,7 +1009,7 @@ function computeCellDishRegionState(regionSeries, params, crits) {
   return { state, timeline };
 }
 
-function computeCellDishRegionStateWithFace(regionSeries, faceSeries, crits) {
+function computeCellDishRegionStateWithFace(region, regionSeries, faceSeries, crits, bridgeSeries = []) {
   const resolved = normalizeInterfaceCriteria(crits);
   const fallback = computeCellDishRegionState(regionSeries, null, crits);
   if (!faceSeries?.length) {
@@ -577,14 +1036,24 @@ function computeCellDishRegionStateWithFace(regionSeries, faceSeries, crits) {
   const tractionThreshold = Math.max(resolved.sigCrit * 0.05, 1e-6);
 
   faceSeries.forEach((snapshot) => {
-    const values = averageRecordColumns(snapshot);
+    const layout = resolveFaceSnapshotLayout(snapshot);
+    const values = averageFaceSnapshotColumns(snapshot);
     const fallbackEntry =
       nearestSnapshotFromTimeline(fallback.timeline, snapshot.time) ||
       fallback.timeline[fallback.timeline.length - 1] ||
       { shearStress: 0 };
-    const normalGap = Math.abs(values[0] || 0);
-    const normalStress = Math.abs(values[1] || 0);
-    const shearStress = fallbackEntry.shearStress || 0;
+    const normalGap = Math.abs(values[layout.gapFieldIndex] || 0);
+    const normalStress = Math.abs(values[layout.pressureFieldIndex] || 0);
+    const shearObservation = resolveTangentialShearObservation(
+      "localCd",
+      region,
+      snapshot,
+      bridgeSeries,
+      snapshot.time,
+      fallbackEntry,
+    );
+    const shearStress = shearObservation.shearStress;
+    const shearSource = shearObservation.sourceShear;
     const contactFraction = computeContactFractionFromFaceSnapshot(snapshot, gapScale, tractionThreshold);
     const tractionPhi = normalStress / Math.max(resolved.sigCrit, 1e-6);
     const gapPhi = normalGap / gapScale;
@@ -612,8 +1081,10 @@ function computeCellDishRegionStateWithFace(regionSeries, faceSeries, crits) {
       contactFraction,
       sourceNormal: "native-face-pressure",
       sourceDamage: "native-face-gap-pressure",
-      sourceShear: "node-displacement-proxy",
+      sourceShear: shearSource,
     });
+
+    state.sourceShear = shearSource;
   });
 
   return { state, timeline };
@@ -655,6 +1126,40 @@ function summarizeRegionSources(regions) {
       },
     ]),
   );
+}
+
+function buildRegionObservationSummary(mappingEntry, state) {
+  return {
+    actualSources: {
+      normal: state?.sourceNormal || "unknown",
+      damage: state?.sourceDamage || "unknown",
+      shear: state?.sourceShear || "unknown",
+    },
+    logfileData: mappingEntry?.logfileData || null,
+    logfileFields: structuredClone(mappingEntry?.logfileFields || []),
+    optionalExternalFields: structuredClone(mappingEntry?.optionalExternalFields || []),
+    currentCoverage: structuredClone(mappingEntry?.currentCoverage || null),
+    standardTangentialBridge: structuredClone(mappingEntry?.standardTangentialBridge || null),
+  };
+}
+
+function buildInterfaceObservationSummary(mapping, localNc, localCd, detachmentMetrics) {
+  return {
+    localNc: Object.fromEntries(
+      Object.entries(localNc).map(([region, state]) => [
+        region,
+        buildRegionObservationSummary(mapping?.localNc?.[region], state),
+      ]),
+    ),
+    localCd: Object.fromEntries(
+      Object.entries(localCd).map(([region, state]) => [
+        region,
+        buildRegionObservationSummary(mapping?.localCd?.[region], state),
+      ]),
+    ),
+    membraneSource: "proxy-from-localNc",
+    detachmentSource: detachmentMetrics?.provenance || "unknown",
+  };
 }
 
 function buildHistoryFromSnapshots(
@@ -731,6 +1236,9 @@ function buildHistoryFromSnapshots(
     const damageCd = Math.max(...Object.values(cdState).map((state) => state.damage), 0);
     const damageMembrane = Math.max(...Object.values(membraneRegions).map((state) => state.damage), 0);
     const membraneStress = Math.max(...Object.values(membraneRegions).map((state) => state.stress), 0);
+    const detachmentMetrics = buildDetachmentMetricsFromLocalState(ncState, {
+      nucleus: Math.hypot(nucleusValues[0] || 0, nucleusValues[1] || 0),
+    });
 
     return {
       time,
@@ -751,6 +1259,7 @@ function buildHistoryFromSnapshots(
       membraneDamage: damageMembrane,
       membraneStress,
       membraneStrain: membraneStress / Math.max(inputSpec.membrane.sig_m_crit || 1, 1e-6),
+      detachmentMetrics,
       holdForce,
       tangentialOffset: 0,
     };
@@ -818,6 +1327,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
       logs[`nucleus_cytoplasm_${region}_surface`] || [],
       fallback,
       templateData.interfaces.nucleusCytoplasm,
+      pickPlotfileSurfaceSeries(payload, "localNc", region),
     );
     localNc[region] = computed.state;
     localNcTimeline[region] = computed.timeline;
@@ -826,9 +1336,11 @@ function buildResultFromLogs(sandbox, payload, runDir) {
   for (const region of ["left", "center", "right"]) {
     const mapped = templateData.interfaceRegions.localCd[region];
     const computed = computeCellDishRegionStateWithFace(
+      region,
       logs[mapped.cellNodeSet] || [],
       logs[`cell_dish_${region}_surface`] || [],
       templateData.interfaces.cellDish,
+      pickPlotfileSurfaceSeries(payload, "localCd", region),
     );
     localCd[region] = computed.state;
     localCdTimeline[region] = computed.timeline;
@@ -851,6 +1363,19 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     const values = averageRecordColumns(snapshot);
     return Math.max(maxValue, Math.hypot(values[2] || 0, values[3] || 0));
   }, 0);
+  const displacements = {
+    nucleus: Math.hypot(lastNucleus[0] || 0, lastNucleus[1] || 0),
+    cell: Math.hypot(lastCell[0] || 0, lastCell[1] || 0),
+    tangentCell: 0,
+    tangentNucleus: 0,
+  };
+  const detachmentMetrics = buildDetachmentMetricsFromLocalState(localNc, displacements);
+  const interfaceObservationSummary = buildInterfaceObservationSummary(
+    outputMapping,
+    localNc,
+    localCd,
+    detachmentMetrics,
+  );
 
   const damage = {
     nc: Math.max(...Object.values(localNc).map((state) => state.damage), 0),
@@ -889,12 +1414,8 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     localNc,
     localCd,
     membraneRegions,
-    displacements: {
-      nucleus: Math.hypot(lastNucleus[0] || 0, lastNucleus[1] || 0),
-      cell: Math.hypot(lastCell[0] || 0, lastCell[1] || 0),
-      tangentCell: 0,
-      tangentNucleus: 0,
-    },
+    displacements,
+    detachmentMetrics,
     captureEstablished: maxContactForce > 0.05,
     captureMaintained: maxContactForce > 0.05,
     isPhysicalFebioResult: true,
@@ -911,7 +1432,10 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     interfaceObservation: {
       localNcSource: localNcSourceSummary,
       localCdSource: localCdSourceSummary,
+      localNc: interfaceObservationSummary.localNc,
+      localCd: interfaceObservationSummary.localCd,
       membraneSource: "proxy-from-localNc",
+      detachmentSource: detachmentMetrics.provenance,
     },
     resultProvenance: {
       source: "febio-cli",
@@ -927,7 +1451,9 @@ function buildResultFromLogs(sandbox, payload, runDir) {
         localNc: localNcSourceSummary,
         localCd: localCdSourceSummary,
         membrane: "proxy-from-localNc",
+        detachment: detachmentMetrics.provenance,
       },
+      interfaceObservation: interfaceObservationSummary,
     },
   };
 
@@ -946,6 +1472,13 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     result.events.tipSlip = { time: 0, detail: "no effective pipette reaction force detected" };
   }
 
+  attachExplicitDetachmentEvents(
+    result,
+    typeof sandbox.assessDetachmentExplicit === "function"
+      ? (snapshot) => sandbox.assessDetachmentExplicit(snapshot)
+      : null,
+  );
+
   const earliest = sandbox.findEarliestLocalFailure(result);
   result.firstFailureSite = earliest.site;
   result.firstFailureMode = earliest.mode;
@@ -957,35 +1490,58 @@ function buildResultFromLogs(sandbox, payload, runDir) {
   return sandbox.normalizeSimulationResult(result, inputSpec);
 }
 
-const args = parseArgs(process.argv.slice(2));
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = path.resolve(scriptDir, "..");
-const sandbox = loadSimulationModule(projectRoot);
-const runDir = path.resolve(args.runDir);
-const inputPayload = JSON.parse(fs.readFileSync(path.resolve(args.inputJson), "utf8"));
-const normalizedResult = buildResultFromLogs(sandbox, inputPayload, runDir);
-const outputPath =
-  args.outFile || path.join(runDir, `case_${normalizedResult.caseName}_result.json`);
+function runCli(argv = process.argv.slice(2)) {
+  const args = parseArgs(argv);
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const projectRoot = path.resolve(scriptDir, "..");
+  const sandbox = loadSimulationModule(projectRoot);
+  const runDir = path.resolve(args.runDir);
+  const inputPayload = JSON.parse(fs.readFileSync(path.resolve(args.inputJson), "utf8"));
+  const normalizedResult = buildResultFromLogs(sandbox, inputPayload, runDir);
+  const outputPath =
+    args.outFile || path.join(runDir, `case_${normalizedResult.caseName}_result.json`);
 
-fs.writeFileSync(
-  outputPath,
-  JSON.stringify(
-    {
-      normalizedResult,
-      isPhysicalFebioResult: true,
-      parameterDigest: normalizedResult.parameterDigest,
-      canonicalSpec: inputPayload.canonicalSpec || inputPayload.inputSpec || null,
-      exportTimestamp: inputPayload.exportBundle?.exportTimestamp || inputPayload.generatedAt || null,
-      importTimestamp: new Date().toISOString(),
-      solverMetadata: normalizedResult.solverMetadata,
-      outputMapping: normalizedResult.externalResult?.outputMapping || null,
-      generatedAt: new Date().toISOString(),
-      source: "convert_febio_output.mjs",
-    },
-    null,
-    2,
-  ),
-  "utf8",
-);
+  fs.writeFileSync(
+    outputPath,
+    JSON.stringify(
+      {
+        normalizedResult,
+        isPhysicalFebioResult: true,
+        parameterDigest: normalizedResult.parameterDigest,
+        canonicalSpec: inputPayload.canonicalSpec || inputPayload.inputSpec || null,
+        exportTimestamp: inputPayload.exportBundle?.exportTimestamp || inputPayload.generatedAt || null,
+        importTimestamp: new Date().toISOString(),
+        solverMetadata: normalizedResult.solverMetadata,
+        outputMapping: normalizedResult.externalResult?.outputMapping || null,
+        generatedAt: new Date().toISOString(),
+        source: "convert_febio_output.mjs",
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
 
-console.log(outputPath);
+  console.log(outputPath);
+  return outputPath;
+}
+
+const isDirectRun =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isDirectRun) {
+  runCli();
+}
+
+export {
+  attachExplicitDetachmentEvents,
+  assessDetachmentSnapshot,
+  buildDetachmentMetricsFromLocalState,
+  buildOutputMappingSummary,
+  computeTangentialTractionFromPlotfileBridge,
+  computeTangentialTractionFromFaceSnapshot,
+  inferFaceSnapshotValueOffset,
+  resolveTangentialShearObservation,
+  buildResultFromLogs,
+  runCli,
+};

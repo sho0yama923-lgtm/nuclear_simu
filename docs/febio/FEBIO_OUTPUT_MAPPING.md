@@ -191,6 +191,16 @@
 - top-level `outputMapping`
 - `normalizedResult.externalResult.outputMapping`
 
+## 10. Native Tangential Update
+
+- `scripts/convert_febio_output.mjs` now reuses native face tangential traction for `localNc.*.shearStress` and `localCd.*.shearStress` when those face snapshots expose extra traction columns.
+- The converter now supports both face snapshot rows with a leading entity id and rows that start directly with face values.
+- The converter also uses the face-data descriptor to handle rows with extra leading metadata columns and descriptor-driven field order, as long as the payload still declares which columns are `gap` / `pressure` / tangential traction.
+- When tangential traction columns are absent, shear still falls back explicitly to the existing node-displacement proxy path and keeps that provenance in `sourceShear`.
+- `src/febio/import/normalizeFebioResult.ts` now also normalizes native `localCd` payloads from `localCdNative`, `nativeLocalCd`, and `faceData/nativeFaceData.cellDishRegions`, preserving those source labels in both final state and `history[]`.
+- `src/febio/export/index.ts` and the compatibility export metadata now explicitly declare that the standard logfile `face_data` descriptor is still `contact gap;contact pressure`, and they also declare the standard plotfile `contact traction` bridge payload path (`plotfileSurfaceData.localNc.*` / `plotfileSurfaceData.localCd.*`) that the converter can prefer before proxy fallback.
+- Converted result JSON now carries that coverage in both `outputMapping` and `resultProvenance.interfaceObservation`, so saved converted payloads show both the declared coverage and the actual native/proxy source picked per region.
+
 これにより、変換済み JSON だけ見ても
 
 - どの `.csv` が

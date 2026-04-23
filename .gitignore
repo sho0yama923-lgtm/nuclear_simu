@@ -1,4 +1,5 @@
-febio_exports/
+generated/
+tmp/
 
 *.xplt
 *.log

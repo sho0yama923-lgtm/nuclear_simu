@@ -169,6 +169,16 @@ Examples:
 - When a repetitive workflow stabilizes, add a new skill.
 - When a skill becomes stale, update it in the same change set as the code change.
 
+## Operational Feedback Rule
+
+- If a recurring operational problem is discovered, codify it instead of leaving it only in chat history.
+- Update the codified rule in the same change set as the fix or discovery.
+- Route the feedback by layer:
+  - global operating rules belong in `AGENT.md`
+  - local procedures and bounded read-set rules belong in the relevant `SKILL.md`
+  - current state recognition and implemented / partial / planned status belong in `PROGRESS.md`
+- If more than one layer is affected, update all affected layers together rather than only one of them.
+
 ## Skill Layering Rule
 
 Purpose:
@@ -228,6 +238,21 @@ Operational rules:
 - Do not make large extensions unrelated to higher-priority items.
 - If you touch a lower-priority item, state why it does not block the higher-priority path.
 
+## Supporting Migration Priority
+
+The physics priority above stays fixed. In parallel, keep the compatibility runtime on a retirement path:
+
+1. decompose `simulation.js`
+2. migrate remaining ownership into canonical `src/` modules
+3. reduce `simulation.js` to a thin compatibility bridge
+4. retire compatibility-local schema, classification, and detachment logic once canonical callers are complete
+
+Operational rules:
+
+- Treat `simulation.js` work as support for the main physics path, not as a competing roadmap.
+- When moving code out of `simulation.js`, update the canonical source-of-truth file and the compatibility call site in the same change set.
+- Do not add new long-term ownership to `simulation.js` unless a short-term compatibility blocker requires it.
+
 ## PROGRESS Sync Rule
 
 Update `PROGRESS.md` in the same change set when changing:
@@ -245,6 +270,7 @@ Also:
 - always reflect `implemented / partial / planned` changes
 - record new approximations honestly
 - record regressions honestly, including `implemented -> partial`
+- write `PROGRESS.md` in Japanese unless a specific exception is requested
 - keep `README.md`, `CODEBASE_STRUCTURE.md`, and `PROGRESS.md` aligned
 
 ## Detachment-Oriented Design

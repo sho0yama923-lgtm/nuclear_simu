@@ -11,7 +11,7 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Resolve-Path (Join-Path $scriptRoot "..")
 
 if (-not $OutputDir) {
-  $OutputDir = Join-Path $projectRoot "febio_exports\$CaseName"
+  $OutputDir = Join-Path $projectRoot "generated\febio_exports\$CaseName"
 }
 
 $exportArgs = @(

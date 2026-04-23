@@ -1854,6 +1854,7 @@ function getCanonicalClassificationApi() {
     return null;
   }
   if (
+    typeof api.applyRunClassification !== "function" ||
     typeof api.classifyRun !== "function" ||
     typeof api.determineDominantMechanism !== "function" ||
     typeof api.assessDetachment !== "function"
@@ -1918,11 +1919,7 @@ function maybeMarkDetachmentEvents(state, time, snapshot) {
 function applyClassification(result) {
   const canonicalApi = getCanonicalClassificationApi();
   if (canonicalApi) {
-    result.dominantMechanism = canonicalApi.determineDominantMechanism(result);
-    result.classification = canonicalApi.classifyRun(result);
-    result.dominantMechanism = canonicalApi.determineDominantMechanism(result);
-    result.classificationSource = "canonical-public-api";
-    return result;
+    return canonicalApi.applyRunClassification(result, "canonical-public-api");
   }
 
   result.dominantMechanism = determineDominantMechanism(result);

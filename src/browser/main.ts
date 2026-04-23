@@ -15,9 +15,9 @@ async function bootLegacyUi() {
     return;
   }
   window.__NUCLEAR_SIMU_PUBLIC_API__ = publicApi;
-  await loadLegacyScript("../../simulation.js?v=20260422");
-  await loadLegacyScript("../../js/simulation-febio.js?v=20260422");
-  await loadLegacyScript("../../js/simulation-ui.js?v=20260422");
+  await loadLegacyScript("../../../simulation.js?v=20260422");
+  await loadLegacyScript("../../../js/simulation-febio.js?v=20260422");
+  await loadLegacyScript("../../../js/simulation-ui.js?v=20260422");
 }
 
 bootLegacyUi().catch((error) => {

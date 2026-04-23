@@ -147,7 +147,7 @@ function toCsv(rows) {
 const args = parseArgs(process.argv.slice(2));
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(scriptDir, "..");
-const outDir = path.resolve(args.outDir || path.join(projectRoot, "febio_exports", "case_a_scan"));
+const outDir = path.resolve(args.outDir || path.join(projectRoot, "generated", "febio_exports", "case_a_scan"));
 const grid = buildGrid(args.mode);
 const combinations = cartesianProduct(Object.entries(grid));
 const selected = args.limit > 0 ? combinations.slice(0, args.limit) : combinations;

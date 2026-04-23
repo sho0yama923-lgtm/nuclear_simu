@@ -5,13 +5,13 @@ import {
   structuredCloneSafe,
 } from "../../model/types.ts";
 import {
-  buildSimulationInput,
   deriveMembraneStateFromLocalNc,
   initializeLocalState,
   initializeMembraneState,
   summarizeLocalDamage,
+  buildSimulationInput,
 } from "../../model/schema.ts";
-import { assessDetachment, classifyRun, determineDominantMechanism } from "../../results/classification.ts";
+import { applyRunClassification, assessDetachment } from "../../results/classification.ts";
 
 /**
  * SOURCE OF TRUTH: FEBio result normalization for canonical import.
@@ -59,6 +59,125 @@ function toRegionEntries(source, regions) {
     .map((region) => [region, source[region]]);
 }
 
+const NC_NATIVE_REGION_SOURCE_PATHS = [
+  "localNcNative",
+  "nativeLocalNc",
+  "nativeFaceData.localNc",
+  "faceData.localNc",
+  "nativeFaceData.nucleusCytoplasmRegions",
+  "faceData.nucleusCytoplasmRegions",
+];
+
+const CD_NATIVE_REGION_SOURCE_PATHS = [
+  "localCdNative",
+  "nativeLocalCd",
+  "nativeFaceData.localCd",
+  "faceData.localCd",
+  "nativeFaceData.cellDishRegions",
+  "faceData.cellDishRegions",
+];
+
+function getNestedValue(source, path) {
+  return path.split(".").reduce((value, key) => value?.[key], source);
+}
+
+function pickNativeLocalRegionSource(result, sourcePaths) {
+  for (const path of sourcePaths) {
+    const candidate = getNestedValue(result, path);
+    if (candidate) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function pickContactFraction(regionSource) {
+  return pickFiniteNumber(
+    regionSource?.contactFraction,
+    regionSource?.contactRatio,
+    regionSource?.bondedFraction,
+  );
+}
+
+function pickNativeGap(regionSource) {
+  return pickFiniteNumber(
+    regionSource?.nativeGap,
+    regionSource?.normalGap,
+    regionSource?.gap,
+    regionSource?.gapDistance,
+    regionSource?.separation,
+  );
+}
+
+function pickExplicitRegionMetric(regionSource, keys) {
+  if (!regionSource || typeof regionSource !== "object") {
+    return null;
+  }
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(regionSource, key)) {
+      const value = pickFiniteNumber(regionSource[key]);
+      if (value != null) {
+        return value;
+      }
+    }
+  }
+  return null;
+}
+
+function pickExplicitContactFraction(regionSource) {
+  return pickExplicitRegionMetric(regionSource, [
+    "contactFraction",
+    "contactRatio",
+    "bondedFraction",
+  ]);
+}
+
+function pickExplicitNativeGap(regionSource) {
+  return pickExplicitRegionMetric(regionSource, [
+    "nativeGap",
+    "normalGap",
+    "gap",
+    "gapDistance",
+    "separation",
+  ]);
+}
+
+function inferNativeNormalSource(regionSource, normalStress) {
+  if (regionSource?.sourceNormal) {
+    return regionSource.sourceNormal;
+  }
+  return normalStress != null ? "native-face-pressure" : "unavailable";
+}
+
+function inferNativeDamageSource(regionSource, damage, contactFraction, nativeGap) {
+  if (regionSource?.sourceDamage) {
+    return regionSource.sourceDamage;
+  }
+  return damage != null || contactFraction != null || nativeGap != null
+    ? "native-face-gap-pressure"
+    : "unavailable";
+}
+
+function inferNativeShearSource(regionSource, shearStress) {
+  if (regionSource?.sourceShear) {
+    return regionSource.sourceShear;
+  }
+  return shearStress != null ? "native-face-traction" : "unavailable";
+}
+
+function hasNativeRegionProvenance(regionSource) {
+  return (
+    String(regionSource?.provenance || "").includes("native") ||
+    String(regionSource?.sourceNormal || "").includes("native-face") ||
+    String(regionSource?.sourceDamage || "").includes("native-face") ||
+    String(regionSource?.sourceShear || "").includes("native-face")
+  );
+}
+
+function hasNativeDamageObservation(regionSource) {
+  return String(regionSource?.sourceDamage || "").includes("native-face");
+}
+
 function deriveDamageFromRegionMetrics(regionSource) {
   const explicitDamage = pickFiniteNumber(
     regionSource?.damage,
@@ -71,11 +190,7 @@ function deriveDamageFromRegionMetrics(regionSource) {
     return clamp(explicitDamage, 0, 1);
   }
 
-  const contactFraction = pickFiniteNumber(
-    regionSource?.contactFraction,
-    regionSource?.contactRatio,
-    regionSource?.bondedFraction,
-  );
+  const contactFraction = pickContactFraction(regionSource);
   if (contactFraction != null) {
     return clamp(1 - contactFraction, 0, 1);
   }
@@ -83,15 +198,8 @@ function deriveDamageFromRegionMetrics(regionSource) {
   return null;
 }
 
-function buildNativeLocalState(result, regions) {
-  const nativeSource =
-    result?.localNcNative ||
-    result?.nativeLocalNc ||
-    result?.nativeFaceData?.localNc ||
-    result?.faceData?.localNc ||
-    result?.nativeFaceData?.nucleusCytoplasmRegions ||
-    result?.faceData?.nucleusCytoplasmRegions ||
-    null;
+function buildNativeLocalState(result, regions, sourcePaths) {
+  const nativeSource = pickNativeLocalRegionSource(result, sourcePaths);
 
   if (!nativeSource) {
     return null;
@@ -127,8 +235,23 @@ function buildNativeLocalState(result, regions) {
       shearStress,
     );
     const damage = deriveDamageFromRegionMetrics(regionSource);
+    const contactFraction = pickContactFraction(regionSource);
+    const nativeGap = pickNativeGap(regionSource);
+    const sourceNormal = inferNativeNormalSource(regionSource, normalStress);
+    const sourceDamage = inferNativeDamageSource(regionSource, damage, contactFraction, nativeGap);
+    const sourceShear = inferNativeShearSource(regionSource, shearStress);
+    const derivedContactFloor =
+      contactFraction != null ? contactFraction : damage != null ? clamp(1 - damage, 0, 1) : null;
 
-    if (normalStress == null && shearStress == null && peakNormal == null && peakShear == null && damage == null) {
+    if (
+      normalStress == null &&
+      shearStress == null &&
+      peakNormal == null &&
+      peakShear == null &&
+      damage == null &&
+      contactFraction == null &&
+      nativeGap == null
+    ) {
       return;
     }
 
@@ -140,9 +263,17 @@ function buildNativeLocalState(result, regions) {
       peakNormal: peakNormal ?? nativeState[region].peakNormal,
       peakShear: peakShear ?? nativeState[region].peakShear,
       damage: damage ?? nativeState[region].damage,
+      ...(contactFraction != null ? { contactFraction } : {}),
+      ...(nativeGap != null ? { nativeGap } : {}),
+      ...(derivedContactFloor != null
+        ? { minContactFraction: Math.min(nativeState[region].minContactFraction, derivedContactFloor) }
+        : {}),
       firstFailureTime: regionSource?.firstFailureTime ?? nativeState[region].firstFailureTime,
       firstFailureMode: regionSource?.firstFailureMode ?? nativeState[region].firstFailureMode,
       provenance: regionSource?.provenance || "native-face-data-preferred",
+      sourceNormal,
+      sourceDamage,
+      sourceShear,
     };
   });
 
@@ -186,14 +317,21 @@ function normalizeDetachmentMetrics(result, history = []) {
   const explicitMetrics = result?.detachmentMetrics || {};
   const historyMetrics = latestHistory?.detachmentMetrics || {};
   const nativeFaceMetrics = result?.nativeFaceData || result?.faceData || {};
-  const regionMetrics = toRegionEntries(
-    nativeFaceMetrics.nucleusCytoplasmRegions || nativeFaceMetrics.localNc,
-    NC_REGIONS,
-  );
+  const nativeLocalSource = pickNativeLocalRegionSource(result, NC_NATIVE_REGION_SOURCE_PATHS);
+  const preferredRegionMetricSource =
+    nativeFaceMetrics.nucleusCytoplasmRegions || nativeFaceMetrics.localNc || nativeLocalSource;
+  const regionMetrics = toRegionEntries(preferredRegionMetricSource || result?.localNc, NC_REGIONS);
+  const regionMetricsAreNativePreferred = Boolean(preferredRegionMetricSource);
   const regionContactFractions = regionMetrics
     .map(([, regionSource]) =>
-      pickFiniteNumber(regionSource?.contactFraction, regionSource?.contactRatio, regionSource?.bondedFraction))
+      regionMetricsAreNativePreferred || hasNativeDamageObservation(regionSource)
+        ? pickExplicitContactFraction(regionSource)
+        : null)
     .filter((value) => value != null);
+  const hasNativeRegionalMetrics = regionMetrics.some(([, regionSource]) => {
+    return (regionMetricsAreNativePreferred || hasNativeDamageObservation(regionSource)) &&
+      (pickExplicitContactFraction(regionSource) != null || pickExplicitNativeGap(regionSource) != null);
+  });
   const nativeContactAreaRatio =
     pickFiniteNumber(nativeFaceMetrics.contactAreaRatio, nativeFaceMetrics.interfaceContactAreaRatio) ??
     (regionContactFractions.length
@@ -225,7 +363,9 @@ function normalizeDetachmentMetrics(result, history = []) {
     relativeNucleusDisplacement,
     provenance:
       explicitMetrics.provenance ||
-      (nativeContactAreaRatio != null || nativeRelativeDisplacement != null ? "native-face-data-preferred" : null) ||
+      (nativeContactAreaRatio != null || nativeRelativeDisplacement != null || hasNativeRegionalMetrics
+        ? "native-face-data-preferred"
+        : null) ||
       historyMetrics.provenance ||
       (contactAreaRatio < 1 || relativeNucleusDisplacement > 0 ? "proxy/native" : "damage-only-fallback"),
   };
@@ -414,11 +554,12 @@ function supplementDetachmentEvents(result) {
 
 function normalizeHistoryEntries(history, inputSpec) {
   return (history || []).map((entry) => {
-    const nativeLocalNc = buildNativeLocalState(entry, NC_REGIONS);
+    const nativeLocalNc = buildNativeLocalState(entry, NC_REGIONS, NC_NATIVE_REGION_SOURCE_PATHS);
+    const nativeLocalCd = buildNativeLocalState(entry, CD_REGIONS, CD_NATIVE_REGION_SOURCE_PATHS);
     const normalized = {
       ...entry,
       localNc: mergeLocalState(NC_REGIONS, entry.localNc, nativeLocalNc),
-      localCd: mergeLocalState(CD_REGIONS, entry.localCd),
+      localCd: mergeLocalState(CD_REGIONS, entry.localCd, nativeLocalCd),
     };
     normalized.membraneRegions = mergeMembraneState(
       entry.membraneRegions,
@@ -438,7 +579,8 @@ function normalizeHistoryEntries(history, inputSpec) {
 
 export function normalizeFebioResult(rawResult, inputSpec) {
   const result = rawResult ? { ...rawResult } : {};
-  const nativeLocalNc = buildNativeLocalState(result, NC_REGIONS);
+  const nativeLocalNc = buildNativeLocalState(result, NC_REGIONS, NC_NATIVE_REGION_SOURCE_PATHS);
+  const nativeLocalCd = buildNativeLocalState(result, CD_REGIONS, CD_NATIVE_REGION_SOURCE_PATHS);
   result.caseName ??= inputSpec.caseName;
   result.params ??= structuredCloneSafe(inputSpec.params);
   result.schedule ??= inputSpec.schedule;
@@ -447,7 +589,7 @@ export function normalizeFebioResult(rawResult, inputSpec) {
   result.peaks ??= {};
   result.damage ??= {};
   result.localNc = mergeLocalState(NC_REGIONS, result.localNc, nativeLocalNc);
-  result.localCd = mergeLocalState(CD_REGIONS, result.localCd);
+  result.localCd = mergeLocalState(CD_REGIONS, result.localCd, nativeLocalCd);
   result.membraneRegions = mergeMembraneState(result.membraneRegions, result.localNc, inputSpec.membrane || {});
   result.damage.nc ??= summarizeLocalDamage(result.localNc, NC_REGIONS);
   result.damage.cd ??= summarizeLocalDamage(result.localCd, CD_REGIONS);
@@ -467,9 +609,7 @@ export function normalizeFebioResult(rawResult, inputSpec) {
   result.isPhysicalFebioResult = Boolean(result.isPhysicalFebioResult);
   result.solverMetadata = buildSolverMetadata(result.solverMetadata || {});
   supplementDetachmentEvents(result);
-  result.dominantMechanism = determineDominantMechanism(result);
-  result.classification = classifyRun(result);
-  return result;
+  return applyRunClassification(result);
 }
 
 export function importFebioResult(febioResultJson, inputSpec) {
@@ -498,6 +638,7 @@ export function importFebioResult(febioResultJson, inputSpec) {
   );
 
   normalized.resultProvenance = {
+    ...(payload.resultProvenance || {}),
     source: normalized.solverMetadata.source,
     parameterDigest: normalized.parameterDigest,
     digestMatch,
@@ -512,6 +653,17 @@ export function importFebioResult(febioResultJson, inputSpec) {
       febioResultJson.canonicalSpec?.exportTimestamp ||
       null,
     fileProvenance: febioResultJson.fileProvenance || null,
+    outputMapping:
+      febioResultJson.outputMapping ||
+      payload.outputMapping ||
+      payload.externalResult?.outputMapping ||
+      normalized.externalResult?.outputMapping ||
+      null,
+    interfaceObservation:
+      payload.resultProvenance?.interfaceObservation ||
+      payload.interfaceObservation ||
+      normalized.interfaceObservation ||
+      null,
   };
 
   return normalized;

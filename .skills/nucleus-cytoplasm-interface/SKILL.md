@@ -35,6 +35,13 @@ description: nucleus-cytoplasm interface changes with minimal exploration and ex
 - proxy/native の区別が明示されているか
 - detachment 判定に必要な damage + geometry の情報を壊していないか
 - export/import/classification との整合が崩れていないか
+- この skill を使った作業で想定外探索や見落としが出ていないか
+- `Read first` / `Allowed references` / `Do not read first` に不足があれば、この skill 自体を更新するか
+
+## Skill maintenance
+- この skill を使った作業で、想定外探索や見落としが出たら、この skill を更新する
+- `Read first` / `Allowed references` / `Do not read first` の不足は会話で済ませず skill に戻す
+- skill の更新は、その不足が見つかった変更セットと同じ変更セットで行う
 
 ## Update docs when
 - cohesive model が変わる

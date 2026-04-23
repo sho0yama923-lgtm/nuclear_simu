@@ -42,6 +42,66 @@ function buildPenaltyRamp(normalPenalty, tangentialPenalty, frictionProxy) {
   ];
 }
 
+function buildRampMonotonicity(ramp = []) {
+  let monotonic = true;
+  for (let index = 1; index < ramp.length; index += 1) {
+    if (
+      (ramp[index].normalPenalty || 0) < (ramp[index - 1].normalPenalty || 0) ||
+      (ramp[index].tangentialPenalty || 0) < (ramp[index - 1].tangentialPenalty || 0) ||
+      (ramp[index].frictionProxy || 0) < (ramp[index - 1].frictionProxy || 0)
+    ) {
+      monotonic = false;
+      break;
+    }
+  }
+  return monotonic;
+}
+
+export function validateNucleusCytoplasmInterfaceSpec(spec) {
+  const warnings = [];
+  const stabilization = spec?.stabilization || {};
+  const ramp = stabilization.ramp || [];
+  const monotonicRamp = buildRampMonotonicity(ramp);
+  const normalPenaltyRatio = (spec?.penalty?.Kn || 0) / Math.max(spec?.normalStiffness || 1e-6, 1e-6);
+  const tangentialPenaltyRatio = (spec?.penalty?.Kt || 0) / Math.max(spec?.tangentialStiffness || 1e-6, 1e-6);
+  const snapToSearchRatio = (spec?.cohesiveApproximation?.snapTolerance || 0) / Math.max(stabilization.searchTolerance || spec?.tolerance || 1e-6, 1e-6);
+  const tractionToCriticalRatio =
+    (spec?.cohesiveApproximation?.maxTraction || 0) /
+    Math.max(Math.max(spec?.criticalNormalStress || 0, spec?.criticalShearStress || 0.05), 0.05);
+
+  if (!monotonicRamp) {
+    warnings.push("stabilization ramp is not monotonic");
+  }
+  if (normalPenaltyRatio < 0.03 || normalPenaltyRatio > 0.35) {
+    warnings.push("normal penalty ratio drifted outside the sticky stabilization band");
+  }
+  if (tangentialPenaltyRatio < 0.03 || tangentialPenaltyRatio > 0.35) {
+    warnings.push("tangential penalty ratio drifted outside the sticky stabilization band");
+  }
+  if (snapToSearchRatio > 3) {
+    warnings.push("snap tolerance is too large relative to search tolerance");
+  }
+  if ((stabilization.augmentation?.maxPasses || 0) < 6) {
+    warnings.push("augmentation max passes are too low for the current sticky stabilization policy");
+  }
+  if (tractionToCriticalRatio > 0.85) {
+    warnings.push("cohesive max traction is too close to the critical traction limit");
+  }
+
+  return {
+    valid: warnings.length === 0,
+    warnings,
+    diagnostics: {
+      monotonicRamp,
+      rampSteps: ramp.map((entry) => entry.step),
+      normalPenaltyRatio,
+      tangentialPenaltyRatio,
+      snapToSearchRatio,
+      tractionToCriticalRatio,
+    },
+  };
+}
+
 export function buildNucleusCytoplasmInterfaceSpec(inputSpec, mesh) {
   const normalPenalty = buildPenalty(
     inputSpec.interfaces.Kn_nc,
@@ -54,8 +114,7 @@ export function buildNucleusCytoplasmInterfaceSpec(inputSpec, mesh) {
     inputSpec.interfaces.Gc_nc,
   );
   const frictionProxy = clamp(0.12 + (inputSpec.operation?.mu_p || 0) * 0.25, 0.12, 0.28);
-
-  return {
+  const spec = {
     type: "sticky",
     status: "partial-true-cohesive / sticky-active",
     mode: "solver-primary cohesive-approximation",
@@ -108,4 +167,13 @@ export function buildNucleusCytoplasmInterfaceSpec(inputSpec, mesh) {
       "detachment should migrate from proxy-assisted observation toward native cohesive output",
     ],
   };
+  spec.validation = validateNucleusCytoplasmInterfaceSpec(spec);
+  if (spec.validation.valid) {
+    spec.status += " / stabilization-validated";
+    spec.notes.push("stabilization validation passed for the sticky cohesive approximation");
+  } else {
+    spec.status += " / stabilization-review-needed";
+    spec.notes.push("stabilization validation reported warnings for the sticky cohesive approximation");
+  }
+  return spec;
 }

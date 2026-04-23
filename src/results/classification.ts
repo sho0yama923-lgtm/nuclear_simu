@@ -73,6 +73,16 @@ export function determineDominantMechanism(result) {
   return "local_shear";
 }
 
+export function applyRunClassification(result, classificationSource = null) {
+  result.dominantMechanism = determineDominantMechanism(result);
+  result.classification = classifyRun(result);
+  result.dominantMechanism = determineDominantMechanism(result);
+  if (classificationSource) {
+    result.classificationSource = classificationSource;
+  }
+  return result;
+}
+
 export function classifyRun(result) {
   const detachment = assessDetachment(result);
   const ncStart = result?.events?.ncDamageStart?.time ?? Infinity;

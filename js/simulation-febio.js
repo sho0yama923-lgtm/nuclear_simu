@@ -781,6 +781,48 @@ function validateFebioMesh(mesh) {
 }
 
 function buildFebioLogOutputs(mesh, templateData) {
+  const buildFaceLogOutput = (name, file, surface, currentCoverage = {}) => ({
+    type: "face_data",
+    name,
+    file,
+    data: "contact gap;contact pressure",
+    surface,
+    delimiter: ",",
+    logfileFields: ["contact gap", "contact pressure"],
+    optionalExternalFields: [
+      "contact traction",
+      "traction x",
+      "traction y",
+      "traction z",
+      "tangential traction",
+      "shear traction",
+    ],
+    currentCoverage: {
+      normal: currentCoverage.normal || "native-face-data-preferred",
+      damage: currentCoverage.damage || "native-face-data-preferred",
+      shear: currentCoverage.shear || "proxy-fallback-explicit",
+    },
+    notes: [
+      "Current standard FEBio logfile face_data export is limited to contact gap/contact pressure in this path.",
+      "Tangential traction remains optional external payload or plotfile-side data until the export/bridge path grows native traction logging.",
+    ],
+  });
+  const buildPlotfileSurfaceTraction = (name, surface, interfaceGroup, region, sectionAxes) => ({
+    name,
+    variable: "contact traction",
+    surface,
+    interfaceGroup,
+    region,
+    alias: `${name}_contact_traction`,
+    payloadPath: `plotfileSurfaceData.${interfaceGroup}.${region}`,
+    preferredSource: "native-plotfile-contact-traction",
+    sectionAxes: structuredClone(sectionAxes),
+    notes: [
+      "Standard FEBio path can bridge solver-native tangential traction from the plotfile contact traction variable.",
+      "Bridge payloads should write per-step traction data to the declared payloadPath so converter/import can prefer it over shear proxy fallback.",
+    ],
+  });
+
   const nodeSetOutputs = [
     ["nucleus_nodes", "febio_nucleus_nodes.csv"],
     ["cytoplasm_nodes", "febio_cytoplasm_nodes.csv"],
@@ -819,86 +861,71 @@ function buildFebioLogOutputs(mesh, templateData) {
       },
     ],
     faceData: [
-      {
-        type: "face_data",
-        name: "pipette_contact_surface",
-        file: "febio_pipette_contact.csv",
-        data: "contact gap;contact pressure",
-        surface: "pipette_contact_surface",
-        delimiter: ",",
-      },
-      {
-        type: "face_data",
-        name: "nucleus_cytoplasm_interface_surface",
-        file: "febio_interface_nucleus_cytoplasm.csv",
-        data: "contact gap;contact pressure",
-        surface: "nucleus_interface_surface",
-        delimiter: ",",
-      },
-      {
-        type: "face_data",
-        name: "nucleus_cytoplasm_left_surface",
-        file: "febio_interface_nc_left.csv",
-        data: "contact gap;contact pressure",
-        surface: "nucleus_interface_left_surface",
-        delimiter: ",",
-      },
-      {
-        type: "face_data",
-        name: "nucleus_cytoplasm_right_surface",
-        file: "febio_interface_nc_right.csv",
-        data: "contact gap;contact pressure",
-        surface: "nucleus_interface_right_surface",
-        delimiter: ",",
-      },
-      {
-        type: "face_data",
-        name: "nucleus_cytoplasm_top_surface",
-        file: "febio_interface_nc_top.csv",
-        data: "contact gap;contact pressure",
-        surface: "nucleus_interface_top_surface",
-        delimiter: ",",
-      },
-      {
-        type: "face_data",
-        name: "nucleus_cytoplasm_bottom_surface",
-        file: "febio_interface_nc_bottom.csv",
-        data: "contact gap;contact pressure",
-        surface: "nucleus_interface_bottom_surface",
-        delimiter: ",",
-      },
-      {
-        type: "face_data",
-        name: "cell_dish_interface_surface",
-        file: "febio_interface_cell_dish.csv",
-        data: "contact gap;contact pressure",
-        surface: "cell_dish_surface",
-        delimiter: ",",
-      },
-      {
-        type: "face_data",
-        name: "cell_dish_left_surface",
-        file: "febio_interface_cd_left.csv",
-        data: "contact gap;contact pressure",
-        surface: "cell_dish_left_surface",
-        delimiter: ",",
-      },
-      {
-        type: "face_data",
-        name: "cell_dish_center_surface",
-        file: "febio_interface_cd_center.csv",
-        data: "contact gap;contact pressure",
-        surface: "cell_dish_center_surface",
-        delimiter: ",",
-      },
-      {
-        type: "face_data",
-        name: "cell_dish_right_surface",
-        file: "febio_interface_cd_right.csv",
-        data: "contact gap;contact pressure",
-        surface: "cell_dish_right_surface",
-        delimiter: ",",
-      },
+      buildFaceLogOutput("pipette_contact_surface", "febio_pipette_contact.csv", "pipette_contact_surface", {
+        normal: "native-face-data-preferred",
+        damage: "proxy-fallback-explicit",
+        shear: "not-used",
+      }),
+      buildFaceLogOutput("nucleus_cytoplasm_interface_surface", "febio_interface_nucleus_cytoplasm.csv", "nucleus_interface_surface"),
+      buildFaceLogOutput("nucleus_cytoplasm_left_surface", "febio_interface_nc_left.csv", "nucleus_interface_left_surface"),
+      buildFaceLogOutput("nucleus_cytoplasm_right_surface", "febio_interface_nc_right.csv", "nucleus_interface_right_surface"),
+      buildFaceLogOutput("nucleus_cytoplasm_top_surface", "febio_interface_nc_top.csv", "nucleus_interface_top_surface"),
+      buildFaceLogOutput("nucleus_cytoplasm_bottom_surface", "febio_interface_nc_bottom.csv", "nucleus_interface_bottom_surface"),
+      buildFaceLogOutput("cell_dish_interface_surface", "febio_interface_cell_dish.csv", "cell_dish_surface"),
+      buildFaceLogOutput("cell_dish_left_surface", "febio_interface_cd_left.csv", "cell_dish_left_surface"),
+      buildFaceLogOutput("cell_dish_center_surface", "febio_interface_cd_center.csv", "cell_dish_center_surface"),
+      buildFaceLogOutput("cell_dish_right_surface", "febio_interface_cd_right.csv", "cell_dish_right_surface"),
+    ],
+    plotfileSurfaceData: [
+      buildPlotfileSurfaceTraction(
+        "nucleus_cytoplasm_left_surface",
+        "nucleus_interface_left_surface",
+        "localNc",
+        "left",
+        { normal: "x", tangential: "z" },
+      ),
+      buildPlotfileSurfaceTraction(
+        "nucleus_cytoplasm_right_surface",
+        "nucleus_interface_right_surface",
+        "localNc",
+        "right",
+        { normal: "x", tangential: "z" },
+      ),
+      buildPlotfileSurfaceTraction(
+        "nucleus_cytoplasm_top_surface",
+        "nucleus_interface_top_surface",
+        "localNc",
+        "top",
+        { normal: "z", tangential: "x" },
+      ),
+      buildPlotfileSurfaceTraction(
+        "nucleus_cytoplasm_bottom_surface",
+        "nucleus_interface_bottom_surface",
+        "localNc",
+        "bottom",
+        { normal: "z", tangential: "x" },
+      ),
+      buildPlotfileSurfaceTraction(
+        "cell_dish_left_surface",
+        "cell_dish_left_surface",
+        "localCd",
+        "left",
+        { normal: "z", tangential: "x" },
+      ),
+      buildPlotfileSurfaceTraction(
+        "cell_dish_center_surface",
+        "cell_dish_center_surface",
+        "localCd",
+        "center",
+        { normal: "z", tangential: "x" },
+      ),
+      buildPlotfileSurfaceTraction(
+        "cell_dish_right_surface",
+        "cell_dish_right_surface",
+        "localCd",
+        "right",
+        { normal: "z", tangential: "x" },
+      ),
     ],
   };
 }
@@ -1706,6 +1733,21 @@ function serializeLogfileSection(logOutputs = {}, materialIdMap = new Map()) {
   return `    <logfile>\n${entries.join("\n")}\n    </logfile>`;
 }
 
+function serializePlotfileSection(logOutputs = {}) {
+  const plotfileVars = [
+    '      <var type="displacement" />',
+    '      <var type="stress" />',
+    '      <var type="contact force" />',
+    '      <var type="reaction forces" />',
+    ...(logOutputs.plotfileSurfaceData || []).map(
+      (spec) => `      <var type="${escapeXml(spec.variable || "contact traction")}" surface="${escapeXml(spec.surface)}" />`,
+    ),
+  ];
+  return `    <plotfile type="febio">
+${plotfileVars.join("\n")}
+    </plotfile>`;
+}
+
 function serializeDiscreteSetXml(discreteSet) {
   return `    <DiscreteSet name="${escapeXml(discreteSet.name)}">
 ${discreteSet.elements.map((element) => `      <delem id="${element.id}">${element.nodes.join(",")}</delem>`).join("\n")}
@@ -1887,12 +1929,7 @@ ${stepXml}
   <Output>
 ${logfileXml}
 ${outputStatusXml}
-    <plotfile type="febio">
-      <var type="displacement" />
-      <var type="stress" />
-      <var type="contact force" />
-      <var type="reaction forces" />
-    </plotfile>
+${serializePlotfileSection(templateData.logOutputs)}
   </Output>
 </febio_spec>`;
 }

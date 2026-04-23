@@ -381,11 +381,11 @@ status:
 実行例:
 
 - export path:
-  - `febio_exports/cohesive_progress_step7`
+  - `generated/febio_exports/cohesive_progress_step7`
 - log:
-  - `febio_exports/cohesive_progress_step7/run/case_A_cli.log`
+  - `generated/febio_exports/cohesive_progress_step7/run/case_A_cli.log`
 - result:
-  - `febio_exports/cohesive_progress_step7/run/case_A_result.json`
+  - `generated/febio_exports/cohesive_progress_step7/run/case_A_result.json`
 
 注意:
 

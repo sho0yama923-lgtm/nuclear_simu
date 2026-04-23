@@ -3,6 +3,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { loadApp } from "./load-app.mjs";
+import {
+  attachExplicitDetachmentEvents,
+  buildDetachmentMetricsFromLocalState,
+  buildOutputMappingSummary,
+  computeTangentialTractionFromFaceSnapshot,
+  computeTangentialTractionFromPlotfileBridge,
+  inferFaceSnapshotValueOffset,
+  resolveTangentialShearObservation,
+} from "../scripts/convert_febio_output.mjs";
 
 test("UI input maps into canonical spec", async () => {
   const app = await loadApp();
@@ -26,6 +35,139 @@ test("canonical spec maps into FEBio template data", async () => {
   assert.equal(febio.febioTemplateData.status.buildMode, "refined");
 });
 
+test("canonical FEBio export declares current face-data coverage and optional traction extensions", async () => {
+  const app = await loadApp();
+  const spec = app.buildFebioInputSpec("A", app.DEFAULTS, app.buildSimulationInput("A", app.DEFAULTS));
+  const ncLeft = spec.febioTemplateData.outputs.faceData.find((entry) => entry.name === "nucleus_cytoplasm_left_surface");
+  const cdLeft = spec.febioTemplateData.outputs.faceData.find((entry) => entry.name === "cell_dish_left_surface");
+  const ncLeftPlotBridge = spec.febioTemplateData.outputs.plotfileSurfaceData.find(
+    (entry) => entry.interfaceGroup === "localNc" && entry.region === "left",
+  );
+
+  assert.equal(Array.isArray(spec.febioTemplateData.outputs.faceData), true);
+  assert.equal(ncLeft.logfileData, "contact gap;contact pressure");
+  assert.equal(JSON.stringify(ncLeft.logfileFields), JSON.stringify(["contact gap", "contact pressure"]));
+  assert.match(ncLeft.optionalExternalFields.join(" "), /traction x/);
+  assert.equal(ncLeft.currentCoverage.normal, "native-face-data-preferred");
+  assert.equal(ncLeft.currentCoverage.shear, "proxy-fallback-explicit");
+  assert.equal(cdLeft.currentCoverage.damage, "native-face-data-preferred");
+  assert.match(ncLeft.notes.join(" "), /Tangential traction remains optional external payload or plotfile-side data/);
+  assert.equal(ncLeftPlotBridge.variable, "contact traction");
+  assert.equal(ncLeftPlotBridge.payloadPath, "plotfileSurfaceData.localNc.left");
+  assert.equal(ncLeftPlotBridge.preferredSource, "native-plotfile-contact-traction");
+});
+
+test("converter output mapping carries standard face-data coverage and optional traction extensions", () => {
+  const mapping = buildOutputMappingSummary({
+    interfaceRegions: {
+      localNc: {
+        left: { nucleusNodeSet: "nc_left_nucleus_nodes", cytoplasmNodeSet: "nc_left_cytoplasm_nodes" },
+      },
+      localCd: {
+        left: { cellNodeSet: "cd_left_cell_nodes" },
+      },
+    },
+    outputs: {
+      faceData: [
+        {
+          name: "nucleus_cytoplasm_left_surface",
+          logfileData: "contact gap;contact pressure",
+          logfileFields: ["contact gap", "contact pressure"],
+          optionalExternalFields: ["traction x", "traction y"],
+          currentCoverage: {
+            normal: "native-face-data-preferred",
+            damage: "native-face-data-preferred",
+            shear: "proxy-fallback-explicit",
+          },
+        },
+        {
+          name: "cell_dish_left_surface",
+          logfileData: "contact gap;contact pressure",
+          logfileFields: ["contact gap", "contact pressure"],
+          optionalExternalFields: ["traction x", "traction y"],
+          currentCoverage: {
+            normal: "native-face-data-preferred",
+            damage: "native-face-data-preferred",
+            shear: "proxy-fallback-explicit",
+          },
+        },
+      ],
+      plotfileSurfaceData: [
+        {
+          interfaceGroup: "localNc",
+          region: "left",
+          variable: "contact traction",
+          surface: "nucleus_interface_left_surface",
+          payloadPath: "plotfileSurfaceData.localNc.left",
+          preferredSource: "native-plotfile-contact-traction",
+          sectionAxes: { normal: "x", tangential: "z" },
+        },
+        {
+          interfaceGroup: "localCd",
+          region: "left",
+          variable: "contact traction",
+          surface: "cell_dish_left_surface",
+          payloadPath: "plotfileSurfaceData.localCd.left",
+          preferredSource: "native-plotfile-contact-traction",
+          sectionAxes: { normal: "z", tangential: "x" },
+        },
+      ],
+    },
+  });
+
+  assert.equal(mapping.localNc.left.logfileData, "contact gap;contact pressure");
+  assert.equal(JSON.stringify(mapping.localNc.left.logfileFields), JSON.stringify(["contact gap", "contact pressure"]));
+  assert.match(mapping.localNc.left.optionalExternalFields.join(" "), /traction x/);
+  assert.equal(mapping.localNc.left.currentCoverage.shear, "proxy-fallback-explicit");
+  assert.equal(mapping.localNc.left.standardTangentialBridge.payloadPath, "plotfileSurfaceData.localNc.left");
+  assert.equal(mapping.localNc.left.standardTangentialBridge.preferredSource, "native-plotfile-contact-traction");
+  assert.equal(mapping.localCd.left.currentCoverage.damage, "native-face-data-preferred");
+  assert.equal(mapping.localCd.left.standardTangentialBridge.surface, "cell_dish_left_surface");
+});
+
+test("converter output mapping also reads coverage metadata from compatibility log outputs", () => {
+  const mapping = buildOutputMappingSummary({
+    interfaceRegions: {
+      localNc: {
+        top: { nucleusNodeSet: "nc_top_nucleus_nodes", cytoplasmNodeSet: "nc_top_cytoplasm_nodes" },
+      },
+      localCd: {
+        center: { cellNodeSet: "cd_center_cell_nodes" },
+      },
+    },
+    logOutputs: {
+      faceData: [
+        {
+          name: "nucleus_cytoplasm_top_surface",
+          logfileData: "contact gap;contact pressure",
+          logfileFields: ["contact gap", "contact pressure"],
+          optionalExternalFields: ["contact traction"],
+          currentCoverage: {
+            normal: "native-face-data-preferred",
+            damage: "native-face-data-preferred",
+            shear: "bridge-native-preferred",
+          },
+        },
+      ],
+      plotfileSurfaceData: [
+        {
+          interfaceGroup: "localNc",
+          region: "top",
+          variable: "contact traction",
+          surface: "nucleus_interface_top_surface",
+          payloadPath: "plotfileSurfaceData.localNc.top",
+          preferredSource: "native-plotfile-contact-traction",
+          sectionAxes: { normal: "z", tangential: "x" },
+        },
+      ],
+    },
+  });
+
+  assert.equal(mapping.localNc.top.currentCoverage.shear, "bridge-native-preferred");
+  assert.equal(mapping.localNc.top.standardTangentialBridge.surface, "nucleus_interface_top_surface");
+  assert.equal(mapping.localCd.center.standardTangentialBridge, null);
+});
+
 test("template serializes to consistent FEBio XML", async () => {
   const app = await loadApp();
   const spec = app.buildFebioInputSpec("A", app.DEFAULTS, app.buildSimulationInput("A", app.DEFAULTS));
@@ -38,6 +180,7 @@ test("template serializes to consistent FEBio XML", async () => {
   assert.match(xml, /type="viscoelastic"/);
   assert.match(xml, /<g1>/);
   assert.match(xml, /<t1>/);
+  assert.match(xml, /<var type="contact traction" surface="nucleus_interface_left_surface"\/>/);
   assert.match(xml, /<contact name="nucleus_cytoplasm_interface" type="sticky" surface_pair="nucleus_cytoplasm_pair">/);
   assert.match(xml, /solver-primary cohesive approximation/);
   assert.match(xml, /<penalty>/);
@@ -57,9 +200,12 @@ test("nucleus-cytoplasm interface uses solver-primary cohesive approximation whi
   const spec = app.buildFebioInputSpec("A", app.DEFAULTS, app.buildSimulationInput("A", app.DEFAULTS));
   assert.equal(spec.febioTemplateData.interfaces.nucleusCytoplasm.type, "sticky");
   assert.match(spec.febioTemplateData.interfaces.nucleusCytoplasm.status, /sticky-active/);
+  assert.match(spec.febioTemplateData.interfaces.nucleusCytoplasm.status, /stabilization-validated/);
   assert.equal(spec.febioTemplateData.interfaces.nucleusCytoplasm.stabilization.augmentation.maxPasses, 12);
   assert.equal(spec.febioTemplateData.interfaces.nucleusCytoplasm.stabilization.ramp[0].step, "approach");
   assert.equal(spec.febioTemplateData.interfaces.nucleusCytoplasm.stabilization.ramp[2].step, "lift");
+  assert.equal(spec.febioTemplateData.interfaces.nucleusCytoplasm.validation.valid, true);
+  assert.equal(spec.febioTemplateData.interfaces.nucleusCytoplasm.validation.diagnostics.monotonicRamp, true);
   assert.equal(spec.febioTemplateData.interfaces.cellDish.type, "tied-elastic");
 });
 
@@ -130,6 +276,8 @@ test("FEBio run bundle declares detachment event contract", async () => {
   assert.equal(bundle.eventContract.detachment.events[1], "detachmentComplete");
   assert.equal(bundle.eventContract.detachment.metrics[0], "contactAreaRatio");
   assert.equal(bundle.templateData.outputs.detachment.payloadPath, "normalizedResult.events");
+  assert.equal(bundle.validation.nucleusCytoplasm.valid, true);
+  assert.equal(bundle.validation.nucleusCytoplasm.diagnostics.rampSteps[0], "approach");
 });
 
 test("refined mesh validation report is produced", async () => {
@@ -152,6 +300,7 @@ test("display helpers prefer physical FEBio results", async () => {
 
 test("classification prefers native detachment signals and keeps proxy fallback explicit", async () => {
   const app = await loadApp();
+  assert.equal(typeof app.applyRunClassification, "function");
   assert.equal(typeof app.assessDetachment, "function");
   const result = {
     captureEstablished: true,
@@ -169,7 +318,8 @@ test("classification prefers native detachment signals and keeps proxy fallback 
     events: {},
     peaks: {},
   };
-  assert.equal(app.classifyRun(result), "nucleus_detached");
+  assert.equal(app.applyRunClassification(result, "test-source").classification, "nucleus_detached");
+  assert.equal(result.classificationSource, "test-source");
   assert.equal(app.assessDetachment(result).mode, "native");
 });
 
@@ -250,6 +400,45 @@ test("import preserves explicit detachment events from external payloads", async
   assert.equal(imported.classification, "nucleus_detached");
 });
 
+test("import preserves converted interface observation coverage metadata", async () => {
+  const app = await loadApp();
+  const spec = app.buildSimulationInput("A", app.DEFAULTS);
+  const imported = app.importFebioResult(
+    {
+      normalizedResult: {
+        caseName: "A",
+        params: spec.params,
+        interfaceObservation: {
+          localNc: {
+            left: {
+              actualSources: {
+                normal: "native-face-pressure",
+                damage: "native-face-gap-pressure",
+                shear: "native-plotfile-contact-traction",
+              },
+              standardTangentialBridge: {
+                variable: "contact traction",
+                payloadPath: "plotfileSurfaceData.localNc.left",
+              },
+            },
+          },
+        },
+      },
+      outputMapping: {
+        localNc: {
+          left: {
+            logfileData: "contact gap;contact pressure",
+          },
+        },
+      },
+    },
+    spec,
+  );
+
+  assert.equal(imported.resultProvenance.interfaceObservation.localNc.left.actualSources.shear, "native-plotfile-contact-traction");
+  assert.equal(imported.resultProvenance.outputMapping.localNc.left.logfileData, "contact gap;contact pressure");
+});
+
 test("import merges partial localNc payloads without dropping explicit provenance", async () => {
   const app = await loadApp();
   const spec = app.buildSimulationInput("A", app.DEFAULTS);
@@ -303,11 +492,342 @@ test("import derives localNc and detachment metrics from native face-data payloa
 
   assert.equal(imported.localNc.left.provenance, "native-face-data-preferred");
   assert.equal(imported.localNc.left.normalStress, 0.18);
+  assert.equal(imported.localNc.left.sourceNormal, "native-face-pressure");
+  assert.equal(imported.localNc.left.sourceDamage, "native-face-gap-pressure");
   assert.equal(imported.localNc.top.shearStress, 0.27);
+  assert.equal(imported.localNc.top.sourceShear, "native-face-traction");
+  assert.equal(imported.localNc.top.contactFraction, 0.34);
   assert.ok(Math.abs(imported.localNc.top.damage - 0.66) < 1e-9);
   assert.equal(imported.localNc.right.provenance, "proxy-fallback-explicit");
   assert.equal(imported.detachmentMetrics.contactAreaRatio, 0.42);
   assert.equal(imported.detachmentMetrics.provenance, "native-face-data-preferred");
+});
+
+test("import reuses native localNc payload metrics before proxy detachment fallback", async () => {
+  const app = await loadApp();
+  const spec = app.buildSimulationInput("A", app.DEFAULTS);
+  const imported = app.importFebioResult(
+    {
+      normalizedResult: {
+        caseName: "A",
+        params: spec.params,
+        localNcNative: {
+          top: {
+            contactPressure: 0.26,
+            shearTraction: 0.14,
+            contactFraction: 0.24,
+            nativeGap: 0.11,
+            provenance: "native-face-data-preferred",
+          },
+          left: {
+            contactPressure: 0.12,
+            shearTraction: 0.06,
+            contactFraction: 0.92,
+            nativeGap: 0.01,
+            provenance: "native-face-data-preferred",
+          },
+        },
+      },
+    },
+    spec,
+  );
+
+  assert.equal(imported.localNc.top.contactFraction, 0.24);
+  assert.equal(imported.localNc.top.nativeGap, 0.11);
+  assert.ok(Math.abs(imported.localNc.top.damage - 0.76) < 1e-9);
+  assert.equal(imported.localNc.top.sourceShear, "native-face-traction");
+  assert.equal(imported.localNc.left.contactFraction, 0.92);
+  assert.equal(imported.detachmentMetrics.provenance, "native-face-data-preferred");
+  assert.ok(Math.abs(imported.detachmentMetrics.contactAreaRatio - 0.58) < 1e-9);
+});
+
+test("import preserves explicit native localNc source labels from converted FEBio payloads", async () => {
+  const app = await loadApp();
+  const spec = app.buildSimulationInput("A", app.DEFAULTS);
+  const imported = app.importFebioResult(
+    {
+      normalizedResult: {
+        caseName: "A",
+        params: spec.params,
+        localNcNative: {
+          top: {
+            shearStress: 0.22,
+            damage: 0.44,
+            sourceNormal: "native-face-pressure",
+            sourceDamage: "native-face-gap-pressure",
+            sourceShear: "native-face-traction",
+            provenance: "native-face-data-preferred",
+          },
+        },
+      },
+    },
+    spec,
+  );
+
+  assert.equal(imported.localNc.top.sourceNormal, "native-face-pressure");
+  assert.equal(imported.localNc.top.sourceDamage, "native-face-gap-pressure");
+  assert.equal(imported.localNc.top.sourceShear, "native-face-traction");
+});
+
+test("import derives localCd from native face-data payloads and keeps source labels", async () => {
+  const app = await loadApp();
+  const spec = app.buildSimulationInput("A", app.DEFAULTS);
+  const imported = app.importFebioResult(
+    {
+      normalizedResult: {
+        caseName: "A",
+        params: spec.params,
+        faceData: {
+          cellDishRegions: [
+            {
+              region: "left",
+              contactPressure: 0.19,
+              tangentialTraction: 0.08,
+              contactFraction: 0.84,
+              provenance: "native-face-data-preferred",
+            },
+            {
+              region: "center",
+              contactPressure: 0.28,
+              tangentialTraction: 0.11,
+              damage: 0.35,
+              nativeGap: 0.07,
+              provenance: "native-face-data-preferred",
+            },
+          ],
+        },
+      },
+    },
+    spec,
+  );
+
+  assert.equal(imported.localCd.left.normalStress, 0.19);
+  assert.equal(imported.localCd.left.shearStress, 0.08);
+  assert.equal(imported.localCd.left.contactFraction, 0.84);
+  assert.ok(Math.abs(imported.localCd.left.damage - 0.16) < 1e-9);
+  assert.equal(imported.localCd.left.sourceNormal, "native-face-pressure");
+  assert.equal(imported.localCd.left.sourceDamage, "native-face-gap-pressure");
+  assert.equal(imported.localCd.left.sourceShear, "native-face-traction");
+  assert.equal(imported.localCd.center.nativeGap, 0.07);
+  assert.equal(imported.localCd.center.sourceShear, "native-face-traction");
+  assert.equal(imported.localCd.right.provenance, "proxy-fallback-explicit");
+});
+
+test("import normalizes history localCd native payloads before membrane and damage summaries", async () => {
+  const app = await loadApp();
+  const spec = app.buildSimulationInput("A", app.DEFAULTS);
+  const imported = app.importFebioResult(
+    {
+      normalizedResult: {
+        caseName: "A",
+        params: spec.params,
+        history: [
+          {
+            time: 1.25,
+            localCdNative: {
+              center: {
+                contactPressure: 0.24,
+                shearTraction: 0.13,
+                contactFraction: 0.58,
+                provenance: "native-face-data-preferred",
+              },
+            },
+          },
+        ],
+      },
+    },
+    spec,
+  );
+
+  assert.equal(imported.history[0].localCd.center.normalStress, 0.24);
+  assert.equal(imported.history[0].localCd.center.shearStress, 0.13);
+  assert.equal(imported.history[0].localCd.center.contactFraction, 0.58);
+  assert.ok(Math.abs(imported.history[0].localCd.center.damage - 0.42) < 1e-9);
+  assert.equal(imported.history[0].localCd.center.sourceNormal, "native-face-pressure");
+  assert.equal(imported.history[0].localCd.center.sourceDamage, "native-face-gap-pressure");
+  assert.equal(imported.history[0].localCd.center.sourceShear, "native-face-traction");
+  assert.ok(Math.abs(imported.history[0].damageCd - 0.42) < 1e-9);
+});
+
+test("external FEBio converter builds native-first detachment metrics from localNc state", () => {
+  const detachmentMetrics = buildDetachmentMetricsFromLocalState(
+    {
+      left: { damage: 0.1, contactFraction: 0.9, sourceDamage: "native-face-gap-pressure" },
+      top: { damage: 0.55, contactFraction: 0.45, sourceDamage: "native-face-gap-pressure" },
+      right: { damage: 0.2, contactFraction: 0.8, sourceDamage: "native-face-gap-pressure" },
+      bottom: { damage: 0.35, contactFraction: 0.65, sourceDamage: "native-face-gap-pressure" },
+    },
+    { nucleus: 0.31 },
+  );
+
+  assert.equal(detachmentMetrics.relativeNucleusDisplacement, 0.31);
+  assert.ok(Math.abs(detachmentMetrics.contactAreaRatio - 0.7) < 1e-9);
+  assert.equal(detachmentMetrics.provenance, "native-face-data-preferred");
+});
+
+test("external FEBio converter reads native tangential traction from face snapshots when available", () => {
+  const shear = computeTangentialTractionFromFaceSnapshot({
+    records: [
+      [1, 0.03, 0.25, 0.3, 0.4],
+      [2, 0.02, 0.21, 0.0, 0.5],
+    ],
+  });
+
+  assert.ok(Math.abs(shear - 0.5) < 1e-9);
+});
+
+test("external FEBio converter reads tangential traction from standard plotfile bridge entries", () => {
+  assert.equal(
+    computeTangentialTractionFromPlotfileBridge("localNc", "left", {
+      contactTraction: { x: 0.21, z: 0.48 },
+    }),
+    0.48,
+  );
+  assert.equal(
+    computeTangentialTractionFromPlotfileBridge("localNc", "top", {
+      contactTraction: [0.37, 0, 0.12],
+    }),
+    0.37,
+  );
+  assert.equal(
+    computeTangentialTractionFromPlotfileBridge("localCd", "center", {
+      tangentialTraction: 0.29,
+    }),
+    0.29,
+  );
+});
+
+test("external FEBio converter prefers standard plotfile traction bridge over proxy shear fallback", () => {
+  const resolved = resolveTangentialShearObservation(
+    "localNc",
+    "left",
+    {
+      records: [
+        [1, 0.03, 0.25],
+        [2, 0.02, 0.21],
+      ],
+    },
+    [
+      {
+        time: 1.0,
+        contactTraction: { x: 0.18, z: 0.44 },
+      },
+    ],
+    1.0,
+    { shearStress: 0.05 },
+  );
+
+  assert.equal(resolved.sourceShear, "native-plotfile-contact-traction");
+  assert.equal(resolved.shearStress, 0.44);
+});
+
+test("external FEBio converter supports face snapshots without a leading entity id", () => {
+  const snapshot = {
+    records: [
+      [0.03, 0.25, 0.3, 0.4],
+      [0.02, 0.21, 0.0, 0.5],
+    ],
+  };
+
+  assert.equal(inferFaceSnapshotValueOffset(snapshot), 0);
+  assert.ok(Math.abs(computeTangentialTractionFromFaceSnapshot(snapshot) - 0.5) < 1e-9);
+});
+
+test("external FEBio converter supports face snapshots with id plus extra metadata columns", () => {
+  const snapshot = {
+    dataFields: ["contact gap", "contact pressure", "traction x", "traction y"],
+    records: [
+      [101, 9.5, 0.03, 0.25, 0.3, 0.4],
+      [102, 9.7, 0.02, 0.21, 0.0, 0.5],
+    ],
+  };
+
+  assert.equal(inferFaceSnapshotValueOffset(snapshot), 2);
+  assert.ok(Math.abs(computeTangentialTractionFromFaceSnapshot(snapshot) - 0.5) < 1e-9);
+});
+
+test("external FEBio converter follows descriptor field order for tangential traction", () => {
+  const snapshot = {
+    dataFields: ["traction x", "traction y", "contact gap", "contact pressure"],
+    records: [
+      [101, 9.5, 0.3, 0.4, 0.03, 0.25],
+      [102, 9.7, 0.0, 0.5, 0.02, 0.21],
+    ],
+  };
+
+  assert.equal(inferFaceSnapshotValueOffset(snapshot), 2);
+  assert.ok(Math.abs(computeTangentialTractionFromFaceSnapshot(snapshot) - 0.5) < 1e-9);
+});
+
+test("external FEBio converter keeps shear native-null when face snapshots have no tangential columns", () => {
+  const shear = computeTangentialTractionFromFaceSnapshot({
+    records: [
+      [1, 0.03, 0.25],
+      [2, 0.02, 0.21],
+    ],
+  });
+
+  assert.equal(shear, null);
+});
+
+test("external FEBio converter emits explicit detachment events from history", () => {
+  const result = {
+    history: [
+      {
+        time: 1.2,
+        localNc: {
+          left: { damage: 0.1, sourceDamage: "native-face-gap-pressure" },
+          top: { damage: 0.25, sourceDamage: "native-face-gap-pressure" },
+          right: { damage: 0.1, sourceDamage: "native-face-gap-pressure" },
+          bottom: { damage: 0.1, sourceDamage: "native-face-gap-pressure" },
+        },
+        damage: { nc: 0.25 },
+        detachmentMetrics: { contactAreaRatio: 0.82, relativeNucleusDisplacement: 0.06 },
+        displacements: { nucleus: 0.06 },
+      },
+      {
+        time: 2.4,
+        localNc: {
+          left: { damage: 0.2, sourceDamage: "native-face-gap-pressure" },
+          top: { damage: 0.52, sourceDamage: "native-face-gap-pressure" },
+          right: { damage: 0.2, sourceDamage: "native-face-gap-pressure" },
+          bottom: { damage: 0.2, sourceDamage: "native-face-gap-pressure" },
+        },
+        damage: { nc: 0.52 },
+        detachmentMetrics: { contactAreaRatio: 0.58, relativeNucleusDisplacement: 0.2 },
+        displacements: { nucleus: 0.2 },
+      },
+      {
+        time: 3.6,
+        localNc: {
+          left: { damage: 0.25, sourceDamage: "native-face-gap-pressure" },
+          top: { damage: 0.78, sourceDamage: "native-face-gap-pressure" },
+          right: { damage: 0.25, sourceDamage: "native-face-gap-pressure" },
+          bottom: { damage: 0.25, sourceDamage: "native-face-gap-pressure" },
+        },
+        damage: { nc: 0.78 },
+        detachmentMetrics: { contactAreaRatio: 0.22, relativeNucleusDisplacement: 0.34 },
+        displacements: { nucleus: 0.34 },
+      },
+    ],
+    localNc: {
+      left: { damage: 0.25, sourceDamage: "native-face-gap-pressure" },
+      top: { damage: 0.78, sourceDamage: "native-face-gap-pressure" },
+      right: { damage: 0.25, sourceDamage: "native-face-gap-pressure" },
+      bottom: { damage: 0.25, sourceDamage: "native-face-gap-pressure" },
+    },
+    damage: { nc: 0.78 },
+    detachmentMetrics: { contactAreaRatio: 0.22, relativeNucleusDisplacement: 0.34 },
+    displacements: { nucleus: 0.34 },
+    events: {},
+  };
+
+  attachExplicitDetachmentEvents(result);
+
+  assert.equal(result.events.detachmentStart.time, 2.4);
+  assert.equal(result.events.detachmentComplete.time, 3.6);
+  assert.equal(result.events.detachmentStart.source, "external-explicit");
+  assert.equal(result.detachment.evaluation, "damage-plus-geometry");
 });
 
 test("default FEBio flow does not use lightweight legacy source", async () => {
@@ -322,6 +842,7 @@ test("docs and governance files exist and stay aligned", () => {
   const agentPath = path.resolve("AGENT.md");
   const progressPath = path.resolve("PROGRESS.md");
   const codebasePath = path.resolve("CODEBASE_STRUCTURE.md");
+  const febioMappingPath = path.resolve("docs/febio/FEBIO_OUTPUT_MAPPING.md");
   const skillPaths = [
     path.resolve(".skills/nucleus-cytoplasm-interface/SKILL.md"),
     path.resolve(".skills/progress-update/SKILL.md"),
@@ -332,11 +853,13 @@ test("docs and governance files exist and stay aligned", () => {
   assert.equal(fs.existsSync(agentPath), true);
   assert.equal(fs.existsSync(progressPath), true);
   assert.equal(fs.existsSync(codebasePath), true);
+  assert.equal(fs.existsSync(febioMappingPath), true);
   skillPaths.forEach((skillPath) => assert.equal(fs.existsSync(skillPath), true));
 
   const agent = fs.readFileSync(agentPath, "utf8");
   const progress = fs.readFileSync(progressPath, "utf8");
   const codebase = fs.readFileSync(codebasePath, "utf8");
+  const febioMapping = fs.readFileSync(febioMappingPath, "utf8");
   const legacyRuntime = fs.readFileSync(path.resolve("simulation.js"), "utf8");
 
   assert.match(agent, /Skill Usage Rule/);
@@ -345,19 +868,24 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(agent, /Code Exploration Constraints/);
   assert.match(agent, /Physics Model Priority/);
 
-  assert.match(progress, /1\. nucleus-cytoplasm cohesive stabilization and validation/);
-  assert.match(progress, /2\. `localNc` native shear\/detachment observation migration/);
-  assert.match(progress, /3\. explicit detachment event emission through export and external import/);
+  assert.match(progress, /1\.\s+nucleus-cytoplasm cohesive/);
+  assert.match(progress, /2\.\s+`localNc` native output/);
+  assert.match(progress, /3\.\s+classification native migration/);
+  assert.match(progress, /4\.\s+explicit detachment judgment/);
   assert.match(progress, /## Update Rules/);
   assert.match(progress, /proxy\/native/);
 
   assert.match(codebase, /src\/model\/schema\.ts/);
   assert.match(codebase, /src\/febio\/export\/index\.ts/);
-  assert.match(codebase, /dist\/browser\/main\.js/);
-  assert.match(progress, /native face-data fallback/);
+  assert.match(codebase, /generated\/dist\/browser\/main\.js/);
+  assert.match(progress, /`contactFraction` \/ `nativeGap`/);
   assert.match(progress, /soft-start stabilization/);
-  assert.match(progress, /canonical classifier bridge/);
+  assert.match(progress, /stabilization validation/);
+  assert.match(progress, /applyRunClassification/);
   assert.match(progress, /explicit detachment contract/);
+  assert.match(febioMapping, /Native Tangential Update/);
+  assert.match(febioMapping, /rows that start directly with face values/);
   assert.match(legacyRuntime, /__NUCLEAR_SIMU_PUBLIC_API__/);
-  assert.match(legacyRuntime, /classificationSource = "canonical-public-api"/);
+  assert.match(legacyRuntime, /applyRunClassification/);
+  assert.match(legacyRuntime, /"canonical-public-api"/);
 });

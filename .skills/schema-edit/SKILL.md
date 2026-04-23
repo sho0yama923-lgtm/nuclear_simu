@@ -35,6 +35,13 @@ parameter schema と default 値を正本側で更新する。
 - source of truth が schema に一元化されているか
 - export / import / result と整合しているか
 - 命名揺れが増えていないか
+- この skill を使った作業で想定外探索や見落としが出ていないか
+- `Read first` / `Allowed references` / `Do not read first` に不足があれば、この skill 自体を更新するか
+
+## Skill maintenance
+- この skill を使った作業で、想定外探索や見落としが出たら、この skill を更新する
+- `Read first` / `Allowed references` / `Do not read first` の不足は会話で済ませず skill に戻す
+- skill の更新は、その不足が見つかった変更セットと同じ変更セットで行う
 
 ## Update docs when
 - canonical parameter が増減する

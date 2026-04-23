@@ -90,6 +90,51 @@ function buildDetachmentOutputContract() {
   };
 }
 
+function buildFaceDataOutputSpec(name, file, surface, currentCoverage = {}) {
+  return {
+    name,
+    file,
+    surface,
+    logfileData: "contact gap;contact pressure",
+    logfileFields: ["contact gap", "contact pressure"],
+    optionalExternalFields: [
+      "contact traction",
+      "traction x",
+      "traction y",
+      "traction z",
+      "tangential traction",
+      "shear traction",
+    ],
+    currentCoverage: {
+      normal: currentCoverage.normal || "native-face-data-preferred",
+      damage: currentCoverage.damage || "native-face-data-preferred",
+      shear: currentCoverage.shear || "proxy-fallback-explicit",
+    },
+    notes: [
+      "Current standard FEBio logfile face_data export is limited to contact gap/contact pressure in this path.",
+      "Tangential traction remains optional external payload or plotfile-side data until the export/bridge path grows native traction logging.",
+    ],
+  };
+}
+
+function buildPlotfileSurfaceTractionSpec(name, surface, interfaceGroup, region, sectionAxes) {
+  return {
+    name,
+    variable: "contact traction",
+    surface,
+    interfaceGroup,
+    region,
+    alias: `${name}_contact_traction`,
+    payloadPath: `plotfileSurfaceData.${interfaceGroup}.${region}`,
+    preferredSource: "native-plotfile-contact-traction",
+    sectionAxes: structuredCloneSafe(sectionAxes),
+    notes: [
+      "Standard FEBio path can bridge solver-native tangential traction from the plotfile contact traction variable.",
+      "Bridge payloads should write per-step traction data to the declared payloadPath so converter/import can prefer it over shear proxy fallback.",
+    ],
+  };
+}
+
 function serializeStickyPenaltyRampComments(stabilization = {}) {
   return (stabilization.ramp || []).map(
     (entry) =>
@@ -128,6 +173,7 @@ export function buildFebioTemplateData(inputSpec) {
       buildMode: mesh.meshMode || "refined",
       isPlaceholder: false,
       meshValidated: meshValidation.valid,
+      interfaceValidated: nucleusCytoplasm.validation?.valid ?? false,
       membraneModel: membraneModel.type,
       notes: [
         ...membraneModel.notes,
@@ -208,11 +254,112 @@ export function buildFebioTemplateData(inputSpec) {
     ],
     outputs: {
       faceData: [
-        { name: "nucleus_cytoplasm_interface_surface", file: "febio_interface_nucleus_cytoplasm.csv" },
-        { name: "nucleus_cytoplasm_left_surface", file: "febio_interface_nc_left.csv" },
-        { name: "nucleus_cytoplasm_right_surface", file: "febio_interface_nc_right.csv" },
-        { name: "nucleus_cytoplasm_top_surface", file: "febio_interface_nc_top.csv" },
-        { name: "nucleus_cytoplasm_bottom_surface", file: "febio_interface_nc_bottom.csv" },
+        buildFaceDataOutputSpec(
+          "nucleus_cytoplasm_interface_surface",
+          "febio_interface_nucleus_cytoplasm.csv",
+          "nucleus_interface_surface",
+        ),
+        buildFaceDataOutputSpec(
+          "nucleus_cytoplasm_left_surface",
+          "febio_interface_nc_left.csv",
+          "nucleus_interface_left_surface",
+        ),
+        buildFaceDataOutputSpec(
+          "nucleus_cytoplasm_right_surface",
+          "febio_interface_nc_right.csv",
+          "nucleus_interface_right_surface",
+        ),
+        buildFaceDataOutputSpec(
+          "nucleus_cytoplasm_top_surface",
+          "febio_interface_nc_top.csv",
+          "nucleus_interface_top_surface",
+        ),
+        buildFaceDataOutputSpec(
+          "nucleus_cytoplasm_bottom_surface",
+          "febio_interface_nc_bottom.csv",
+          "nucleus_interface_bottom_surface",
+        ),
+        buildFaceDataOutputSpec(
+          "cell_dish_interface_surface",
+          "febio_interface_cell_dish.csv",
+          "cell_dish_surface",
+        ),
+        buildFaceDataOutputSpec(
+          "cell_dish_left_surface",
+          "febio_interface_cd_left.csv",
+          "cell_dish_left_surface",
+        ),
+        buildFaceDataOutputSpec(
+          "cell_dish_center_surface",
+          "febio_interface_cd_center.csv",
+          "cell_dish_center_surface",
+        ),
+        buildFaceDataOutputSpec(
+          "cell_dish_right_surface",
+          "febio_interface_cd_right.csv",
+          "cell_dish_right_surface",
+        ),
+        buildFaceDataOutputSpec(
+          "pipette_contact_surface",
+          "febio_pipette_contact.csv",
+          "pipette_contact_surface",
+          {
+            normal: "native-face-data-preferred",
+            damage: "proxy-fallback-explicit",
+            shear: "not-used",
+          },
+        ),
+      ],
+      plotfileSurfaceData: [
+        buildPlotfileSurfaceTractionSpec(
+          "nucleus_cytoplasm_left_surface",
+          "nucleus_interface_left_surface",
+          "localNc",
+          "left",
+          { normal: "x", tangential: "z" },
+        ),
+        buildPlotfileSurfaceTractionSpec(
+          "nucleus_cytoplasm_right_surface",
+          "nucleus_interface_right_surface",
+          "localNc",
+          "right",
+          { normal: "x", tangential: "z" },
+        ),
+        buildPlotfileSurfaceTractionSpec(
+          "nucleus_cytoplasm_top_surface",
+          "nucleus_interface_top_surface",
+          "localNc",
+          "top",
+          { normal: "z", tangential: "x" },
+        ),
+        buildPlotfileSurfaceTractionSpec(
+          "nucleus_cytoplasm_bottom_surface",
+          "nucleus_interface_bottom_surface",
+          "localNc",
+          "bottom",
+          { normal: "z", tangential: "x" },
+        ),
+        buildPlotfileSurfaceTractionSpec(
+          "cell_dish_left_surface",
+          "cell_dish_left_surface",
+          "localCd",
+          "left",
+          { normal: "z", tangential: "x" },
+        ),
+        buildPlotfileSurfaceTractionSpec(
+          "cell_dish_center_surface",
+          "cell_dish_center_surface",
+          "localCd",
+          "center",
+          { normal: "z", tangential: "x" },
+        ),
+        buildPlotfileSurfaceTractionSpec(
+          "cell_dish_right_surface",
+          "cell_dish_right_surface",
+          "localCd",
+          "right",
+          { normal: "z", tangential: "x" },
+        ),
       ],
       detachment: buildDetachmentOutputContract(),
     },
@@ -228,6 +375,12 @@ export function buildFebioTemplateData(inputSpec) {
 export function serializeFebioTemplateToXml(templateData) {
   const nucleusCytoplasm = templateData.interfaces.nucleusCytoplasm;
   const stabilization = nucleusCytoplasm.stabilization || {};
+  const plotfileSurfaceTractionXml = (templateData.outputs?.plotfileSurfaceData || [])
+    .map(
+      (entry) =>
+        `      <var type="${entry.variable}" surface="${entry.surface}"/>`,
+    )
+    .join("\n");
   return [
     '<febio_spec version="4.0">',
     "  <Material>",
@@ -247,6 +400,13 @@ export function serializeFebioTemplateToXml(templateData) {
     '    <step id="1" name="approach">',
     "    </step>",
     "  </Step>",
+    "  <Output>",
+    '    <plotfile type="febio">',
+    '      <var type="displacement"/>',
+    '      <var type="stress"/>',
+    ...(plotfileSurfaceTractionXml ? [plotfileSurfaceTractionXml] : []),
+    "    </plotfile>",
+    "  </Output>",
     '  <contact name="nucleus_cytoplasm_interface" type="sticky" surface_pair="nucleus_cytoplasm_pair">',
     "    <!-- solver-primary cohesive approximation -->",
     `    <penalty>${Number(nucleusCytoplasm.penalty.Kn).toFixed(6)}</penalty>`,
@@ -283,6 +443,10 @@ export function buildFebioRunBundle(inputSpec) {
     expectedOutputs: buildExpectedFebioOutputs(inputSpec.caseName),
     eventContract: {
       detachment: structuredCloneSafe(febioTemplateData.outputs.detachment),
+    },
+    validation: {
+      mesh: structuredCloneSafe(febioTemplateData.geometry.meshValidation),
+      nucleusCytoplasm: structuredCloneSafe(febioTemplateData.interfaces.nucleusCytoplasm.validation),
     },
     exportTimestamp: new Date().toISOString(),
     exportReady,

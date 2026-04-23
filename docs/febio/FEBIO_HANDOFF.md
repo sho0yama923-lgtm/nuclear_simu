@@ -18,13 +18,13 @@
 ### CLI から渡す
 
 ```powershell
-node scripts/export_febio_case.mjs --case A --out-dir febio_exports\A
+node scripts/export_febio_case.mjs --case A --out-dir generated\febio_exports\A
 ```
 
 ## 実行
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile febio_exports\A\case_A.feb
+powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile generated\febio_exports\A\case_A.feb
 ```
 
 または
