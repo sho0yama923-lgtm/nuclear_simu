@@ -7,7 +7,8 @@
 - 推奨実行経路は `http://127.0.0.1:8765/` の same-origin UI
 
 ## Canonical parameter schema
-- 定義は [simulation.js](/C:/Users/xiogo/projects/nuclear_simu/simulation.js)
+- 定義は `../../src/model/schema.ts`
+- compatibility caller は `../../simulation.js` と `../../js/simulation-febio.js`
 - 各パラメータは canonical spec に正規化され、次を持つ
   - `uiKey`
   - `internalKey`
@@ -93,4 +94,4 @@ node --test tests\febio-front-end.test.mjs
 
 ## Documentation maintenance rule
 - UI、bridge、export/import、physical model、main flow を変更したときは、関連する md も同じ変更セットで更新する
-- 少なくとも `README.md` と `CODEBASE_STRUCTURE.md` と `PROGRESS.md` は更新対象とし、必要に応じて bridge / architecture / mapping docs も更新する
+- 少なくとも `README.md`、`docs/CODEBASE_STRUCTURE.md`、`PROGRESS.md` は更新対象とし、必要に応じて bridge / architecture / mapping docs も更新する

@@ -25,9 +25,11 @@
 
 主な実装位置:
 
-- [simulation.js](/C:/Users/xiogo/projects/nuclear_simu/simulation.js)
-- [js/simulation-febio.js](/C:/Users/xiogo/projects/nuclear_simu/js/simulation-febio.js)
-- [scripts/convert_febio_output.mjs](/C:/Users/xiogo/projects/nuclear_simu/scripts/convert_febio_output.mjs)
+- canonical parameter schema: `../../src/model/schema.ts`
+- FEBio export: `../../src/febio/export/index.ts`
+- result normalization: `../../src/febio/import/normalizeFebioResult.ts`
+- external converter: `../../scripts/convert_febio_output.mjs`
+- compatibility bridge: `../../simulation.js`, `../../js/simulation-febio.js`
 
 ## 2. 座標系と単位
 
@@ -52,7 +54,7 @@
 
 - `Fhold`, `P_hold` は現在も solver 内部 proxy 的な使い方を含みます
 - UI に書かれている単位と、FEBio XML へそのまま 1:1 で物理換算されていない項目があります
-- 詳細は [PARAMETER_MAPPING.md](/C:/Users/xiogo/projects/nuclear_simu/PARAMETER_MAPPING.md) を参照してください
+- 詳細は [../febio/PARAMETER_MAPPING.md](../febio/PARAMETER_MAPPING.md) を参照してください
 
 ## 3. 幾何モデル
 
@@ -345,7 +347,7 @@ main flow の default Case A は現在次の 5 stage です。
 
 ## 10.2 現在の import の考え方
 
-result import は [scripts/convert_febio_output.mjs](/C:/Users/xiogo/projects/nuclear_simu/scripts/convert_febio_output.mjs) が担当します。
+external FEBio output の変換は `../../scripts/convert_febio_output.mjs` が担当し、canonical import normalization は `../../src/febio/import/normalizeFebioResult.ts` が担当します。
 
 現在の扱い:
 
@@ -436,14 +438,15 @@ status:
 
 ## 14. 関連文書
 
-- 進捗管理: [PROGRESS.md](/C:/Users/xiogo/projects/nuclear_simu/PROGRESS.md)
-- パラメータ対応: [PARAMETER_MAPPING.md](/C:/Users/xiogo/projects/nuclear_simu/PARAMETER_MAPPING.md)
-- 出力対応: [FEBIO_OUTPUT_MAPPING.md](/C:/Users/xiogo/projects/nuclear_simu/FEBIO_OUTPUT_MAPPING.md)
-- 全体設計: [FEBIO_FRONTEND_ARCHITECTURE.md](/C:/Users/xiogo/projects/nuclear_simu/FEBIO_FRONTEND_ARCHITECTURE.md)
+- 進捗管理: [../../PROGRESS.md](../../PROGRESS.md)
+- パラメータ対応: [../febio/PARAMETER_MAPPING.md](../febio/PARAMETER_MAPPING.md)
+- 出力対応: [../febio/FEBIO_OUTPUT_MAPPING.md](../febio/FEBIO_OUTPUT_MAPPING.md)
+- 全体設計: [../febio/FEBIO_FRONTEND_ARCHITECTURE.md](../febio/FEBIO_FRONTEND_ARCHITECTURE.md)
+- repo 構造: [../CODEBASE_STRUCTURE.md](../CODEBASE_STRUCTURE.md)
 
 ## 15. 更新ルール
 
 - 物理モデルを変えたらこの文書も更新する
 - `implemented / partial / planned` が変わったら必ず更新する
 - `PROGRESS.md` と矛盾した状態を残さない
-- `README.md` と `CODEBASE_STRUCTURE.md` から辿れる状態を保つ
+- `README.md` と `docs/CODEBASE_STRUCTURE.md` から辿れる状態を保つ

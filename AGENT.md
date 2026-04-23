@@ -3,56 +3,14 @@
 ## Read First
 
 1. `AGENT.md`
-2. `CODEBASE_STRUCTURE.md`
+2. `docs/CODEBASE_STRUCTURE.md`
 3. relevant `.skills/**/SKILL.md`
 4. `PROGRESS.md` when touching physics model, main flow, classification, export/import, or proxy/native dependencies
+5. `TASK_REQUEST_TEMPLATE.md` when shaping a new bounded task request
 
-## Codex Prompt Protocol
+## Role
 
-Purpose:
-
-- reduce ambiguity in change requests
-- reduce unnecessary repo-wide exploration
-- keep task-specific skills effective by fixing the allowed read set up front
-
-When requesting a change from Codex / an agent, specify as much of the following as possible:
-
-- edit target files
-- files that may be referenced
-- directories that should not be read by default
-- main purpose of the change
-- docs that must be updated in the same change set
-
-Do not rely on ambiguous instructions such as:
-
-- "必要なら関連箇所も見てよい"
-- "適宜必要なファイルを見て"
-- "関連ファイルを探索して"
-
-Prefer bounded requests such as:
-
-```text
-編集対象:
-- src/febio/interfaces/nucleusCytoplasm.ts
-
-参照可:
-- src/model/schema.ts
-- src/febio/import/normalizeFebioResult.ts
-
-参照禁止:
-- legacy/*
-- experiments/*
-- generated/*
-- src/surrogate/*
-
-目的:
-- localNc の native 出力寄り整理
-
-更新対象:
-- PROGRESS.md
-```
-
-If the request does not specify scope, Codex should still stay within the minimum read set defined below rather than expanding to repo-wide exploration by default.
+This file is the stable operating contract for Codex / AI agents in this repository. Current project state belongs in `PROGRESS.md`; detailed repo layout belongs in `docs/CODEBASE_STRUCTURE.md`; repeatable task request structure belongs in `TASK_REQUEST_TEMPLATE.md`.
 
 ## Code Exploration Constraints
 
@@ -77,15 +35,17 @@ If the request does not specify scope, Codex should still stay within the minimu
   - If you must exceed that, state why.
 - Prefer structural docs before code:
   - `AGENT.md`
-  - `CODEBASE_STRUCTURE.md`
+  - `docs/CODEBASE_STRUCTURE.md`
   - relevant `.skills/**/SKILL.md`
   - `PROGRESS.md`
 - Token discipline is part of correctness.
   - If a task can be completed with minimal exploration, keep it minimal.
   - Do not expand from a local task into repo-wide search unless a concrete blocker appears.
-  - Repeated edit workflows should be codified into `SKILL.md` instead of re-explained in long natural-language prompts every time.
+  - Repeated edit workflows should be codified into `SKILL.md` or docs under `docs/ops/`.
 
 ## Source Of Truth Rules
+
+Source-of-truth map:
 
 - parameter schema: `src/model/schema.ts`
 - mesh generation: `src/febio/mesh/`
@@ -100,6 +60,7 @@ Rules:
 - All secondary files must reference the source-of-truth file.
 - Source-of-truth files must include a `SOURCE OF TRUTH` comment.
 - If the source of truth is a directory, provide a public entrypoint such as `index.ts` or `README`.
+- Keep the detailed source map in `docs/CODEBASE_STRUCTURE.md` aligned with this rule set.
 
 ## File Responsibility Contract
 
@@ -159,7 +120,7 @@ Examples:
 - `buildRefinedFebioGeometry`
 - `buildCoarseFebioGeometryLegacy`
 
-## Skill Usage Rule
+## Skill Usage Rules
 
 - For repetitive tasks, prefer `.skills/**/SKILL.md`.
 - If a matching task-specific skill exists, follow the skill before doing repo-wide exploration.
@@ -175,7 +136,7 @@ Examples:
 - Update the codified rule in the same change set as the fix or discovery.
 - Route the feedback by layer:
   - global operating rules belong in `AGENT.md`
-  - local procedures and bounded read-set rules belong in the relevant `SKILL.md`
+  - local procedures and bounded read-set rules belong in the relevant `SKILL.md` or `docs/ops/`
   - current state recognition and implemented / partial / planned status belong in `PROGRESS.md`
 - If more than one layer is affected, update all affected layers together rather than only one of them.
 
@@ -195,27 +156,12 @@ Rules:
 - If a task-specific skill exists, use that skill first and consider empirical tuning only if the agent behavior is not matching intent or the instruction quality itself is in doubt.
 - empirical tuning is a supplement to implementation skills, not a replacement for them.
 
-`empirical-prompt-tuning` is appropriate when:
-
-- validating a newly created `SKILL.md`
-- validating a heavily revised `SKILL.md`
-- checking whether ambiguity in `AGENT.md` or a task prompt is causing bad agent behavior
-- checking whether the instruction layer is causing unnecessary exploration
-
-`empirical-prompt-tuning` is not appropriate when:
-
-- making a one-off small fix
-- doing a normal local code change
-- a task-specific skill already provides enough guidance to finish the work
-
 When empirical tuning is used, evaluate not only correctness but also exploration efficiency:
 
 - number of files read
 - whether forbidden areas were accessed
 - whether the skill's read order was followed
 - whether repo-wide exploration happened
-
-This keeps skill quality tied to both answer quality and token-efficient execution. Detailed evaluation procedure belongs in the empirical skill itself, not here.
 
 ## Physics Model Priority
 
@@ -237,6 +183,7 @@ Operational rules:
 
 - Do not make large extensions unrelated to higher-priority items.
 - If you touch a lower-priority item, state why it does not block the higher-priority path.
+- The rationale is recorded in `docs/DECISIONS.md`.
 
 ## Supporting Migration Priority
 
@@ -264,6 +211,7 @@ Update `PROGRESS.md` in the same change set when changing:
 - classification
 - export/import main path
 - proxy/native dependency structure
+- `simulation.js` ownership or compatibility-bridge scope
 
 Also:
 
@@ -271,7 +219,7 @@ Also:
 - record new approximations honestly
 - record regressions honestly, including `implemented -> partial`
 - write `PROGRESS.md` in Japanese unless a specific exception is requested
-- keep `README.md`, `CODEBASE_STRUCTURE.md`, and `PROGRESS.md` aligned
+- keep `README.md`, `docs/CODEBASE_STRUCTURE.md`, and `PROGRESS.md` aligned
 
 ## Detachment-Oriented Design
 

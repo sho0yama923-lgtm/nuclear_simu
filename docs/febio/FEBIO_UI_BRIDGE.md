@@ -19,11 +19,11 @@ UI から `FEBio実行` を押したときに、
 
 ## 構成
 
-- [scripts/febio_bridge_server.mjs](/C:/Users/xiogo/projects/nuclear_simu/scripts/febio_bridge_server.mjs)
+- `../../scripts/febio_bridge_server.mjs`
   ローカル HTTP bridge 本体
-- [scripts/start_febio_bridge.ps1](/C:/Users/xiogo/projects/nuclear_simu/scripts/start_febio_bridge.ps1)
+- `../../scripts/start_febio_bridge.ps1`
   bridge 起動用 PowerShell ラッパ
-- [js/simulation-febio.js](/C:/Users/xiogo/projects/nuclear_simu/js/simulation-febio.js)
+- `../../js/simulation-febio.js`
   UI から bridge を呼ぶ fetch 導線
 
 ## 安定した使い方

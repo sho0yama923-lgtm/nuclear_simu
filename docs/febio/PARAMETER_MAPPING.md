@@ -8,8 +8,10 @@
 でどう対応しているかを整理したものです。
 
 基準となる実装箇所:
-- [simulation.js](/C:/Users/xiogo/projects/nuclear_simu/simulation.js)
-- [js/simulation-febio.js](/C:/Users/xiogo/projects/nuclear_simu/js/simulation-febio.js)
+- canonical schema: `../../src/model/schema.ts`
+- canonical defaults: `../../src/model/defaults.ts`
+- FEBio export: `../../src/febio/export/index.ts`
+- compatibility bridge: `../../simulation.js`, `../../js/simulation-febio.js`
 
 ## 先に押さえること
 

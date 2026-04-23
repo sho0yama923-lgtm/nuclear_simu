@@ -3,9 +3,9 @@
 この文書は、FEBio 実行後の出力が現在のアプリ結果スキーマへどう対応づけられるかを整理したものです。
 
 対象コード:
-- [scripts/convert_febio_output.mjs](/C:/Users/xiogo/projects/nuclear_simu/scripts/convert_febio_output.mjs)
-- [js/simulation-febio.js](/C:/Users/xiogo/projects/nuclear_simu/js/simulation-febio.js)
-- [simulation.js](/C:/Users/xiogo/projects/nuclear_simu/simulation.js)
+- converter: `../../scripts/convert_febio_output.mjs`
+- canonical import: `../../src/febio/import/normalizeFebioResult.ts`
+- compatibility bridge: `../../js/simulation-febio.js`, `../../simulation.js`
 
 ## いまの基本フロー
 
