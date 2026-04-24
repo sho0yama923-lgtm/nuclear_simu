@@ -1,4 +1,4 @@
-# FEBio UI Bridge
+# FEBio UI ブリッジ
 
 UI から `FEBio実行` を押したときに、
 

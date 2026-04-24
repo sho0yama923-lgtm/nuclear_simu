@@ -13,7 +13,7 @@
 | `localCd` | cell-dish interface の normalized regional result。 |
 | membraneRegions | 現時点では membrane / cortex の proxy 指標。 |
 
-## Detachment 指標
+## detachment 指標
 
 detachment は次を組み合わせて見る。
 
@@ -28,7 +28,7 @@ detachment は次を組み合わせて見る。
 - proxy fallback は欠損部分だけに使う。
 - classification は detachment 定義と整合させる。
 
-## Failure / Event
+## failure / event
 
 | Event | 意味 |
 |---|---|
@@ -39,7 +39,7 @@ detachment は次を組み合わせて見る。
 | `detachmentComplete` | detachment 判定の完了 |
 | `tipSlip` | pipette holding が失われる兆候 |
 
-## Classification
+## 分類
 
 | Label | 意味 |
 |---|---|
@@ -48,7 +48,7 @@ detachment は次を組み合わせて見る。
 | `deformation_only` | 大変形はあるが遊離しない |
 | `no_capture` | 保持が成立しない、または早期滑脱 |
 
-## Provenance
+## 由来情報
 
 結果を読むときは、値だけでなく出所を見る。
 

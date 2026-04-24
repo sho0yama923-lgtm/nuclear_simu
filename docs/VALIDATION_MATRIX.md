@@ -2,7 +2,7 @@
 
 変更種別ごとの最低検証です。詳細な source-of-truth は [CODEBASE_STRUCTURE.md](CODEBASE_STRUCTURE.md)、運用フローは [ops/CHANGE_WORKFLOW.md](ops/CHANGE_WORKFLOW.md) を参照してください。
 
-## Docs Only
+## 文書のみの変更
 
 対象:
 
@@ -15,7 +15,7 @@
 - `generated/**`、`tmp/**`、過去 export/log への不要参照を増やしていないこと。
 - `README.md`、`AGENT.md`、`PROGRESS.md` の責務が混ざっていないこと。
 
-## Schema 変更
+## スキーマ変更
 
 対象:
 
@@ -28,9 +28,9 @@
 - `node --experimental-strip-types -e "import('./src/public-api.ts')"`
 - `node --test tests/*.test.mjs`
 - [docs/CODEBASE_STRUCTURE.md](CODEBASE_STRUCTURE.md) と relevant FEBio / research docs の更新。
-- `PROGRESS.md` の status / Resume From Here 更新。
+- `PROGRESS.md` の状態 / 再開位置更新。
 
-## Classification 変更
+## 分類変更
 
 対象:
 
@@ -44,7 +44,7 @@
 - [docs/DECISIONS.md](DECISIONS.md) の detachment 定義と矛盾しないこと。
 - `PROGRESS.md` の Classification / Detachment status 更新。
 
-## Export / Import 変更
+## export / import 変更
 
 対象:
 
@@ -59,7 +59,7 @@
 - [febio/BRIDGE_CONTRACT.md](febio/BRIDGE_CONTRACT.md)、[febio/FEBIO_OUTPUT_MAPPING.md](febio/FEBIO_OUTPUT_MAPPING.md)、必要なら [research/CONDITION_MATRIX.md](research/CONDITION_MATRIX.md) の更新。
 - native / proxy provenance が消えていないこと。
 
-## Compatibility Bridge 変更
+## 互換 bridge 変更
 
 対象:
 

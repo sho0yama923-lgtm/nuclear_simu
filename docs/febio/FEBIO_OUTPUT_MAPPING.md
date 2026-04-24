@@ -1,4 +1,4 @@
-# FEBio Output Mapping
+# FEBio 出力対応
 
 この文書は、FEBio 実行後の出力が現在のアプリ結果スキーマへどう対応づけられるかを整理したものです。
 
@@ -109,9 +109,9 @@
 
 を使います。
 
-## 5. Events / Failure / Classification
+## 5. イベント / failure / 分類
 
-### Events
+### イベント
 
 | app result event | 判定元 |
 |---|---|
@@ -120,7 +120,7 @@
 | `membraneDamageStart` | `membraneRegions` の damage > 0 |
 | `tipSlip` | `peakContactForce <= 0.05` |
 
-### First failure
+### 最初の failure
 
 `findEarliestLocalFailure(result)` を使って
 
@@ -134,7 +134,7 @@
 - `cd:left/center/right`
 - `membrane:top_neck/side/basal`
 
-### Dominant mechanism / classification
+### 支配的メカニズム / 分類
 
 変換スクリプトは最終的に
 
@@ -145,7 +145,7 @@
 
 つまり最終分類は lightweight と同じ結果スキーマへ寄せています。
 
-## 6. History の対応
+## 6. 履歴の対応
 
 `history[]` は FEBio の raw 時系列そのままではなく、表示用に再構成したものです。
 
@@ -191,7 +191,7 @@
 - top-level `outputMapping`
 - `normalizedResult.externalResult.outputMapping`
 
-## 10. Native Tangential Update
+## 10. native 接線成分の更新
 
 - `scripts/convert_febio_output.mjs` now reuses native face tangential traction for `localNc.*.shearStress` and `localCd.*.shearStress` when those face snapshots expose extra traction columns.
 - The converter now supports both face snapshot rows with a leading entity id and rows that start directly with face values.

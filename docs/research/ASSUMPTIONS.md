@@ -36,6 +36,16 @@
 - 欠損がある場合だけ proxy fallback を使い、provenance を残す。
 - membraneRegions は現時点では FEBio shell output ではなく proxy。
 
+## 現時点で重要な近似
+
+1. nucleus-cytoplasm はまだ sticky cohesive approximation で、true cohesive ではない。
+2. `localNc` shear はまだ solver-consistent な native observation が必要。
+3. detachment は設計上 explicit だが、まだ全 path で native event として揃っていない。
+4. membrane は proxy-first のまま。
+5. cell-dish cohesive は deferred。
+6. LINC / cytoskeleton は将来拡張。
+7. viscoelastic parameter calibration は未完了。
+
 ## 除外事項
 
 - 3D full model。

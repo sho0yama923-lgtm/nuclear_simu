@@ -68,26 +68,26 @@
 - dish
 - pipette
 
-### nucleus
+### 核
 
 - 断面形状: 楕円近似
 - 幅: `Ln`
 - 高さ: `Hn`
 - 中心: `(xn, yn)` in section coordinates
 
-### cytoplasm
+### 細胞質
 
 - 断面形状: cap/dome 近似
 - 幅: `Lc`
 - 高さ: `Hc`
 - 下端はディッシュ `z = 0`
 
-### dish
+### ディッシュ
 
 - 剛支持に近い底面ブロック
 - `dish_fixed_nodes` に対して固定境界を設定
 
-### pipette
+### ピペット
 
 - 剛体
 - 断面では縦方向 shaft
@@ -97,7 +97,7 @@
 
 ## 4. メッシュ
 
-### main path
+### 主経路
 
 main export path は refined mesh です。
 
@@ -113,7 +113,7 @@ main export path は refined mesh です。
 - cell-dish も interface ベース
 - pipette は独立剛体
 
-### mesh validation
+### メッシュ検証
 
 export 前に少なくとも次を確認します。
 
@@ -137,7 +137,7 @@ export 前に少なくとも次を確認します。
 
 ## 5. バルク材料モデル
 
-## 5.1 nucleus
+## 5.1 核
 
 現在 active な material は
 
@@ -162,7 +162,7 @@ status:
 - viscoelastic serialization: implemented
 - nonlinear term: planned
 
-## 5.2 cytoplasm
+## 5.2 細胞質
 
 現在 active な material は
 
@@ -181,7 +181,7 @@ status:
 - viscoelastic serialization: implemented
 - calibrated viscoelastic: planned
 
-## 5.3 membrane / cortex
+## 5.3 膜 / 皮質
 
 現在は 2 モードを区別しています。
 
@@ -203,7 +203,7 @@ status:
 
 ## 6. 界面モデル
 
-## 6.1 nucleus-cytoplasm interface
+## 6.1 核-細胞質 interface
 
 この界面が現在の最優先改修対象です。
 
@@ -231,7 +231,7 @@ status:
 
 - partial
 
-## 6.2 cell-dish interface
+## 6.2 細胞-ディッシュ interface
 
 保持している物理量:
 
@@ -255,7 +255,7 @@ status:
 
 ## 7. 接触モデル
 
-## 7.1 pipette-nucleus
+## 7.1 ピペット-核
 
 現在の active model:
 
@@ -282,7 +282,7 @@ status:
 
 - partial
 
-## 7.2 pipette-cell
+## 7.2 ピペット-細胞
 
 現在の active model:
 
@@ -396,7 +396,7 @@ status:
 
 ## 12. 現在の partial / planned 項目
 
-### implemented
+### 実装済み
 
 - refined mesh main path
 - mesh validation gate
@@ -406,7 +406,7 @@ status:
 - pipette-cell secondary contact
 - FEBio export / CLI run / import / physical render main flow
 
-### partial
+### 部分実装
 
 - nucleus-cytoplasm solver-primary cohesive approximation
 - cell-dish tied-elastic-active
@@ -415,7 +415,7 @@ status:
 - native FEBio output import for local interface metrics
 - classification based on physical result
 
-### planned
+### 計画中
 
 - true traction-separation cohesive for nucleus-cytoplasm
 - cohesive migration for cell-dish

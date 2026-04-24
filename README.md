@@ -13,7 +13,7 @@
 5. normalized result import
 6. physical result rendering
 
-## Read First
+## 最初に読むもの
 
 1. [AGENT.md](AGENT.md)
 2. [docs/CODEBASE_STRUCTURE.md](docs/CODEBASE_STRUCTURE.md)

@@ -11,7 +11,7 @@
 3. relevant `.skills/**/SKILL.md`
 4. [PROGRESS.md](../PROGRESS.md) when touching physics model, main flow, export/import, classification, or proxy/native dependencies
 
-## Canonical Source Layout
+## 正規情報源の配置
 
 - `src/model/schema.ts`
   - parameter schema、validation、digest、schedule metadata、normalized input spec の source-of-truth。
@@ -34,7 +34,7 @@
 - `src/browser/main.ts`
   - browser entry。public API を公開し、legacy compatibility scripts を起動する。
 
-## Generated / Derived
+## 生成物と派生物
 
 - `generated/dist/`
   - `src/` から `node scripts/build-dist.mjs` で生成される。手で編集しない。
@@ -43,7 +43,7 @@
 - `tmp/logs/`
   - bridge output logs などの disposable local logs。
 
-## Compatibility Bundle
+## 互換バンドル
 
 - `simulation.js`
   - browser app 用 legacy compatibility layer。schema / classification / detachment の長期 source-of-truth ではない。
@@ -54,7 +54,7 @@
 
 Compatibility は退役経路に置く。新しい長期責務は canonical `src/` module に置き、compatibility 側は bridge/caller として薄くする。
 
-## Docs
+## 文書
 
 - [README.md](../README.md)
   - 人間向け入口、概要、最短導線、最低限のコマンド。
@@ -75,14 +75,14 @@ Compatibility は退役経路に置く。新しい長期責務は canonical `src
 - [docs/febio/](febio/)
   - FEBio modeling、interface、bridge、runbook、output mapping。
 
-## Tests
+## テスト
 
 - `tests/febio-front-end.test.mjs`
   - public API、FEBio export/import、classification、governance checks。
 - `tests/load-app.mjs`
   - `generated/dist/public-api.js` の dynamic import helper。
 
-## Build / Entry
+## ビルドと入口
 
 - `scripts/build-dist.mjs`
   - `src/**/*.ts` を `generated/dist/**/*.js` へコピーし、relative import extensions を書き換える。
@@ -91,7 +91,7 @@ Compatibility は退役経路に置く。新しい長期責務は canonical `src
 - `index.html`
   - `generated/dist/browser/main.js` を読み、legacy browser scripts を順に起動する。
 
-## Exploration Reminder
+## 探索時の注意
 
 - source-of-truth は `src/` を優先する。
 - skill や AGENT rule が対象ファイルを示している場合、repo-wide exploration は避ける。

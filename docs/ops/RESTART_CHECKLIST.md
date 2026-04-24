@@ -1,4 +1,4 @@
-# Restart Checklist
+# 再開チェックリスト
 
 中断後に再開するときの読み順です。
 
@@ -24,7 +24,7 @@
 3. [../febio/FEBIO_OUTPUT_MAPPING.md](../febio/FEBIO_OUTPUT_MAPPING.md)
 4. [../VALIDATION_MATRIX.md](../VALIDATION_MATRIX.md)
 
-## compatibility retirement を触るとき
+## 互換層退役を触るとき
 
 1. [../../AGENT.md](../../AGENT.md)
 2. [../DECISIONS.md](../DECISIONS.md)

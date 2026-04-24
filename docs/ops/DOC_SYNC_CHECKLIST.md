@@ -9,6 +9,7 @@
 - [../PROGRESS.md](../../PROGRESS.md): 現在状態、blocker、next action が変わったか。
 - [../CODEBASE_STRUCTURE.md](../CODEBASE_STRUCTURE.md): source-of-truth や repo 構造が変わったか。
 - [../VALIDATION_MATRIX.md](../VALIDATION_MATRIX.md): 最低検証が変わったか。
+- [ROADMAP.md](ROADMAP.md): 優先順位や段階計画が変わったか。
 
 ## 研究条件が変わるとき
 

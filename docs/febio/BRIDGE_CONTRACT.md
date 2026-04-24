@@ -1,8 +1,8 @@
-# Bridge 契約
+# ブリッジ契約
 
 FEBio export / bridge / import の契約をまとめます。実行手順は [RUNBOOK.md](RUNBOOK.md)、詳細な出力対応は [FEBIO_OUTPUT_MAPPING.md](FEBIO_OUTPUT_MAPPING.md) を参照してください。
 
-## Export Contract
+## export の契約
 
 export bundle は次を含む。
 
@@ -19,7 +19,7 @@ source-of-truth:
 
 - `src/febio/export/index.ts`
 
-## Bridge Contract
+## bridge の契約
 
 bridge は次を行う。
 
@@ -36,7 +36,7 @@ bridge は次を行う。
 - `scripts/start_febio_bridge.ps1`
 - `http://127.0.0.1:8765/`
 
-## Import Contract
+## import の契約
 
 import / normalization は次を守る。
 
@@ -51,7 +51,7 @@ source-of-truth:
 - `src/febio/import/normalizeFebioResult.ts`
 - `scripts/convert_febio_output.mjs`
 
-## Output Path Contract
+## 出力先契約
 
 生成物の既定位置:
 
@@ -60,7 +60,7 @@ source-of-truth:
 
 生成物は source-of-truth ではない。過去 export や log を通常探索の対象にしない。
 
-## Result Adoption Contract
+## 結果採用契約
 
 UI が main result として採用する条件:
 

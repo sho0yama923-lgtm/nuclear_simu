@@ -2,7 +2,7 @@
 
 このファイルは判断理由の単一ファイルです。`docs/decisions/` ディレクトリには分けません。現在状態は [../PROGRESS.md](../PROGRESS.md) に置きます。
 
-## Native-First Policy
+## native-first 方針
 
 背景:
 
@@ -23,7 +23,7 @@
 - proxy を完全に禁止する案は、現行 payload では main path を壊すため先送り。
 - native / proxy の出所を曖昧に混ぜる案は、classification の解釈が崩れるため採用しない。
 
-## `simulation.js` Retirement Path
+## `simulation.js` 退役方針
 
 背景:
 
@@ -44,7 +44,7 @@
 - `simulation.js` に新しい schema / classification / detachment ownership を追加する案は採用しない。
 - 一気に削除する案は browser compatibility への影響が大きいため、段階的に退役する。
 
-## Sticky Cohesive Approximation
+## sticky cohesive 近似
 
 背景:
 
@@ -65,7 +65,7 @@
 - true cohesive を今すぐ solver-primary にする案は、解釈がぶれやすいため先送り。
 - LINC / cytoskeleton detail を先に入れる案は、現在の detachment 条件評価から遠いため先送り。
 
-## Detachment Definition
+## detachment 定義
 
 背景:
 
@@ -87,7 +87,7 @@
 - damage のみで detachment とみなす案は、geometry loss を取り逃がすため採用しない。
 - proxy-derived event のみを最終形にする案は採用せず、native event へ移行する。
 
-## Task-Specific Skill Priority
+## task-specific skill 優先
 
 背景:
 
@@ -106,7 +106,7 @@
 
 - ad hoc な repo-wide exploration を通常フローにすることは採用しない。
 
-## Empirical Prompt Tuning Scope
+## empirical prompt tuning の範囲
 
 背景:
 

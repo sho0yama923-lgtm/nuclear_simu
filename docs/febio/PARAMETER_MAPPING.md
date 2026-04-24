@@ -1,4 +1,4 @@
-# Parameter Mapping
+# パラメータ対応
 
 この文書は、現在の UI パラメータが
 
@@ -54,7 +54,7 @@
 - UI 上では `adhesionPattern` / `adhesionSeed` は interface 群に見えますが、共通入力ではトップレベルへ出されます。
 - 膜パラメータは `material` 群として入力されますが、共通入力では `membrane` 束へ分離されます。
 
-## Geometry
+## 幾何
 
 | UI key | 意味 | lightweight | FEBio template | `.feb` XML |
 |---|---|---|---|---|
@@ -72,7 +72,7 @@
 - `xp` / `zp` は現在、表示と内部 solver が一致するように修正済みです。
 - `yn` というキー名は残っていますが、意味は `nucleus center z` です。
 
-## Material
+## 材料
 
 | UI key | 意味 | lightweight | FEBio template | `.feb` XML |
 |---|---|---|---|---|
@@ -93,7 +93,7 @@
 - 現在の `.feb` XML serializer は `E` と `v` を主に出力しており、`eta` と `alphaNonlinear` は handoff 用 metadata に留まります。
 - 膜は現段階では FEBio 一次解析の本体には入れておらず、placeholder 扱いです。
 
-## Interfaces / Adhesion
+## 界面 / 接着
 
 | UI key | 意味 | lightweight | FEBio template | `.feb` XML |
 |---|---|---|---|---|
@@ -118,7 +118,7 @@
 - そのため `nucleus-cytoplasm` では `sigCrit` と `Gc` が active law 側にも入り始めていますが、まだ true traction-separation ではありません。
 - `cell-dish` は引き続き cohesive-ready metadata 保持が中心で、本格 cohesive 化は次段階です。
 
-## Operation / Capture
+## 操作 / 捕捉
 
 | UI key | 意味 | lightweight | FEBio template | `.feb` XML |
 |---|---|---|---|---|
@@ -136,7 +136,7 @@
 - そのため `ds_tangent` は lightweight では有効でも、FEBio 実働ケースではまだ主役ではありません。
 - `P_hold` は lightweight で有効ですが、FEBio 側ではまだ sticky/tied パラメータへ落とし込めていません。
 
-## Case / Schedule 対応
+## ケース / スケジュール対応
 
 `buildSchedule()` の操作は、`lightweight` と `FEBio` で次の対応です。
 
