@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import vm from "node:vm";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 function parseArgs(argv) {
@@ -32,92 +31,64 @@ function parseArgs(argv) {
   return args;
 }
 
-function createElementStub() {
-  return {
-    value: "",
-    innerHTML: "",
-    textContent: "",
-    width: 0,
-    height: 0,
-    className: "",
-    files: [],
-    style: {},
-    parentNode: { insertAdjacentElement() {} },
-    appendChild() {},
-    insertAdjacentElement() {},
-    remove() {},
-    closest() {
-      return {
-        querySelector() {
-          return { replaceChildren() {} };
-        },
-        parentNode: { insertBefore() {} },
-        classList: { add() {} },
-      };
-    },
-    querySelector() {
-      return null;
-    },
-    addEventListener() {},
-    getContext() {
-      return {};
-    },
-    click() {},
-  };
-}
-
 async function loadCanonicalPublicApi(projectRoot) {
+  const sourceApiPath = path.join(projectRoot, "src", "public-api.ts");
+  if (fs.existsSync(sourceApiPath)) {
+    return import(pathToFileURL(sourceApiPath).href);
+  }
   const publicApiPath = path.join(projectRoot, "generated", "dist", "public-api.js");
   if (!fs.existsSync(publicApiPath)) {
-    return null;
+    throw new Error("Neither src/public-api.ts nor generated/dist/public-api.js was found. Cannot convert FEBio output.");
   }
   return import(pathToFileURL(publicApiPath).href);
 }
 
-async function loadSimulationModule(projectRoot) {
-  const source = [
-    fs.readFileSync(path.join(projectRoot, "simulation.js"), "utf8"),
-    fs.readFileSync(path.join(projectRoot, "js", "simulation-febio.js"), "utf8"),
-  ].join("\n");
-  const canonicalPublicApi = await loadCanonicalPublicApi(projectRoot);
-  const documentStub = {
-    querySelector() {
-      return createElementStub();
-    },
-    createElement() {
-      return createElementStub();
-    },
-  };
+function makeSectionPoint(x, worldZ) {
+  return { x, y: worldZ };
+}
 
-  const sandbox = {
-    console,
-    document: documentStub,
-    window: { document: documentStub },
-    Blob: function Blob(parts, opts) {
-      this.parts = parts;
-      this.opts = opts;
-    },
-    URL: {
-      createObjectURL() {
-        return "blob:mock";
-      },
-      revokeObjectURL() {},
-    },
-    structuredClone: globalThis.structuredClone,
-    setTimeout,
-    clearTimeout,
-    requestAnimationFrame() {
-      return 1;
-    },
-    cancelAnimationFrame() {},
-    performance: { now() { return 0; } },
-    FileReader: function FileReader() {},
-    __NUCLEAR_SIMU_PUBLIC_API__: canonicalPublicApi,
-  };
+function getSectionX(point) {
+  return Number(point?.x || 0);
+}
 
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: "simulation.js" });
-  return sandbox;
+function getWorldZ(point) {
+  return Number(point?.z ?? point?.y ?? 0);
+}
+
+function getNucleusRest(params = {}) {
+  return makeSectionPoint(Number(params.xn || 0), Number(params.yn || 0));
+}
+
+function getCellRest(params = {}) {
+  return makeSectionPoint(0, Number(params.Hc || 0) / 2);
+}
+
+function buildSolverMetadata(modeOrOverrides = {}, maybeOverrides = {}) {
+  const overrides = typeof modeOrOverrides === "string"
+    ? { solverMode: modeOrOverrides, ...maybeOverrides }
+    : modeOrOverrides;
+  return {
+    solverMode: "febio",
+    source: "febio-import",
+    note: "",
+    ...overrides,
+  };
+}
+
+async function loadCanonicalRuntime(projectRoot) {
+  const api = await loadCanonicalPublicApi(projectRoot);
+  return {
+    ...api,
+    structuredClone: globalThis.structuredClone || ((value) => JSON.parse(JSON.stringify(value))),
+    makeSectionPoint,
+    getSectionX,
+    getWorldZ,
+    getNucleusRest,
+    getCellRest,
+    buildSolverMetadata,
+    assessDetachmentExplicit: api.assessDetachment,
+    normalizeSimulationResult: api.normalizeFebioResult,
+  };
 }
 
 function parseFaceDataFields(dataSpec = "") {
@@ -688,9 +659,9 @@ function resolveTangentialShearObservation(interfaceGroup, region, faceSnapshot,
 function getRigidPipetteState(snapshot, fallbackPosition) {
   const values = averageRecordColumns(snapshot);
   const x = Number.isFinite(values[0]) ? values[0] : fallbackPosition.x;
-  const z = Number.isFinite(values[1]) ? values[1] : fallbackPosition.y;
-  const forceX = Number.isFinite(values[2]) ? values[2] : 0;
-  const forceZ = Number.isFinite(values[3]) ? values[3] : 0;
+  const z = Number.isFinite(values[2]) ? values[2] : fallbackPosition.y;
+  const forceX = Number.isFinite(values[3]) ? values[3] : 0;
+  const forceZ = Number.isFinite(values[5]) ? values[5] : 0;
   return {
     position: { x, z },
     reaction: { x: forceX, z: forceZ },
@@ -1418,8 +1389,8 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     0,
   );
   const maxContactForce = rigidSeries.reduce((maxValue, snapshot) => {
-    const values = averageRecordColumns(snapshot);
-    return Math.max(maxValue, Math.hypot(values[2] || 0, values[3] || 0));
+    const rigidState = getRigidPipetteState(snapshot, { x: 0, y: 0 });
+    return Math.max(maxValue, Math.hypot(rigidState.reaction.x, rigidState.reaction.z));
   }, 0);
   const displacements = {
     nucleus: Math.hypot(lastNucleus[0] || 0, lastNucleus[1] || 0),
@@ -1570,7 +1541,7 @@ async function runCli(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const projectRoot = path.resolve(scriptDir, "..");
-  const sandbox = await loadSimulationModule(projectRoot);
+  const sandbox = await loadCanonicalRuntime(projectRoot);
   const runDir = path.resolve(args.runDir);
   const inputPayload = JSON.parse(fs.readFileSync(path.resolve(args.inputJson), "utf8"));
   const normalizedResult = buildResultFromLogs(sandbox, inputPayload, runDir);
@@ -1619,6 +1590,7 @@ export {
   buildOutputMappingSummary,
   computeTangentialTractionFromPlotfileBridge,
   computeTangentialTractionFromFaceSnapshot,
+  getRigidPipetteState,
   inferFaceSnapshotValueOffset,
   resolveTangentialShearObservation,
   buildResultFromLogs,

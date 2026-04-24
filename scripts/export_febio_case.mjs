@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import vm from "node:vm";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 function parseArgs(argv) {
@@ -32,95 +31,21 @@ function parseArgs(argv) {
   return args;
 }
 
-function createElementStub() {
-  return {
-    value: "",
-    innerHTML: "",
-    textContent: "",
-    width: 0,
-    height: 0,
-    className: "",
-    files: [],
-    style: {},
-    parentNode: { insertAdjacentElement() {} },
-    appendChild() {},
-    insertAdjacentElement() {},
-    remove() {},
-    closest() {
-      return {
-        querySelector() {
-          return { replaceChildren() {} };
-        },
-        parentNode: { insertBefore() {} },
-        classList: { add() {} },
-      };
-    },
-    querySelector() {
-      return null;
-    },
-    addEventListener() {},
-    getContext() {
-      return {};
-    },
-    click() {},
-  };
-}
-
-function loadSimulationModule(projectRoot) {
-  const source = [
-    fs.readFileSync(path.join(projectRoot, "simulation.js"), "utf8"),
-    fs.readFileSync(path.join(projectRoot, "js", "simulation-febio.js"), "utf8"),
-  ].join("\n");
-  const documentStub = {
-    querySelector() {
-      return createElementStub();
-    },
-    createElement() {
-      return createElementStub();
-    },
-  };
-
-  const sandbox = {
-    console,
-    document: documentStub,
-    window: { document: documentStub },
-    Blob: function Blob(parts, opts) {
-      this.parts = parts;
-      this.opts = opts;
-    },
-    URL: {
-      createObjectURL() {
-        return "blob:mock";
-      },
-      revokeObjectURL() {},
-    },
-    structuredClone: globalThis.structuredClone,
-    setTimeout,
-    clearTimeout,
-    requestAnimationFrame() {
-      return 1;
-    },
-    cancelAnimationFrame() {},
-    performance: { now() { return 0; } },
-    FileReader: function FileReader() {},
-  };
-
-  vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: "simulation.js" });
-  return sandbox;
-}
-
 function writeFile(targetPath, content) {
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.writeFileSync(targetPath, content, "utf8");
 }
 
 async function loadCanonicalPublicApi(projectRoot) {
+  const sourceApiPath = path.join(projectRoot, "src", "public-api.ts");
+  if (fs.existsSync(sourceApiPath)) {
+    return import(pathToFileURL(sourceApiPath).href);
+  }
   const publicApiPath = path.join(projectRoot, "generated", "dist", "public-api.js");
   if (fs.existsSync(publicApiPath)) {
     return import(pathToFileURL(publicApiPath).href);
   }
-  return null;
+  throw new Error("Neither src/public-api.ts nor generated/dist/public-api.js was found. Cannot export FEBio cases.");
 }
 
 function readJsonFile(filePath) {
@@ -186,8 +111,7 @@ function buildCanonicalReadme(manifest) {
 const args = parseArgs(process.argv.slice(2));
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(scriptDir, "..");
-const canonicalApi = await loadCanonicalPublicApi(projectRoot);
-const runtime = canonicalApi || loadSimulationModule(projectRoot);
+const runtime = await loadCanonicalPublicApi(projectRoot);
 const caseName = String(args.caseName || "C").toUpperCase();
 const clone = runtime.structuredClone || globalThis.structuredClone || ((value) => JSON.parse(JSON.stringify(value)));
 const defaults = clone(runtime.DEFAULTS);
@@ -197,33 +121,27 @@ const params = args.paramsFile
 
 const simulationInput = runtime.buildSimulationInput(caseName, params);
 const input = runtime.buildFebioInputSpec(caseName, params, simulationInput);
-const bundle = runtime.buildFebioRunBundle
-  ? runtime.buildFebioRunBundle(input)
-  : null;
+const bundle = runtime.buildFebioRunBundle(input);
 
 const outDir = path.resolve(args.outDir);
 const baseName = `case_${caseName}`;
-const xml = bundle?.febXml || runtime.exportFebioXmlContent(input);
+const xml = bundle.febXml;
 const json = JSON.stringify(
-  bundle
-    ? {
-        caseName,
-        params: input.params,
-        parameterDigest: input.parameterDigest,
-        canonicalSpec: bundle.canonicalSpec,
-        templateData: bundle.templateData,
-        exportBundle: bundle,
-        generatedAt: bundle.exportTimestamp,
-        source: "canonical-public-api",
-      }
-    : JSON.parse(runtime.exportFebioJson(input)),
+  {
+    caseName,
+    params: input.params,
+    parameterDigest: input.parameterDigest,
+    canonicalSpec: bundle.canonicalSpec,
+    templateData: bundle.templateData,
+    exportBundle: bundle,
+    generatedAt: bundle.exportTimestamp,
+    source: "canonical-public-api",
+  },
   null,
   2,
 );
-const manifest = bundle
-  ? buildCanonicalManifest(caseName, input, bundle, outDir)
-  : runtime.buildFebioHandoffManifest(input);
-const readmeText = bundle ? buildCanonicalReadme(manifest) : runtime.buildFebioHandoffReadme(manifest);
+const manifest = buildCanonicalManifest(caseName, input, bundle, outDir);
+const readmeText = buildCanonicalReadme(manifest);
 
 if (args.mode === "xml") {
   const xmlPath = path.join(outDir, `${baseName}.feb`);

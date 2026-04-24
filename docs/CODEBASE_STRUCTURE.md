@@ -89,7 +89,7 @@ Compatibility は退役経路に置く。新しい長期責務は canonical `src
 - `scripts/build-dist.mjs`
   - `src/**/*.ts` を `generated/dist/**/*.js` へコピーし、relative import extensions を書き換える。
 - `scripts/convert_febio_output.mjs`
-  - FEBio logfile output を app-result JSON へ変換する。explicit detachment events、detachment metrics、provenance、native face tangential traction reuse、plotfile contact-traction bridge reuse を扱う。
+  - FEBio logfile output を app-result JSON へ変換する。`src/public-api.ts` の canonical API を直接 import し、legacy JS simulation runtime は読まない。explicit detachment events、detachment metrics、provenance、native face tangential traction reuse、plotfile contact-traction bridge reuse を扱う。
 - `index.html`
   - `generated/dist/browser/main.js` を読み、legacy browser scripts を順に起動する。
 
@@ -99,4 +99,4 @@ Compatibility は退役経路に置く。新しい長期責務は canonical `src
 - skill や AGENT rule が対象ファイルを示している場合、repo-wide exploration は避ける。
 - public `index.ts` がある場合、internal file への deep import は避ける。
 - `generated/` と `tmp/` は durable source ではない。
-- 2026-04-24 note: `simulation.js` classification / detachment helpers are now thin canonical public API callers in the active browser path, and `scripts/convert_febio_output.mjs` injects that same public API into its compatibility sandbox so the converter no longer owns a separate active classification branch.
+- 2026-04-24 note: FEBio export / conversion scripts use `src/public-api.ts` directly and do not read legacy JS simulation files. Browser compatibility scripts remain a UI bridge only; they are not source-of-truth for classification, detachment, export, or import.

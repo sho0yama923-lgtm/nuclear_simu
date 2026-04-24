@@ -5,7 +5,7 @@
 対象コード:
 - converter: `../../scripts/convert_febio_output.mjs`
 - canonical import: `../../src/febio/import/normalizeFebioResult.ts`
-- compatibility bridge: `../../js/simulation-febio.js`, `../../simulation.js`
+- canonical API: `../../src/public-api.ts`
 
 ## いまの基本フロー
 
@@ -13,7 +13,7 @@
 2. FEBio が `.log` / `.xplt` と、ノード集合ごとの `.csv` を出す
 3. `scripts/convert_febio_output.mjs` が `.csv` 群を読み、正規化済み app result JSON を作る
 4. アプリ側は `loadExternalResult()` でその JSON を読み込む
-5. `normalizeSimulationResult()` を通して、lightweight と同じ UI スキーマで表示する
+5. canonical `normalizeFebioResult()` で FEBio main result として表示する
 
 ## 出力ファイルと結果項目の対応
 

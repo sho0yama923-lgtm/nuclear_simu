@@ -70,6 +70,45 @@ function buildCellDishInterfaceSpec(inputSpec, mesh) {
   };
 }
 
+function buildPipetteContactSpec(inputSpec, mesh) {
+  return {
+    pipetteNucleus: {
+      type: "sticky",
+      status: "solver-active capture-hold contact",
+      mode: "capture-hold",
+      tolerance: 0.2,
+      searchTolerance: inputSpec.operation.contact_tol,
+      searchRadius: Math.max(inputSpec.geometry.rp * 2.2, 1.5),
+      surfacePair: mesh.surfacePairs.pipette_nucleus_pair,
+      penalty: Math.max(inputSpec.interfaces.Kn_nc * 0.45, 0.2),
+      symmetricStiffness: 0,
+      autoPenalty: 1,
+      friction: Math.max(inputSpec.operation.mu_p, 0),
+      maxTraction: Math.max(inputSpec.operation.Fhold * 0.05, 0.25),
+      snapTolerance: Math.max(Math.min(inputSpec.geometry.rp * 0.03, 0.18), 0.05),
+      releaseCondition: {
+        type: "traction-or-slip-threshold",
+        tractionLimit: Math.max(inputSpec.operation.Fhold * 0.05, 0.25),
+        slipDistance: Math.max(Math.min(inputSpec.geometry.rp * 0.05, 0.3), 0.08),
+        note: "modeled with sticky release approximation until a dedicated hold-release law is available",
+      },
+    },
+    pipetteCell: {
+      type: "sliding-elastic",
+      status: "solver-active secondary contact",
+      mode: "secondary-contact-proxy",
+      tolerance: 0.2,
+      searchTolerance: inputSpec.operation.contact_tol * 1.2,
+      searchRadius: Math.max(inputSpec.geometry.rp * 2.5, 1.5),
+      surfacePair: mesh.surfacePairs.pipette_cell_pair,
+      penalty: Math.max(inputSpec.interfaces.Kn_cd * 0.45, 0.25),
+      symmetricStiffness: 0,
+      autoPenalty: 1,
+      friction: Math.max(inputSpec.operation.mu_p * 0.35, 0),
+    },
+  };
+}
+
 function buildExpectedFebioOutputs(caseName) {
   const normalized = String(caseName || "A").toUpperCase();
   return {
@@ -188,8 +227,6 @@ function buildLoadSpec(inputSpec) {
     controllers: [
       { id: 101, name: "lift_ramp", points: [[0, 0], [1, 0], [2, 1], [5, 1]] },
       { id: 102, name: "inward_ramp", points: [[0, 0], [3, 0], [4, 1], [5, 1]] },
-      { id: 103, name: "tangent_ramp", points: [[0, 0], [4, 0], [5, 1]] },
-      { id: 201, name: "hold_force_proxy_ramp", points: [[0, 0], [1, 1], [5, 1]] },
       { id: 202, name: "suction_pressure_curve", unit: "kPa", points: [[0, 0], [1, 1], [2, 1], [5, 1]] },
     ],
     notes: [
@@ -452,8 +489,12 @@ function serializeBoundaryToXml(boundary = {}) {
   ];
 }
 
+function buildLoadControllerIdMap(loads = {}) {
+  return new Map((loads.controllers || []).map((entry, index) => [entry.id, index + 1]));
+}
+
 function serializeLoadsToXml(loads = {}) {
-  const controllerIdMap = new Map((loads.controllers || []).map((entry, index) => [entry.id, index + 1]));
+  const controllerIdMap = buildLoadControllerIdMap(loads);
   return [
     "  <Loads>",
     ...(loads.nodal || []).map(
@@ -478,6 +519,23 @@ function serializeLoadsToXml(loads = {}) {
       "    </load_controller>",
     ]).flat(),
     "  </LoadData>",
+  ];
+}
+
+function serializeStepLoadsToXml(stepName, loads = {}, controllerIdMap = new Map()) {
+  if (stepName === "approach") {
+    return [];
+  }
+
+  return [
+    "    <Loads>",
+    ...(loads.pressure || []).flatMap((entry) => [
+      `      <surface_load name="${entry.name}_${escapeXml(stepName)}" surface="${entry.surface}" type="pressure">`,
+      `        <pressure lc="${controllerIdMap.get(entry.loadController) || entry.loadController}">${serializeNumber(entry.value)}</pressure>`,
+      `        <!-- active-step pressure source=${entry.name} status=${entry.status} -->`,
+      "      </surface_load>",
+    ]),
+    "    </Loads>",
   ];
 }
 
@@ -515,6 +573,39 @@ function serializeCellDishContactToXml(cellDish = {}) {
   ];
 }
 
+function serializeSlidingContactToXml(name, spec = {}) {
+  return [
+    `    <contact name="${escapeXml(name)}" type="${escapeXml(spec.type || "sliding-elastic")}" surface_pair="${escapeXml(spec.surfacePair?.name || "")}">`,
+    `      <penalty>${serializeNumber(spec.penalty || 1)}</penalty>`,
+    `      <auto_penalty>${spec.autoPenalty ? 1 : 0}</auto_penalty>`,
+    "      <two_pass>0</two_pass>",
+    "      <laugon>0</laugon>",
+    `      <tolerance>${serializeNumber(spec.tolerance || 0.2)}</tolerance>`,
+    `      <search_tol>${serializeNumber(spec.searchTolerance || 0.01)}</search_tol>`,
+    `      <search_radius>${serializeNumber(spec.searchRadius || 1)}</search_radius>`,
+    `      <symmetric_stiffness>${spec.symmetricStiffness ? 1 : 0}</symmetric_stiffness>`,
+    `      <fric_coeff>${serializeNumber(spec.friction || 0)}</fric_coeff>`,
+    `      <!-- status=${escapeXml(spec.status || "n/a")} mode=${escapeXml(spec.mode || "n/a")} -->`,
+    "    </contact>",
+  ];
+}
+
+function serializeStickyContactToXml(name, spec = {}) {
+  return [
+    `    <contact name="${escapeXml(name)}" type="sticky" surface_pair="${escapeXml(spec.surfacePair?.name || "")}">`,
+    `      <penalty>${serializeNumber(spec.penalty || 1)}</penalty>`,
+    "      <laugon>0</laugon>",
+    `      <tolerance>${serializeNumber(spec.tolerance || 0.2)}</tolerance>`,
+    "      <minaug>0</minaug>",
+    "      <maxaug>10</maxaug>",
+    `      <search_tolerance>${serializeNumber(spec.searchTolerance || 0.01)}</search_tolerance>`,
+    `      <max_traction>${serializeNumber(spec.maxTraction || 0)}</max_traction>`,
+    `      <snap_tol>${serializeNumber(spec.snapTolerance || 0.1)}</snap_tol>`,
+    `      <!-- solver-active pipette capture-hold contact status=${escapeXml(spec.status || "n/a")} friction=${serializeNumber(spec.friction || 0)} releaseTraction=${serializeNumber(spec.releaseCondition?.tractionLimit || spec.maxTraction || 0)} slipDistance=${serializeNumber(spec.releaseCondition?.slipDistance || 0)} -->`,
+    "    </contact>",
+  ];
+}
+
 function serializeCanonicalSpec(inputSpec) {
   return {
     caseName: inputSpec.caseName,
@@ -540,6 +631,7 @@ export function buildFebioTemplateData(inputSpec) {
   const membraneModel = buildMembraneModelSpec(inputSpec);
   const nucleusCytoplasm = buildNucleusCytoplasmInterfaceSpec(inputSpec, mesh);
   const cellDish = buildCellDishInterfaceSpec(inputSpec, mesh);
+  const contact = buildPipetteContactSpec(inputSpec, mesh);
   const boundary = buildBoundarySpec(inputSpec, mesh);
   const loads = buildLoadSpec(inputSpec);
   const outputs = {
@@ -672,6 +764,7 @@ export function buildFebioTemplateData(inputSpec) {
         "main-flow inward manipulation is split into staged targets to reduce the first-step jacobian collapse risk",
         "discrete cohesive spring sidecar sets are exported for future solver-primary cohesive activation",
         "P_hold is solver-active suction pressure; prescribed pipette motion remains positioning control",
+        "pipette-nucleus and pipette-cell contact pairs are solver-active in the main flow",
         "aspiration length L(t) is declared as a native-or-postprocessed output contract",
       ],
     },
@@ -751,6 +844,7 @@ export function buildFebioTemplateData(inputSpec) {
       nucleusCytoplasm,
       cellDish,
     },
+    contact,
     interfaceRegions: buildInterfaceRegions(),
     boundary,
     loads,
@@ -777,6 +871,7 @@ export function serializeFebioTemplateToXml(templateData) {
   const stabilization = nucleusCytoplasm.stabilization || {};
   const mesh = templateData.geometry?.mesh || {};
   const logfileOutputs = templateData.logOutputs || {};
+  const controllerIdMap = buildLoadControllerIdMap(templateData.loads);
   const plotfileSurfaceTractionXml = (templateData.outputs?.plotfileSurfaceData || [])
     .map(
       (entry) =>
@@ -786,9 +881,9 @@ export function serializeFebioTemplateToXml(templateData) {
   const stepMotion = new Map([
     ["approach", { x: 0, z: -0.35, steps: 60 }],
     ["hold", { x: 0, z: 0, steps: 40 }],
-    ["lift", { x: 0, z: templateData.boundary?.prescribed?.find((entry) => entry.name === "pipette_lift_z")?.value || 0, steps: 60 }],
-    ["manipulation-1", { x: -((templateData.boundary?.prescribed?.find((entry) => entry.name === "pipette_inward_x")?.value || 0) * 0.45), z: 0, steps: 90 }],
-    ["manipulation-2", { x: -((templateData.boundary?.prescribed?.find((entry) => entry.name === "pipette_inward_x")?.value || 0) * 0.55), z: 0, steps: 100 }],
+    ["lift", { x: 0, z: templateData.boundary?.prescribed?.find((entry) => entry.name === "pipette_lift_z")?.value || 0, steps: 60, zController: 101 }],
+    ["manipulation-1", { x: -((templateData.boundary?.prescribed?.find((entry) => entry.name === "pipette_inward_x")?.value || 0) * 0.45), z: 0, steps: 90, xController: 102 }],
+    ["manipulation-2", { x: -((templateData.boundary?.prescribed?.find((entry) => entry.name === "pipette_inward_x")?.value || 0) * 0.55), z: 0, steps: 100, xController: 102 }],
   ]);
   const stepXml = (templateData.steps || []).flatMap((step, index) => {
     const motion = stepMotion.get(step.name) || { x: 0, z: 0, steps: 25 };
@@ -809,16 +904,17 @@ export function serializeFebioTemplateToXml(templateData) {
       "      <rigid_bc type=\"rigid_displacement\">",
       "        <rb>pipette_rigid</rb>",
       "        <dof>x</dof>",
-      `        <value>${serializeNumber(motion.x)}</value>`,
+      `        <value${motion.xController ? ` lc="${controllerIdMap.get(motion.xController) || motion.xController}"` : ""}>${serializeNumber(motion.x)}</value>`,
       "        <relative>1</relative>",
       "      </rigid_bc>",
       "      <rigid_bc type=\"rigid_displacement\">",
       "        <rb>pipette_rigid</rb>",
       "        <dof>z</dof>",
-      `        <value>${serializeNumber(motion.z)}</value>`,
+      `        <value${motion.zController ? ` lc="${controllerIdMap.get(motion.zController) || motion.zController}"` : ""}>${serializeNumber(motion.z)}</value>`,
       "        <relative>1</relative>",
       "      </rigid_bc>",
       "    </Rigid>",
+      ...serializeStepLoadsToXml(step.name, templateData.loads, controllerIdMap),
       "    </step>",
     ];
   });
@@ -845,6 +941,10 @@ export function serializeFebioTemplateToXml(templateData) {
     ...serializeStickyPenaltyRampComments(stabilization).map((line) => line.replace("    <!--", "      <!--")),
     "    </contact>",
     ...serializeCellDishContactToXml(templateData.interfaces.cellDish),
+    ...(templateData.contact?.pipetteNucleus?.type === "sticky"
+      ? serializeStickyContactToXml("pipette_nucleus_contact", templateData.contact.pipetteNucleus)
+      : serializeSlidingContactToXml("pipette_nucleus_contact", templateData.contact?.pipetteNucleus)),
+    ...serializeSlidingContactToXml("pipette_cell_contact", templateData.contact?.pipetteCell),
     "  </Contact>",
     "  <Rigid>",
     "    <rigid_bc type=\"rigid_fixed\">",

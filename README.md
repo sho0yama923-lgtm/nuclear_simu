@@ -26,6 +26,7 @@
 - source parse check: `node --experimental-strip-types -e "import('./src/public-api.ts')"`
 - tests: `node --test tests/*.test.mjs`
 - npm wrapper: `cmd /c npm.cmd test`
+- FEBio export: `node scripts/export_febio_case.mjs --case A --out-dir <dir>`
 
 ## ドキュメント入口
 
@@ -44,4 +45,4 @@
 - canonical logic は `src/` を編集します。
 - `generated/` と `tmp/` は生成物・一時出力です。
 - 物理モデル、detachment、classification、export/import の意味を変える変更では [PROGRESS.md](PROGRESS.md) と関連 docs を同じ変更セットで更新します。
-- 2026-04-24 note: Stage 6 is complete. `simulation.js` no longer owns the active classification / detachment path; browser compatibility and the FEBio converter both reuse the canonical public API for those decisions.
+- 2026-04-24 note: Stage 6 is complete. FEBio export / conversion scripts use `src/public-api.ts` directly and do not read legacy JS simulation files. Browser compatibility remains a UI bridge, not a source-of-truth for physics decisions.

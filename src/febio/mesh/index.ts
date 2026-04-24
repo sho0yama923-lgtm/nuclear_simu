@@ -51,6 +51,14 @@ const REQUIRED_SURFACE_PAIRS = {
     primary: "cell_dish_surface",
     secondary: "dish_contact_surface",
   },
+  pipette_nucleus_pair: {
+    primary: "nucleus_interface_right_surface",
+    secondary: "pipette_contact_surface",
+  },
+  pipette_cell_pair: {
+    primary: "cytoplasm_interface_right_surface",
+    secondary: "pipette_contact_surface",
+  },
 };
 
 function buildQuad(id, nodes) {
@@ -179,6 +187,16 @@ export function buildRefinedFebioGeometry(inputSpec) {
         name: "cell_dish_pair",
         primary: "cell_dish_surface",
         secondary: "dish_contact_surface",
+      },
+      pipette_nucleus_pair: {
+        name: "pipette_nucleus_pair",
+        primary: "nucleus_interface_right_surface",
+        secondary: "pipette_contact_surface",
+      },
+      pipette_cell_pair: {
+        name: "pipette_cell_pair",
+        primary: "cytoplasm_interface_right_surface",
+        secondary: "pipette_contact_surface",
       },
     },
   };

@@ -1,31 +1,25 @@
 # パラメータ対応
 
-この文書は、現在の UI パラメータが
-
-- `lightweight` 簡易シミュレーション
-- `febio` bridge / `.feb` XML export
-
-でどう対応しているかを整理したものです。
+この文書は、現在の UI パラメータが canonical spec から FEBio template / `.feb` XML / result import へどう対応しているかを整理したものです。
 
 基準となる実装箇所:
 - canonical schema: `../../src/model/schema.ts`
 - canonical defaults: `../../src/model/defaults.ts`
 - FEBio export: `../../src/febio/export/index.ts`
-- compatibility bridge: `../../simulation.js`, `../../js/simulation-febio.js`
+- FEBio scripts / public API: `../../src/public-api.ts`, `../../scripts/export_febio_case.mjs`, `../../scripts/convert_febio_output.mjs`
 
 ## 先に押さえること
 
 - 共通入力は `buildSimulationInput()` で作られます。
-- `lightweight` はこの共通入力をそのまま縮約力学モデルへ入れます。
 - `febio` はさらに `buildFebioTemplateData()` で FEBio 用の中間表現へ変換します。
 - ただし、現在の `.feb` XML は最小 runnable 構成なので、template data に保持していても XML にまだ出していない項目があります。
 
 そのため、各パラメータは次の 4 種類に分けて見るのが分かりやすいです。
 
-- `両方で直接使う`
-- `lightweight では直接使い、FEBio では換算して使う`
+- `canonical spec から FEBio へ直接出る`
+- `FEBio では縮約・換算されて入る`
 - `FEBio template / handoff には入るが、現行 .feb XML には未反映`
-- `現状は lightweight のみで使う`
+- `現状は postprocess / proxy observation に残る`
 
 ## 座標系
 
@@ -122,8 +116,8 @@
 
 | UI key | 意味 | lightweight | FEBio template | `.feb` XML |
 |---|---|---|---|---|
-| `Fhold` | 保持力 | 保持限界、滑脱判定、保持力 proxy に直接使用 | `pipetteNucleus.maxTraction = max(Fhold * 0.08, 0.3)` | 間接反映 |
-| `P_hold` | 保持圧 | 保持剛性有効値に直接使用 | handoff manifest に保持 | まだ未反映 |
+| `Fhold` | 保持力 | 保持限界、滑脱判定、保持力 proxy に直接使用 | `pipetteNucleus.maxTraction = max(Fhold * 0.05, 0.25)` | sticky contact の最大 traction metadata と hold-force proxy comment に反映 |
+| `P_hold` | 保持圧 | 旧軽量経路では保持剛性有効値に直接使用 | solver-active suction pressure load | active step-local pressure load として反映 |
 | `dz_lift` | 引き上げ量 z | schedule と力学応答に直接使用 | rigid step target の z 変位 | 反映される |
 | `dx_inward` | 重心側移動 x | schedule と力学応答に直接使用 | Case A / C の rigid step target | 反映される |
 | `ds_tangent` | 接線移動 y | schedule と面外自由度に直接使用 | Case B / C の rigid step metadata | 現 Case A solve では実質未使用 |
@@ -134,7 +128,7 @@
 補足:
 - 現在の FEBio 実解析の主対象は Case A です。
 - そのため `ds_tangent` は lightweight では有効でも、FEBio 実働ケースではまだ主役ではありません。
-- `P_hold` は lightweight で有効ですが、FEBio 側ではまだ sticky/tied パラメータへ落とし込めていません。
+- `P_hold` は FEBio XML の suction pressure として active step から参照されます。ただし S7 時点では実 run の contact/force response はまだ 0 のため、物理 validation は未完了です。
 
 ## ケース / スケジュール対応
 
@@ -150,7 +144,7 @@
 
 ## 今の実務上の読み方
 
-### 1. lightweight と FEBio でほぼ同義に使えるもの
+### 1. canonical spec から FEBio へ直接出るもの
 - `Ln`, `Hn`, `Lc`, `Hc`, `xn`, `yn`, `rp`, `xp`, `zp`
 - `En`, `Ec`, `nun`, `nuc`
 - `dz_lift`, `dx_inward`, `dx_outward`, `mu_p`, `contact_tol`
@@ -158,6 +152,7 @@
 ### 2. FEBio では縮約・換算されて入るもの
 - `Kn_nc`, `Kt_nc`, `Kn_cd`, `Kt_cd`
 - `Fhold`
+- `P_hold`
 
 ### 3. 現在は FEBio template には残るが `.feb` にまだ十分出ていないもの
 - `etan`, `etac`
@@ -167,12 +162,10 @@
 - `sig_nc_crit`, `tau_nc_crit`, `Gc_nc`
 - `sig_cd_crit`, `tau_cd_crit`, `Gc_cd`
 - `adhesionPattern`, `adhesionSeed`
-- `P_hold`
 
 ### 4. 解釈上の注意
-- lightweight の界面破壊は、局所 region ごとの reduced-order traction/damage です。
 - FEBio 側はまだ最小 runnable 構成なので、同じ UI パラメータでも「物理的に同値」ではなく「近い役割へ写像」している部分があります。
-- したがって、現時点では `lightweight` と `FEBio` の結果を数値一致させるのではなく、「同じ操作条件を与えたときに同じ傾向を示すか」で見るのが自然です。
+- したがって、現時点では solver output の native/proxy provenance を見ながら、まず active pressure/contact response が成立しているかを確認します。
 
 ## 次に XML へ反映すべき優先項目
 

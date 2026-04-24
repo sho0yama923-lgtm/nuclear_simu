@@ -10,6 +10,7 @@ import {
   buildOutputMappingSummary,
   computeTangentialTractionFromFaceSnapshot,
   computeTangentialTractionFromPlotfileBridge,
+  getRigidPipetteState,
   inferFaceSnapshotValueOffset,
   resolveTangentialShearObservation,
 } from "../scripts/convert_febio_output.mjs";
@@ -158,7 +159,7 @@ test("converter output mapping carries standard face-data coverage and optional 
   assert.equal(mapping.aspiration.peakPath, "peaks.peakAspirationLength");
 });
 
-test("converter output mapping also reads coverage metadata from compatibility log outputs", () => {
+test("converter output mapping also reads legacy-compatible coverage metadata", () => {
   const mapping = buildOutputMappingSummary({
     interfaceRegions: {
       localNc: {
@@ -228,6 +229,10 @@ test("template serializes to consistent FEBio XML", async () => {
   assert.match(xml, /<secondary>nucleus_interface_surface<\/secondary>/);
   assert.match(xml, /<SurfacePair name="cell_dish_pair">/);
   assert.match(xml, /<secondary>dish_contact_surface<\/secondary>/);
+  assert.match(xml, /<SurfacePair name="pipette_nucleus_pair">/);
+  assert.match(xml, /<primary>nucleus_interface_right_surface<\/primary>/);
+  assert.match(xml, /<secondary>pipette_contact_surface<\/secondary>/);
+  assert.match(xml, /<SurfacePair name="pipette_cell_pair">/);
   assert.match(xml, /<MeshDomains>/);
   assert.match(xml, /<SolidDomain name="nucleus" mat="nucleus" \/>/);
   assert.match(xml, /<SolidDomain name="pipette" mat="pipette_rigid" \/>/);
@@ -236,21 +241,25 @@ test("template serializes to consistent FEBio XML", async () => {
   assert.match(xml, /<z_dof>1<\/z_dof>/);
   assert.match(xml, /<Rigid>/);
   assert.match(xml, /<rb>pipette_rigid<\/rb>/);
-  assert.match(xml, /<value>8\.000000<\/value>/);
-  assert.match(xml, /<value>-1\.800000<\/value>/);
-  assert.match(xml, /<value>-2\.200000<\/value>/);
+  assert.match(xml, /<value lc="1">8\.000000<\/value>/);
+  assert.match(xml, /<value lc="2">-1\.800000<\/value>/);
+  assert.match(xml, /<value lc="2">-2\.200000<\/value>/);
   assert.match(xml, /<Loads>/);
   assert.match(xml, /nodal_load hold_force_proxy surface=pipette_contact_surface lc=201 status=proxy-load \/ not pressure-driven value=20\.000000/);
   assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_contact_surface" type="pressure">/);
-  assert.match(xml, /<pressure lc="5">-0\.700000<\/pressure>/);
+  assert.match(xml, /<pressure lc="3">-0\.700000<\/pressure>/);
   assert.match(xml, /<LoadData>/);
   assert.match(xml, /<load_controller id="1" name="lift_ramp" type="loadcurve">/);
-  assert.match(xml, /<load_controller id="5" name="suction_pressure_curve" type="loadcurve">/);
+  assert.match(xml, /<load_controller id="3" name="suction_pressure_curve" type="loadcurve">/);
   assert.match(xml, /<logfile>/);
   assert.match(xml, /<node_data name="nucleus_nodes" file="febio_nucleus_nodes\.csv" data="ux;uy;uz" delim=",">/);
   assert.match(xml, /<rigid_body_data name="pipette_rigid_body" file="febio_rigid_pipette\.csv" data="x;y;z;Fx;Fy;Fz" delim=",">4<\/rigid_body_data>/);
   assert.match(xml, /derived_data name="pipette_aspiration_length" metric="L\(t\)" unit="um" payload="aspiration\.length" source="native-node-displacement"/);
   assert.match(xml, /<step id="1" name="approach">/);
+  assert.match(xml, /<step id="2" name="hold">[\s\S]*<surface_load name="pipette_suction_pressure_hold" surface="pipette_contact_surface" type="pressure">/);
+  assert.match(xml, /<step id="3" name="lift">[\s\S]*<value lc="1">8\.000000<\/value>/);
+  assert.match(xml, /<step id="3" name="lift">[\s\S]*<pressure lc="3">-0\.700000<\/pressure>/);
+  assert.match(xml, /<step id="4" name="manipulation-1">[\s\S]*<value lc="2">-1\.800000<\/value>/);
   assert.match(xml, /<Control>/);
   assert.match(xml, /type="viscoelastic"/);
   assert.match(xml, /<elastic type="neo-Hookean">/);
@@ -266,6 +275,8 @@ test("template serializes to consistent FEBio XML", async () => {
   assert.match(xml, /<Contact>/);
   assert.match(xml, /<contact name="nucleus_cytoplasm_interface" type="sticky" surface_pair="nucleus_cytoplasm_pair">/);
   assert.match(xml, /<contact name="cell_dish_interface" type="tied-elastic" surface_pair="cell_dish_pair">/);
+  assert.match(xml, /<contact name="pipette_nucleus_contact" type="sticky" surface_pair="pipette_nucleus_pair">/);
+  assert.match(xml, /<contact name="pipette_cell_contact" type="sliding-elastic" surface_pair="pipette_cell_pair">/);
   assert.match(xml, /<penalty>1\.550000<\/penalty>/);
   assert.match(xml, /fractureEnergy=0\.350000/);
   assert.match(xml, /solver-primary cohesive approximation/);
@@ -908,6 +919,21 @@ test("external FEBio converter keeps shear native-null when face snapshots have 
   assert.equal(shear, null);
 });
 
+test("external FEBio converter reads rigid body reaction after position columns", () => {
+  const state = getRigidPipetteState(
+    {
+      time: 5,
+      records: [
+        [4, -6, 0, 16.15, -7.28, 0, 0],
+      ],
+    },
+    { x: 1, y: 2 },
+  );
+
+  assert.deepEqual(state.position, { x: -6, z: 16.15 });
+  assert.deepEqual(state.reaction, { x: -7.28, z: 0 });
+});
+
 test("external FEBio converter emits explicit detachment events from history", () => {
   const result = {
     history: [
@@ -982,6 +1008,8 @@ test("docs and governance files exist and stay aligned", () => {
   const roadmapPath = path.resolve("docs/ops/ROADMAP.md");
   const codebasePath = path.resolve("docs/CODEBASE_STRUCTURE.md");
   const febioMappingPath = path.resolve("docs/febio/FEBIO_OUTPUT_MAPPING.md");
+  const exportScriptPath = path.resolve("scripts/export_febio_case.mjs");
+  const convertScriptPath = path.resolve("scripts/convert_febio_output.mjs");
   const skillPaths = [
     path.resolve(".skills/nucleus-cytoplasm-interface/SKILL.md"),
     path.resolve(".skills/progress-update/SKILL.md"),
@@ -994,6 +1022,8 @@ test("docs and governance files exist and stay aligned", () => {
   assert.equal(fs.existsSync(roadmapPath), true);
   assert.equal(fs.existsSync(codebasePath), true);
   assert.equal(fs.existsSync(febioMappingPath), true);
+  assert.equal(fs.existsSync(exportScriptPath), true);
+  assert.equal(fs.existsSync(convertScriptPath), true);
   skillPaths.forEach((skillPath) => assert.equal(fs.existsSync(skillPath), true));
 
   const agent = fs.readFileSync(agentPath, "utf8");
@@ -1001,7 +1031,8 @@ test("docs and governance files exist and stay aligned", () => {
   const roadmap = fs.readFileSync(roadmapPath, "utf8");
   const codebase = fs.readFileSync(codebasePath, "utf8");
   const febioMapping = fs.readFileSync(febioMappingPath, "utf8");
-  const legacyRuntime = fs.readFileSync(path.resolve("simulation.js"), "utf8");
+  const exportScript = fs.readFileSync(exportScriptPath, "utf8");
+  const convertScript = fs.readFileSync(convertScriptPath, "utf8");
 
   assert.match(agent, /Skill Usage Rule/);
   assert.match(agent, /src\/model\/schema\.ts/);
@@ -1036,7 +1067,8 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(progress, /load\/contact\/output 成立後に sticky cohesive solver validation/);
   assert.match(febioMapping, /native 接線成分の更新|Native Tangential Update/);
   assert.match(febioMapping, /rows that start directly with face values/);
-  assert.match(legacyRuntime, /__NUCLEAR_SIMU_PUBLIC_API__/);
-  assert.match(legacyRuntime, /applyRunClassification/);
-  assert.match(legacyRuntime, /"canonical-public-api"/);
+  assert.doesNotMatch(exportScript, /simulation\.js|simulation-febio|node:vm|vm\.runInContext/);
+  assert.doesNotMatch(convertScript, /simulation\.js|simulation-febio|node:vm|vm\.runInContext/);
+  assert.match(`${exportScript}\n${convertScript}`, /src/);
+  assert.match(`${exportScript}\n${convertScript}`, /public-api\.ts/);
 });

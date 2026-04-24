@@ -29,7 +29,7 @@
 - FEBio export: `../../src/febio/export/index.ts`
 - result normalization: `../../src/febio/import/normalizeFebioResult.ts`
 - external converter: `../../scripts/convert_febio_output.mjs`
-- compatibility bridge: `../../simulation.js`, `../../js/simulation-febio.js`
+- canonical API: `../../src/public-api.ts`
 
 ## 2. 座標系と単位
 

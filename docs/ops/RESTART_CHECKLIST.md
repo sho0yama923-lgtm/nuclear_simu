@@ -29,7 +29,11 @@
 
 1. [../../AGENT.md](../../AGENT.md)
 2. [../DECISIONS.md](../DECISIONS.md)
-3. `simulation.js`
+3. [../CODEBASE_STRUCTURE.md](../CODEBASE_STRUCTURE.md)
 4. `src/public-api.ts`
 5. `src/results/classification.ts`
-6. `tests/febio-front-end.test.mjs`
+6. `scripts/export_febio_case.mjs`
+7. `scripts/convert_febio_output.mjs`
+8. `tests/febio-front-end.test.mjs`
+
+Legacy JS simulation files are read only when the task explicitly targets browser compatibility behavior.

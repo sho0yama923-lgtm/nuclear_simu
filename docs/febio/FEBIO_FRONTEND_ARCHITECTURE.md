@@ -8,7 +8,8 @@
 
 ## 正規パラメータスキーマ
 - 定義は `../../src/model/schema.ts`
-- compatibility caller は `../../simulation.js` と `../../js/simulation-febio.js`
+- FEBio export / conversion scripts は `../../src/public-api.ts` を直接使う
+- browser compatibility scripts は UI 起動 bridge に限定し、FEBio physics の source-of-truth にしない
 - 各パラメータは canonical spec に正規化され、次を持つ
   - `uiKey`
   - `internalKey`
@@ -59,7 +60,7 @@ powershell -ExecutionPolicy Bypass -File scripts/start_febio_bridge.ps1 -OpenApp
 
 ## メッシュ方針
 - refined mesh builder が主 export path
-- coarse mesh builder は fallback / legacy 参照
+- coarse / legacy mesh は現行 main path では扱わない
 - Validation report には少なくとも次を含める
   - invalid element
   - zero or negative volume proxy
