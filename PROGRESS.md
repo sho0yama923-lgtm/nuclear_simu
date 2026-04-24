@@ -32,64 +32,73 @@
   - `src/febio/mesh/index.ts`
   - `scripts/export_febio_direct_case.mjs` または新規 equivalent
   - `scripts/convert_febio_output.mjs`
-  - `tests/febio-front-end.test.mjs`
-- 次ステップの完了条件: FEBio-native spec JSON から UI parameter -> canonical spec 変換を通らず `.feb` を生成でき、direct path で contact / pressure / force transfer を検証できる状態にする。残る場合は mesh geometry / contact type / pressure surface / parser のどれが原因かを `未解決問題 / Blockers` に記録する。
+  - `tests/febio-front-end.test.mjs` または direct path 用の新規 test
+- 次ステップの完了条件: FEBio-native spec JSON から UI parameter -> canonical spec 変換を通らず `.feb` を生成でき、direct path で contact / pressure / force transfer を検証できる状態にする。残る場合は mesh geometry / contact type / pressure surface / parser / Studio確認待ち のどれが原因かを `未解決問題 / Blockers` に記録する。
 
 ## 優先順位の見方
 
 - 全体優先順位: 研究・物理モデル全体の順序。頻繁には変えない。詳しくは [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md) に置く。
 - 主ロードマップ: 現在の大きな作業列。いまは simulation condition advancement。
 - 補助ロードマップ: 主ロードマップを支える移行作業。旧「第2優先ロードマップ」は compatibility retirement の補助ロードマップで、Stage 6 completed 済み。主ロードマップの次に自動で戻るものではない。
-- 次の3手（現在処理中タスクの3手）: いまのセッションで進める細分化タスク。作業が進んで next action が変わるたびにこのファイルで更新する。
+- 次の bounded milestone: いまのセッションで進めるレビュー可能な成果単位。細かい bullet は作業ガイドであり、単独の停止点ではない。作業が進んで milestone / done condition / blocker が変わるたびにこのファイルで更新する。
 
 このファイルには「次に何を開いて、何が終われば進んだと言えるか」を置く。`ROADMAP.md` には「その作業がどの主ロードマップ / 補助ロードマップ / 全体優先順位に属するか」を置く。直近タスクだけが変わった場合、`ROADMAP.md` は更新しない。
 
-## 次の3手（現在処理中タスクの3手）
+## 作業粒度ルール
 
-### 1. FEBio-native parameter spec を定義する
+`PROGRESS.md` には細かい作業 bullet を書いてよいが、agent は各 bullet を単独の終了単位として扱わない。
 
-- Target files:
-  - `docs/febio/FEBIO_NATIVE_SPEC.md`
-  - `src/febio/spec/` または既存の `src/febio/export/`
-  - `tests/febio-front-end.test.mjs`
-- Expected output:
-  - UI convenience parameter ではなく、FEBio solver に必要な geometry / material / contact / load / boundary / output を直接表す spec を定義する。
-  - 最小 force-transfer debug case に必要な parameter を FEBio-native 名で列挙する。
-  - `unitSystem = um-nN-s` を前提に、length / force / pressure / material / contact parameter の意味を明記する。
-- Done condition:
-  - FEBio-native spec の必須 section が docs に定義されている。
-  - UI parameter 由来の alias / compatibility parameter と、FEBio-native source-of-truth parameter が区別されている。
+同じ milestone に属する隣接作業は、レビュー可能な境界までまとめて進める。
 
-### 2. FEBio-native spec から直接 `.feb` を export する CLI 経路を作る
+agent は次のいずれかに到達するまで進める。
 
-- Target files:
-  - `scripts/export_febio_direct_case.mjs`
-  - `src/febio/export/index.ts`
-  - `src/febio/mesh/index.ts`
-  - `tests/febio-front-end.test.mjs`
-- Expected output:
-  - UI parameter -> canonical spec 変換を通らず、FEBio-native spec JSON から直接 FEBio template / `.feb` XML を生成する。
-  - contact surface、surface pair、pressure load、boundary、output request を direct spec から明示的に出力する。
-  - Studio 確認依頼に `.feb` / log / result / output CSV path を出す。
-- Done condition:
-  - direct spec から `.feb` が生成できる。
-  - generated XML に material / contact / pressure / boundary / output が direct spec 由来で入る。
-  - 既存 UI parameter path に依存しない regression test がある。
+- Done condition を満たした
+- 明確な blocker が出た
+- FEBio Studio など人間確認が必要な confirmation gate に到達した
+- 実行環境や外部ツール不足でそれ以上進められない
 
-### 3. direct path で force-transfer / contact response を検証する
+逆に、次の状態では原則として止まらない。
 
-- Target files:
-  - `scripts/convert_febio_output.mjs`
-  - `src/febio/import/normalizeFebioResult.ts`
-  - `docs/ops/STUDIO_CONFIRMATION_GATES.md`
-  - `tests/febio-front-end.test.mjs`
-- Expected output:
-  - FEBio-native direct run で `No force acting on the system`、contact pair warning、contact pressure all-zero の原因を UI parameter 変換から切り離して検証する。
-  - force-transfer diagnostics に pressure load declared / step-active / contact pair declared / contact response nonzero / reaction nonzero を記録する。
-  - Studio 確認が必要な場合は、開く `.feb` path と照合する log / result / CSV path を提示する。
-- Done condition:
-  - direct path で nonzero displacement / contact pressure / reaction force が確認できる、または原因が geometry / contact type / pressure target / output parser のどれかに切り分けられている。
-  - 結果が `PROGRESS.md` の blocker / 再開位置に反映されている。
+- 空ファイルだけ作った
+- TODO だけ追加した
+- helper だけ追加した
+- docs だけ更新したが、同じ milestone の実装 / test が明らかに残っている
+
+## 次の bounded milestone
+
+### Milestone S7-A: FEBio-native direct parameter path の入口を作る
+
+この milestone の目的は、UI parameter -> canonical spec 変換を通らず、FEBio-native spec JSON から `.feb` 生成へ到達できる最初の reviewable path を作ること。
+
+この節の bullet は作業ガイドであり、単独の停止点ではない。agent は、下記の Done condition または明確な blocker / Studio 確認ゲートまで、隣接作業をまとめて進める。
+
+#### 含める作業
+
+- `docs/febio/FEBIO_NATIVE_SPEC.md` を source of truth として、実装側の FEBio-native spec entrypoint を用意する。
+- `src/febio/spec/` または既存の `src/febio/export/` に、FEBio-native spec の type / validation skeleton を追加する。
+- 最小 force-transfer debug case に必要な geometry / material / contact / load / boundary / output parameter を FEBio-native 名で扱えるようにする。
+- UI parameter -> canonical spec 変換を通らない direct export CLI を追加する。
+- direct spec JSON から FEBio template / `.feb` XML を生成する経路を作る。
+- direct path が `buildSimulationInput` などの UI/canonical path に依存しないことを regression test で確認する。
+- `.feb` が生成できる場合は、Studio confirmation request に `.feb` / log / result / output CSV path を出す。
+- 状態、blocker、次 action が変わった場合は `PROGRESS.md` を更新する。
+
+#### Target files
+
+- `docs/febio/FEBIO_NATIVE_SPEC.md`
+- `src/febio/spec/` または既存の `src/febio/export/`
+- `src/febio/mesh/index.ts`
+- `scripts/export_febio_direct_case.mjs`
+- `scripts/convert_febio_output.mjs`
+- `tests/febio-front-end.test.mjs` または direct path 用の新規 test
+
+#### Done condition
+
+- FEBio-native spec JSON から UI parameter -> canonical spec 変換を通らず `.feb` が生成できる。
+- generated XML に material / contact / pressure / boundary / output が direct spec 由来で入る。
+- direct path が既存 UI parameter path に依存しない regression test がある。
+- Studio 確認が必要な場合、開く `.feb` path と照合する log / result / output path が明示されている。
+- force-transfer / contact response の検証が未完の場合は、原因候補が geometry / contact type / pressure target / output parser / Studio確認待ち のどれかに切り分けられている。
 
 ## 未解決問題 / Blockers
 
@@ -123,7 +132,7 @@
 
 - `PROGRESS.md` は日本語で書く。
 - 全体優先順位や stage 計画が変わったら [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md) を更新する。
-- 直近の作業対象、next action、done condition が変わったら、このファイルの `再開位置` と `次の3手（現在処理中タスクの3手）` を更新する。
+- 直近の作業対象、next action、done condition、bounded milestone、blocker が変わったら、このファイルの `再開位置` と `次の bounded milestone` を更新する。
 - 主ロードマップの current stage、stage status、After Current 候補、補助ロードマップの位置づけが変わる場合だけ、`ROADMAP.md` も同じ変更セットで更新する。
 - 新しく見つかった recurring blocker は `未解決問題 / Blockers` に追加する。
 - physics model、cohesive model、detachment logic、main flow、classification、export/import ownership、proxy/native dependency が変わったら、このファイルと関連 docs を同じ変更セットで更新する。
