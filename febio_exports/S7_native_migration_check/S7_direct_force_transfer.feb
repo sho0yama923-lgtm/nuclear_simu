@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<febio_spec version="4.0">
+  <Module type="solid" />
+  <Material>
+    <material id="1" name="nucleus" type="viscoelastic">
+      <elastic type="neo-Hookean">
+        <E>20.000000</E>
+        <v>0.340000</v>
+      </elastic>
+      <g1>0.350000</g1>
+      <t1>1.200000</t1>
+      <!-- viscosity eta=4.200000 -->
+    </material>
+    <material id="2" name="cytoplasm" type="viscoelastic">
+      <elastic type="neo-Hookean">
+        <E>7.500000</E>
+        <v>0.410000</v>
+      </elastic>
+      <g1>0.350000</g1>
+      <t1>1.200000</t1>
+      <!-- viscosity eta=5.600000 -->
+    </material>
+    <material id="3" name="dish" type="neo-Hookean">
+        <E>250.000000</E>
+        <v>0.300000</v>
+    </material>
+    <material id="4" name="pipette_rigid" type="rigid body">
+        <E>600.000000</E>
+        <v>0.250000</v>
+      <density>1.000000</density>
+      <center_of_mass>20.500000,0.000000,8.500000</center_of_mass>
+    </material>
+  </Material>
+  <Mesh>
+    <Nodes name="all_nodes">
+      <node id="1">-26.000000,-0.500000,0.000000</node>
+      <node id="2">-14.000000,-0.500000,0.000000</node>
+      <node id="3">-14.000000,0.500000,0.000000</node>
+      <node id="4">-26.000000,0.500000,0.000000</node>
+      <node id="5">-26.000000,-0.500000,34.000000</node>
+      <node id="6">-14.000000,-0.500000,34.000000</node>
+      <node id="7">-14.000000,0.500000,34.000000</node>
+      <node id="8">-26.000000,0.500000,34.000000</node>
+      <node id="9">-14.000000,-0.250000,8.000000</node>
+      <node id="10">14.000000,-0.250000,8.000000</node>
+      <node id="11">14.000000,0.250000,8.000000</node>
+      <node id="12">-14.000000,0.250000,8.000000</node>
+      <node id="13">-14.000000,-0.250000,26.000000</node>
+      <node id="14">14.000000,-0.250000,26.000000</node>
+      <node id="15">14.000000,0.250000,26.000000</node>
+      <node id="16">-14.000000,0.250000,26.000000</node>
+      <node id="17">14.000000,-0.200000,2.000000</node>
+      <node id="18">27.000000,-0.200000,2.000000</node>
+      <node id="19">27.000000,0.200000,2.000000</node>
+      <node id="20">14.000000,0.200000,2.000000</node>
+      <node id="21">14.000000,-0.200000,15.000000</node>
+      <node id="22">27.000000,-0.200000,15.000000</node>
+      <node id="23">27.000000,0.200000,15.000000</node>
+      <node id="24">14.000000,0.200000,15.000000</node>
+      <node id="25">-26.000000,-0.500000,-2.720000</node>
+      <node id="26">26.000000,-0.500000,-2.720000</node>
+      <node id="27">26.000000,0.500000,-2.720000</node>
+      <node id="28">-26.000000,0.500000,-2.720000</node>
+      <node id="29">-26.000000,-0.500000,0.000000</node>
+      <node id="30">26.000000,-0.500000,0.000000</node>
+      <node id="31">26.000000,0.500000,0.000000</node>
+      <node id="32">-26.000000,0.500000,0.000000</node>
+      <node id="33">14.000000,-0.500000,0.000000</node>
+      <node id="34">26.000000,-0.500000,0.000000</node>
+      <node id="35">26.000000,0.500000,0.000000</node>
+      <node id="36">14.000000,0.500000,0.000000</node>
+      <node id="37">14.000000,-0.500000,34.000000</node>
+      <node id="38">26.000000,-0.500000,34.000000</node>
+      <node id="39">26.000000,0.500000,34.000000</node>
+      <node id="40">14.000000,0.500000,34.000000</node>
+      <node id="41">-14.000000,-0.500000,0.000000</node>
+      <node id="42">14.000000,-0.500000,0.000000</node>
+      <node id="43">14.000000,0.500000,0.000000</node>
+      <node id="44">-14.000000,0.500000,0.000000</node>
+      <node id="45">-14.000000,-0.500000,8.000000</node>
+      <node id="46">14.000000,-0.500000,8.000000</node>
+      <node id="47">14.000000,0.500000,8.000000</node>
+      <node id="48">-14.000000,0.500000,8.000000</node>
+      <node id="49">-14.000000,-0.500000,26.000000</node>
+      <node id="50">14.000000,-0.500000,26.000000</node>
+      <node id="51">14.000000,0.500000,26.000000</node>
+      <node id="52">-14.000000,0.500000,26.000000</node>
+      <node id="53">-14.000000,-0.500000,34.000000</node>
+      <node id="54">14.000000,-0.500000,34.000000</node>
+      <node id="55">14.000000,0.500000,34.000000</node>
+      <node id="56">-14.000000,0.500000,34.000000</node>
+    </Nodes>
+    <Elements type="hex8" name="cytoplasm">
+      <elem id="1">1,2,3,4,5,6,7,8</elem>
+      <elem id="5">33,34,35,36,37,38,39,40</elem>
+      <elem id="6">41,42,43,44,45,46,47,48</elem>
+      <elem id="7">49,50,51,52,53,54,55,56</elem>
+    </Elements>
+    <Elements type="hex8" name="nucleus">
+      <elem id="2">9,10,11,12,13,14,15,16</elem>
+    </Elements>
+    <Elements type="hex8" name="pipette">
+      <elem id="3">17,18,19,20,21,22,23,24</elem>
+    </Elements>
+    <Elements type="hex8" name="dish">
+      <elem id="4">25,26,27,28,29,30,31,32</elem>
+    </Elements>
+    <Surface name="nucleus_interface_surface">
+      <quad4 id="1">9,13,16,12</quad4>
+      <quad4 id="2">10,11,15,14</quad4>
+      <quad4 id="3">13,14,15,16</quad4>
+      <quad4 id="4">9,12,11,10</quad4>
+    </Surface>
+    <Surface name="nucleus_interface_left_surface">
+      <quad4 id="2">9,13,16,12</quad4>
+    </Surface>
+    <Surface name="nucleus_interface_right_surface">
+      <quad4 id="3">10,11,15,14</quad4>
+    </Surface>
+    <Surface name="nucleus_interface_top_surface">
+      <quad4 id="4">13,14,15,16</quad4>
+    </Surface>
+    <Surface name="nucleus_interface_bottom_surface">
+      <quad4 id="5">9,12,11,10</quad4>
+    </Surface>
+    <Surface name="cytoplasm_interface_surface">
+      <quad4 id="6">2,3,7,6</quad4>
+      <quad4 id="7">33,37,40,36</quad4>
+      <quad4 id="8">45,46,47,48</quad4>
+      <quad4 id="9">49,52,51,50</quad4>
+    </Surface>
+    <Surface name="cytoplasm_interface_left_surface">
+      <quad4 id="10">2,3,7,6</quad4>
+    </Surface>
+    <Surface name="cytoplasm_interface_right_surface">
+      <quad4 id="11">33,37,40,36</quad4>
+    </Surface>
+    <Surface name="cytoplasm_interface_top_surface">
+      <quad4 id="12">49,52,51,50</quad4>
+    </Surface>
+    <Surface name="cytoplasm_interface_bottom_surface">
+      <quad4 id="13">45,46,47,48</quad4>
+    </Surface>
+    <Surface name="cell_dish_surface">
+      <quad4 id="14">1,2,3,4</quad4>
+      <quad4 id="15">41,42,43,44</quad4>
+      <quad4 id="16">33,34,35,36</quad4>
+    </Surface>
+    <Surface name="dish_contact_surface">
+      <quad4 id="12">29,30,31,32</quad4>
+    </Surface>
+    <Surface name="cell_dish_left_surface">
+      <quad4 id="17">1,2,3,4</quad4>
+    </Surface>
+    <Surface name="cell_dish_center_surface">
+      <quad4 id="18">41,42,43,44</quad4>
+    </Surface>
+    <Surface name="cell_dish_right_surface">
+      <quad4 id="19">33,34,35,36</quad4>
+    </Surface>
+    <Surface name="pipette_suction_surface">
+      <quad4 id="20">10,14,15,11</quad4>
+    </Surface>
+    <Surface name="pipette_contact_surface">
+      <quad4 id="16">17,20,24,21</quad4>
+    </Surface>
+    <NodeSet name="cytoplasm_nodes">1,2,3,4,5,6,7,8,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56</NodeSet>
+    <NodeSet name="nucleus_nodes">9,10,11,12,13,14,15,16</NodeSet>
+    <NodeSet name="pipette_nodes">17,18,19,20,21,22,23,24</NodeSet>
+    <NodeSet name="dish_nodes">25,26,27,28,29,30,31,32</NodeSet>
+    <NodeSet name="nc_left_nucleus_nodes">9,12,13,16</NodeSet>
+    <NodeSet name="nc_right_nucleus_nodes">10,11,14,15</NodeSet>
+    <NodeSet name="nc_top_nucleus_nodes">13,14,15,16</NodeSet>
+    <NodeSet name="nc_bottom_nucleus_nodes">9,10,11,12</NodeSet>
+    <NodeSet name="nc_left_cytoplasm_nodes">2,3,6,7</NodeSet>
+    <NodeSet name="nc_right_cytoplasm_nodes">33,36,37,40</NodeSet>
+    <NodeSet name="nc_top_cytoplasm_nodes">49,50,51,52</NodeSet>
+    <NodeSet name="nc_bottom_cytoplasm_nodes">45,46,47,48</NodeSet>
+    <NodeSet name="cd_left_cell_nodes">1,4</NodeSet>
+    <NodeSet name="cd_center_cell_nodes">41,42,43,44</NodeSet>
+    <NodeSet name="cd_right_cell_nodes">34,35</NodeSet>
+    <NodeSet name="dish_fixed_nodes">25,26,27,28</NodeSet>
+    <NodeSet name="pipette_contact_nodes">17,20,21,24</NodeSet>
+    <NodeSet name="all_nodes_set">1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56</NodeSet>
+    <NodeSet name="deformable_nodes_set">1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56</NodeSet>
+    <SurfacePair name="nucleus_cytoplasm_pair">
+      <primary>cytoplasm_interface_surface</primary>
+      <secondary>nucleus_interface_surface</secondary>
+    </SurfacePair>
+    <SurfacePair name="cell_dish_pair">
+      <primary>cell_dish_surface</primary>
+      <secondary>dish_contact_surface</secondary>
+    </SurfacePair>
+    <SurfacePair name="pipette_nucleus_pair">
+      <primary>nucleus_interface_right_surface</primary>
+      <secondary>pipette_contact_surface</secondary>
+    </SurfacePair>
+    <SurfacePair name="pipette_cell_pair">
+      <primary>pipette_suction_surface</primary>
+      <secondary>pipette_contact_surface</secondary>
+    </SurfacePair>
+  </Mesh>
+  <MeshDomains>
+    <SolidDomain name="nucleus" mat="nucleus" />
+    <SolidDomain name="cytoplasm" mat="cytoplasm" />
+    <SolidDomain name="dish" mat="dish" />
+    <SolidDomain name="pipette" mat="pipette_rigid" />
+  </MeshDomains>
+  <Boundary>
+    <bc name="dish_fixed" node_set="dish_fixed_nodes" type="zero displacement">
+      <x_dof>1</x_dof>
+      <y_dof>1</y_dof>
+      <z_dof>1</z_dof>
+    </bc>
+    <bc name="section_plane_lock" node_set="deformable_nodes_set" type="zero displacement">
+      <y_dof>1</y_dof>
+    </bc>
+  </Boundary>
+  <Contact>
+    <contact name="nucleus_cytoplasm_interface" type="sticky" surface_pair="nucleus_cytoplasm_pair">
+      <!-- solver-primary cohesive approximation -->
+      <penalty>0.350000</penalty>
+      <tolerance>0.080000</tolerance>
+      <search_tolerance>0.080000</search_tolerance>
+      <laugon>1</laugon>
+      <minaug>0</minaug>
+      <maxaug>12</maxaug>
+      <max_traction>0.250000</max_traction>
+      <snap_tol>0.100513</snap_tol>
+      <!-- cohesive criticalNormalStress=0.780000 -->
+      <!-- ramp approach: normalPenalty=0.140000 tangentialPenalty=0.054064 frictionProxy=0.064750 -->
+      <!-- ramp hold: normalPenalty=0.245000 tangentialPenalty=0.118941 frictionProxy=0.129500 -->
+      <!-- ramp lift: normalPenalty=0.350000 tangentialPenalty=0.216257 frictionProxy=0.185000 -->
+    </contact>
+    <contact name="cell_dish_interface" type="tied-elastic" surface_pair="cell_dish_pair">
+      <penalty>1.550000</penalty>
+      <tolerance>0.050000</tolerance>
+      <!-- cohesive-ready normalStiffness=1.550000 tangentialStiffness=1.250000 -->
+      <!-- cohesive-ready criticalNormalStress=0.950000 criticalShearStress=0.650000 fractureEnergy=0.350000 -->
+    </contact>
+    <contact name="pipette_nucleus_contact" type="sticky" surface_pair="pipette_nucleus_pair">
+      <penalty>0.607500</penalty>
+      <laugon>0</laugon>
+      <tolerance>0.200000</tolerance>
+      <minaug>0</minaug>
+      <maxaug>10</maxaug>
+      <search_tolerance>2.200000</search_tolerance>
+      <max_traction>1.000000</max_traction>
+      <snap_tol>0.180000</snap_tol>
+      <!-- solver-active pipette capture-hold contact status=solver-active capture-hold contact friction=0.260000 releaseTraction=1.000000 slipDistance=0.300000 -->
+    </contact>
+    <contact name="pipette_cell_contact" type="sliding-elastic" surface_pair="pipette_cell_pair">
+      <penalty>0.697500</penalty>
+      <auto_penalty>1</auto_penalty>
+      <two_pass>0</two_pass>
+      <laugon>0</laugon>
+      <tolerance>0.200000</tolerance>
+      <search_tol>2.640000</search_tol>
+      <search_radius>16.250000</search_radius>
+      <symmetric_stiffness>0</symmetric_stiffness>
+      <fric_coeff>0.091000</fric_coeff>
+      <!-- status=solver-active secondary contact mode=secondary-contact-proxy -->
+    </contact>
+  </Contact>
+  <Rigid>
+    <rigid_bc type="rigid_fixed">
+      <rb>pipette_rigid</rb>
+      <Ry_dof>1</Ry_dof>
+      <Ru_dof>1</Ru_dof>
+      <Rv_dof>1</Rv_dof>
+      <Rw_dof>1</Rw_dof>
+    </rigid_bc>
+  </Rigid>
+  <Loads>
+    <!-- nodal_load hold_force_proxy surface=pipette_contact_surface lc=201 status=proxy-load / not pressure-driven value=20.000000 -->
+    <surface_load name="pipette_suction_pressure" surface="pipette_suction_surface" type="pressure">
+      <pressure lc="3">-0.700000</pressure>
+      <!-- status=solver-active pressure-driven suction / febio-native-direct unit=kPa direction=inward-negative-pressure magnitude=0.700000 -->
+    </surface_load>
+  </Loads>
+  <LoadData>
+    <load_controller id="1" name="lift_ramp" type="loadcurve">
+      <interpolate>LINEAR</interpolate>
+      <extend>CONSTANT</extend>
+      <points>
+        <point>0.000000, 0.000000</point>
+        <point>1.000000, 0.000000</point>
+        <point>2.000000, 1.000000</point>
+        <point>5.000000, 1.000000</point>
+      </points>
+    </load_controller>
+    <load_controller id="2" name="inward_ramp" type="loadcurve">
+      <interpolate>LINEAR</interpolate>
+      <extend>CONSTANT</extend>
+      <points>
+        <point>0.000000, 0.000000</point>
+        <point>3.000000, 0.000000</point>
+        <point>4.000000, 1.000000</point>
+        <point>5.000000, 1.000000</point>
+      </points>
+    </load_controller>
+    <load_controller id="3" name="suction_pressure_curve" type="loadcurve">
+      <interpolate>LINEAR</interpolate>
+      <extend>CONSTANT</extend>
+      <points>
+        <point>0.000000, 0.000000</point>
+        <point>1.000000, 1.000000</point>
+        <point>2.000000, 1.000000</point>
+        <point>5.000000, 1.000000</point>
+      </points>
+    </load_controller>
+  </LoadData>
+  <Step>
+    <step id="1" name="approach">
+    <Control>
+      <analysis>static</analysis>
+      <time_steps>60</time_steps>
+      <step_size>0.016667</step_size>
+      <plot_level>PLOT_MAJOR_ITRS</plot_level>
+      <output_level>OUTPUT_MAJOR_ITRS</output_level>
+      <solver>
+        <symmetric_stiffness>0</symmetric_stiffness>
+      </solver>
+    </Control>
+    <Rigid>
+      <rigid_bc type="rigid_displacement">
+        <rb>pipette_rigid</rb>
+        <dof>x</dof>
+        <value>0.000000</value>
+        <relative>1</relative>
+      </rigid_bc>
+      <rigid_bc type="rigid_displacement">
+        <rb>pipette_rigid</rb>
+        <dof>z</dof>
+        <value>-0.350000</value>
+        <relative>1</relative>
+      </rigid_bc>
+    </Rigid>
+    </step>
+    <step id="2" name="hold">
+    <Control>
+      <analysis>static</analysis>
+      <time_steps>40</time_steps>
+      <step_size>0.025000</step_size>
+      <plot_level>PLOT_MAJOR_ITRS</plot_level>
+      <output_level>OUTPUT_MAJOR_ITRS</output_level>
+      <solver>
+        <symmetric_stiffness>0</symmetric_stiffness>
+      </solver>
+    </Control>
+    <Rigid>
+      <rigid_bc type="rigid_displacement">
+        <rb>pipette_rigid</rb>
+        <dof>x</dof>
+        <value>0.000000</value>
+        <relative>1</relative>
+      </rigid_bc>
+      <rigid_bc type="rigid_displacement">
+        <rb>pipette_rigid</rb>
+        <dof>z</dof>
+        <value>0.000000</value>
+        <relative>1</relative>
+      </rigid_bc>
+    </Rigid>
+    <Loads>
+      <surface_load name="pipette_suction_pressure_hold" surface="pipette_suction_surface" type="pressure">
+        <pressure lc="3">-0.700000</pressure>
+        <!-- active-step pressure source=pipette_suction_pressure status=solver-active pressure-driven suction / febio-native-direct -->
+      </surface_load>
+    </Loads>
+    </step>
+    <step id="3" name="lift">
+    <Control>
+      <analysis>static</analysis>
+      <time_steps>60</time_steps>
+      <step_size>0.016667</step_size>
+      <plot_level>PLOT_MAJOR_ITRS</plot_level>
+      <output_level>OUTPUT_MAJOR_ITRS</output_level>
+      <solver>
+        <symmetric_stiffness>0</symmetric_stiffness>
+      </solver>
+    </Control>
+    <Rigid>
+      <rigid_bc type="rigid_displacement">
+        <rb>pipette_rigid</rb>
+        <dof>x</dof>
+        <value>0.000000</value>
+        <relative>1</relative>
+      </rigid_bc>
+      <rigid_bc type="rigid_displacement">
+        <rb>pipette_rigid</rb>
+        <dof>z</dof>
+        <value lc="1">8.000000</value>
+        <relative>1</relative>
+      </rigid_bc>
+    </Rigid>
+    <Loads>
+      <surface_load name="pipette_suction_pressure_lift" surface="pipette_suction_surface" type="pressure">
+        <pressure lc="3">-0.700000</pressure>
+        <!-- active-step pressure source=pipette_suction_pressure status=solver-active pressure-driven suction / febio-native-direct -->
+      </surface_load>
+    </Loads>
+    </step>
+    <step id="4" name="manipulation-1">
+    <Control>
+      <analysis>static</analysis>
+      <time_steps>90</time_steps>
+      <step_size>0.011111</step_size>
+      <plot_level>PLOT_MAJOR_ITRS</plot_level>
+      <output_level>OUTPUT_MAJOR_ITRS</output_level>
+      <solver>
+        <symmetric_stiffness>0</symmetric_stiffness>
+      </solver>
+    </Control>
+    <Rigid>
+      <rigid_bc type="rigid_displacement">
+        <rb>pipette_rigid</rb>
+        <dof>x</dof>
+        <value lc="2">-1.800000</value>
+        <relative>1</relative>
+      </rigid_bc>
+      <rigid_bc type="rigid_displacement">
+        <rb>pipette_rigid</rb>
+        <dof>z</dof>
+        <value>0.000000</value>
+        <relative>1</relative>
+      </rigid_bc>
+    </Rigid>
+    <Loads>
+      <surface_load name="pipette_suction_pressure_manipulation-1" surface="pipette_suction_surface" type="pressure">
+        <pressure lc="3">-0.700000</pressure>
+        <!-- active-step pressure source=pipette_suction_pressure status=solver-active pressure-driven suction / febio-native-direct -->
+      </surface_load>
+    </Loads>
+    </step>
+    <step id="5" name="manipulation-2">
+    <Control>
+      <analysis>static</analysis>
+      <time_steps>100</time_steps>
+      <step_size>0.010000</step_size>
+      <plot_level>PLOT_MAJOR_ITRS</plot_level>
+      <output_level>OUTPUT_MAJOR_ITRS</output_level>
+      <solver>
+        <symmetric_stiffness>0</symmetric_stiffness>
+      </solver>
+    </Control>
+    <Rigid>
+      <rigid_bc type="rigid_displacement">
+        <rb>pipette_rigid</rb>
+        <dof>x</dof>
+        <value lc="2">-2.200000</value>
+        <relative>1</relative>
+      </rigid_bc>
+      <rigid_bc type="rigid_displacement">
+        <rb>pipette_rigid</rb>
+        <dof>z</dof>
+        <value>0.000000</value>
+        <relative>1</relative>
+      </rigid_bc>
+    </Rigid>
+    <Loads>
+      <surface_load name="pipette_suction_pressure_manipulation-2" surface="pipette_suction_surface" type="pressure">
+        <pressure lc="3">-0.700000</pressure>
+        <!-- active-step pressure source=pipette_suction_pressure status=solver-active pressure-driven suction / febio-native-direct -->
+      </surface_load>
+    </Loads>
+    </step>
+  </Step>
+  <Output>
+    <logfile>
+      <node_data name="nucleus_nodes" file="febio_nucleus_nodes.csv" data="ux;uy;uz" delim=",">9,10,11,12,13,14,15,16</node_data>
+      <node_data name="cytoplasm_nodes" file="febio_cytoplasm_nodes.csv" data="ux;uy;uz" delim=",">1,2,3,4,5,6,7,8,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56</node_data>
+      <node_data name="pipette_contact_nodes" file="febio_pipette_contact_nodes.csv" data="ux;uy;uz" delim=",">17,20,21,24</node_data>
+      <rigid_body_data name="pipette_rigid_body" file="febio_rigid_pipette.csv" data="x;y;z;Fx;Fy;Fz" delim=",">4</rigid_body_data>
+      <face_data name="nucleus_cytoplasm_interface_surface" file="febio_interface_nucleus_cytoplasm.csv" data="contact gap;contact pressure" delim="," surface="nucleus_interface_surface" />
+      <face_data name="nucleus_cytoplasm_left_surface" file="febio_interface_nc_left.csv" data="contact gap;contact pressure" delim="," surface="nucleus_interface_left_surface" />
+      <face_data name="nucleus_cytoplasm_right_surface" file="febio_interface_nc_right.csv" data="contact gap;contact pressure" delim="," surface="nucleus_interface_right_surface" />
+      <face_data name="nucleus_cytoplasm_top_surface" file="febio_interface_nc_top.csv" data="contact gap;contact pressure" delim="," surface="nucleus_interface_top_surface" />
+      <face_data name="nucleus_cytoplasm_bottom_surface" file="febio_interface_nc_bottom.csv" data="contact gap;contact pressure" delim="," surface="nucleus_interface_bottom_surface" />
+      <face_data name="cell_dish_interface_surface" file="febio_interface_cell_dish.csv" data="contact gap;contact pressure" delim="," surface="cell_dish_surface" />
+      <face_data name="cell_dish_left_surface" file="febio_interface_cd_left.csv" data="contact gap;contact pressure" delim="," surface="cell_dish_left_surface" />
+      <face_data name="cell_dish_center_surface" file="febio_interface_cd_center.csv" data="contact gap;contact pressure" delim="," surface="cell_dish_center_surface" />
+      <face_data name="cell_dish_right_surface" file="febio_interface_cd_right.csv" data="contact gap;contact pressure" delim="," surface="cell_dish_right_surface" />
+      <face_data name="pipette_cell_contact_surface" file="febio_pipette_cell_contact.csv" data="contact gap;contact pressure" delim="," surface="pipette_suction_surface" />
+      <face_data name="pipette_contact_surface" file="febio_pipette_contact.csv" data="contact gap;contact pressure" delim="," surface="pipette_contact_surface" />
+      <!-- derived_data name="pipette_aspiration_length" metric="L(t)" unit="um" payload="aspiration.length" source="native-node-displacement" -->
+    </logfile>
+    <plotfile type="febio">
+      <var type="displacement" />
+      <var type="stress" />
+      <var type="contact force" />
+      <var type="reaction forces" />
+      <var type="contact traction" surface="nucleus_interface_left_surface"/>
+      <var type="contact traction" surface="nucleus_interface_right_surface"/>
+      <var type="contact traction" surface="nucleus_interface_top_surface"/>
+      <var type="contact traction" surface="nucleus_interface_bottom_surface"/>
+      <var type="contact traction" surface="cell_dish_left_surface"/>
+      <var type="contact traction" surface="cell_dish_center_surface"/>
+      <var type="contact traction" surface="cell_dish_right_surface"/>
+    </plotfile>
+  </Output>
+  <!-- cohesive discrete sidecar (not solver-active yet)
+  <DiscreteSet name="nucleus_cytoplasm_left_springs">
+  </DiscreteSet>
+  discrete_material nucleus_cytoplasm_left_springs_material type=nonlinear spring
+  load_controller 300 points=
+  -->
+</febio_spec>

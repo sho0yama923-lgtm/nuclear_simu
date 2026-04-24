@@ -20,7 +20,9 @@
 - `src/model/types.ts`
   - shared region names、schema constants、coordinate metadata。
 - `src/febio/mesh/index.ts`
-  - mesh と surface-pair の source-of-truth。
+  - mesh と surface-pair の source-of-truth。native direct path は現時点で `s7-debug-local-nucleus` の粗い確認用 mesh を明示し、pipette suction surface を nucleus-side capture face へ置く。
+- `src/febio/spec/index.ts`
+  - FEBio-native spec JSON の normalize / validate / direct template mapping の source-of-truth。UI parameter -> canonical spec 変換を通らない direct export path を担う。
 - `src/febio/interfaces/nucleusCytoplasm.ts`
   - nucleus-cytoplasm interface の source-of-truth。sticky cohesive stabilization、stabilization validation、proxy/native observation ownership を含む。
 - `src/febio/export/index.ts`
@@ -30,7 +32,7 @@
 - `src/results/classification.ts`
   - native-first classification と detachment interpretation。proxy fallback labeling と shared classification application を含む。
 - `src/public-api.ts`
-  - tests と compatibility integration 用 public API。canonical classification application と detachment assessment bridge を公開する。
+  - tests と integration 用 public API。標準 `runSimulation` は FEBio-native spec first、旧 canonical flow は `runCanonicalSimulation` として明示する。classification application と detachment assessment bridge も公開する。
 - `src/browser/main.ts`
   - browser entry。public API を公開し、legacy compatibility scripts を起動する。
 
@@ -88,8 +90,12 @@ Compatibility は退役経路に置く。新しい長期責務は canonical `src
 
 - `scripts/build-dist.mjs`
   - `src/**/*.ts` を `generated/dist/**/*.js` へコピーし、relative import extensions を書き換える。
+- `scripts/export_febio_case.mjs`
+  - canonical UI parameter path から FEBio handoff bundle を生成する。`src/public-api.ts` の canonical API を直接 import し、legacy JS simulation files を読まない。
+- `scripts/export_febio_direct_case.mjs`
+  - FEBio-native spec JSON から direct FEBio handoff bundle を生成する。UI parameter conversion と `buildSimulationInput` を通らない S7 validation 用入口。
 - `scripts/convert_febio_output.mjs`
-  - FEBio logfile output を app-result JSON へ変換する。`src/public-api.ts` の canonical API を直接 import し、legacy JS simulation runtime は読まない。explicit detachment events、detachment metrics、provenance、native face tangential traction reuse、plotfile contact-traction bridge reuse を扱う。
+  - FEBio logfile output を app-result JSON へ変換する。`src/public-api.ts` を直接 import し、legacy JS simulation runtime は読まない。FEBio-native direct input では `nativeSpec` / `templateData` / `fdig_*` を保持する。explicit detachment events、detachment metrics、provenance、native face tangential traction reuse、plotfile contact-traction bridge reuse を扱う。
 - `index.html`
   - `generated/dist/browser/main.js` を読み、legacy browser scripts を順に起動する。
 

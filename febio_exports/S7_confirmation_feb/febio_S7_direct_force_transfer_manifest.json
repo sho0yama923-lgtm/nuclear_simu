@@ -1,0 +1,520 @@
+{
+  "caseName": "S7_direct_force_transfer",
+  "generatedAt": "2026-04-24T14:59:19.499Z",
+  "parameterDigest": "fdig_07cf952d",
+  "exportReady": true,
+  "solverMetadata": {
+    "solverMode": "febio",
+    "source": "febio-native-direct"
+  },
+  "files": {
+    "feb": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb/S7_direct_force_transfer.feb",
+    "nativeSpecJson": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb/febio_S7_direct_force_transfer_native_spec.json",
+    "inputJson": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb/febio_S7_direct_force_transfer_input.json",
+    "manifest": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb/febio_S7_direct_force_transfer_manifest.json",
+    "readme": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb/febio_S7_direct_force_transfer_README.txt"
+  },
+  "validation": {
+    "nativeSpec": {
+      "valid": true,
+      "errors": [],
+      "warnings": [],
+      "source": "febio-native-spec"
+    },
+    "mesh": {
+      "valid": true,
+      "invalidElements": [],
+      "aspectRatioWarnings": [],
+      "requiredDomains": {
+        "nucleus": "present",
+        "cytoplasm": "present",
+        "dish": "present",
+        "pipette": "present"
+      },
+      "requiredNodeSets": {
+        "dish_fixed_nodes": "present",
+        "pipette_contact_nodes": "present",
+        "nc_left_nucleus_nodes": "present",
+        "nc_right_nucleus_nodes": "present",
+        "nc_top_nucleus_nodes": "present",
+        "nc_bottom_nucleus_nodes": "present",
+        "nc_left_cytoplasm_nodes": "present",
+        "nc_right_cytoplasm_nodes": "present",
+        "nc_top_cytoplasm_nodes": "present",
+        "nc_bottom_cytoplasm_nodes": "present",
+        "cd_left_cell_nodes": "present",
+        "cd_center_cell_nodes": "present",
+        "cd_right_cell_nodes": "present"
+      },
+      "requiredSurfaces": {
+        "nucleus_interface_surface": true,
+        "nucleus_interface_left_surface": true,
+        "nucleus_interface_right_surface": true,
+        "nucleus_interface_top_surface": true,
+        "nucleus_interface_bottom_surface": true,
+        "cytoplasm_interface_surface": true,
+        "cytoplasm_interface_left_surface": true,
+        "cytoplasm_interface_right_surface": true,
+        "cytoplasm_interface_top_surface": true,
+        "cytoplasm_interface_bottom_surface": true,
+        "cell_dish_surface": true,
+        "dish_contact_surface": true,
+        "cell_dish_left_surface": true,
+        "cell_dish_center_surface": true,
+        "cell_dish_right_surface": true,
+        "pipette_suction_surface": true,
+        "pipette_contact_surface": true
+      },
+      "requiredSurfacePairs": {
+        "nucleus_cytoplasm_pair": {
+          "present": true,
+          "primary": true,
+          "secondary": true,
+          "surfacesReady": true
+        },
+        "cell_dish_pair": {
+          "present": true,
+          "primary": true,
+          "secondary": true,
+          "surfacesReady": true
+        },
+        "pipette_nucleus_pair": {
+          "present": true,
+          "primary": true,
+          "secondary": true,
+          "surfacesReady": true
+        },
+        "pipette_cell_pair": {
+          "present": true,
+          "primary": true,
+          "secondary": true,
+          "surfacesReady": true
+        }
+      }
+    },
+    "nucleusCytoplasm": {
+      "valid": true,
+      "warnings": [],
+      "diagnostics": {
+        "monotonicRamp": true,
+        "rampSteps": [
+          "approach",
+          "hold",
+          "lift"
+        ],
+        "normalPenaltyRatio": 0.25925925925925924,
+        "tangentialPenaltyRatio": 0.2059591836734693,
+        "snapToSearchRatio": 1.2564102564102566,
+        "tractionToCriticalRatio": 0.3205128205128205
+      }
+    }
+  },
+  "outputs": {
+    "expected": {
+      "feb": "S7_direct_force_transfer.feb",
+      "log": "S7_direct_force_transfer.log",
+      "xplt": "S7_direct_force_transfer.xplt",
+      "resultJson": "S7_direct_force_transfer_result.json"
+    },
+    "aspiration": {
+      "name": "pipette_aspiration_length",
+      "metric": "L(t)",
+      "unit": "um",
+      "status": "native-or-postprocessed-contract",
+      "preferredSource": "native-node-displacement",
+      "payloadPath": "aspiration.length",
+      "historyPath": "history[].aspirationLength",
+      "peakPath": "peaks.peakAspirationLength",
+      "reference": {
+        "surface": "pipette_contact_surface",
+        "nodeSet": "pipette_contact_nodes",
+        "mouthPlaneX": 26,
+        "inwardAxis": "-x",
+        "sectionPlane": "x-z"
+      },
+      "definition": "Clamp to >=0 the projected distance from the pipette mouth plane to the most inward aspirated nucleus/cytoplasm node.",
+      "mapsTo": [
+        "history[].aspirationLength",
+        "aspiration.length",
+        "peaks.peakAspirationLength"
+      ]
+    },
+    "faceData": [
+      {
+        "name": "nucleus_cytoplasm_interface_surface",
+        "file": "febio_interface_nucleus_cytoplasm.csv",
+        "surface": "nucleus_interface_surface",
+        "logfileData": "contact gap;contact pressure",
+        "logfileFields": [
+          "contact gap",
+          "contact pressure"
+        ],
+        "optionalExternalFields": [
+          "contact traction",
+          "traction x",
+          "traction y",
+          "traction z",
+          "tangential traction",
+          "shear traction"
+        ],
+        "currentCoverage": {
+          "normal": "native-face-data-preferred",
+          "damage": "native-face-data-preferred",
+          "shear": "proxy-fallback-explicit"
+        }
+      },
+      {
+        "name": "nucleus_cytoplasm_left_surface",
+        "file": "febio_interface_nc_left.csv",
+        "surface": "nucleus_interface_left_surface",
+        "logfileData": "contact gap;contact pressure",
+        "logfileFields": [
+          "contact gap",
+          "contact pressure"
+        ],
+        "optionalExternalFields": [
+          "contact traction",
+          "traction x",
+          "traction y",
+          "traction z",
+          "tangential traction",
+          "shear traction"
+        ],
+        "currentCoverage": {
+          "normal": "native-face-data-preferred",
+          "damage": "native-face-data-preferred",
+          "shear": "proxy-fallback-explicit"
+        }
+      },
+      {
+        "name": "nucleus_cytoplasm_right_surface",
+        "file": "febio_interface_nc_right.csv",
+        "surface": "nucleus_interface_right_surface",
+        "logfileData": "contact gap;contact pressure",
+        "logfileFields": [
+          "contact gap",
+          "contact pressure"
+        ],
+        "optionalExternalFields": [
+          "contact traction",
+          "traction x",
+          "traction y",
+          "traction z",
+          "tangential traction",
+          "shear traction"
+        ],
+        "currentCoverage": {
+          "normal": "native-face-data-preferred",
+          "damage": "native-face-data-preferred",
+          "shear": "proxy-fallback-explicit"
+        }
+      },
+      {
+        "name": "nucleus_cytoplasm_top_surface",
+        "file": "febio_interface_nc_top.csv",
+        "surface": "nucleus_interface_top_surface",
+        "logfileData": "contact gap;contact pressure",
+        "logfileFields": [
+          "contact gap",
+          "contact pressure"
+        ],
+        "optionalExternalFields": [
+          "contact traction",
+          "traction x",
+          "traction y",
+          "traction z",
+          "tangential traction",
+          "shear traction"
+        ],
+        "currentCoverage": {
+          "normal": "native-face-data-preferred",
+          "damage": "native-face-data-preferred",
+          "shear": "proxy-fallback-explicit"
+        }
+      },
+      {
+        "name": "nucleus_cytoplasm_bottom_surface",
+        "file": "febio_interface_nc_bottom.csv",
+        "surface": "nucleus_interface_bottom_surface",
+        "logfileData": "contact gap;contact pressure",
+        "logfileFields": [
+          "contact gap",
+          "contact pressure"
+        ],
+        "optionalExternalFields": [
+          "contact traction",
+          "traction x",
+          "traction y",
+          "traction z",
+          "tangential traction",
+          "shear traction"
+        ],
+        "currentCoverage": {
+          "normal": "native-face-data-preferred",
+          "damage": "native-face-data-preferred",
+          "shear": "proxy-fallback-explicit"
+        }
+      },
+      {
+        "name": "cell_dish_interface_surface",
+        "file": "febio_interface_cell_dish.csv",
+        "surface": "cell_dish_surface",
+        "logfileData": "contact gap;contact pressure",
+        "logfileFields": [
+          "contact gap",
+          "contact pressure"
+        ],
+        "optionalExternalFields": [
+          "contact traction",
+          "traction x",
+          "traction y",
+          "traction z",
+          "tangential traction",
+          "shear traction"
+        ],
+        "currentCoverage": {
+          "normal": "native-face-data-preferred",
+          "damage": "native-face-data-preferred",
+          "shear": "proxy-fallback-explicit"
+        }
+      },
+      {
+        "name": "cell_dish_left_surface",
+        "file": "febio_interface_cd_left.csv",
+        "surface": "cell_dish_left_surface",
+        "logfileData": "contact gap;contact pressure",
+        "logfileFields": [
+          "contact gap",
+          "contact pressure"
+        ],
+        "optionalExternalFields": [
+          "contact traction",
+          "traction x",
+          "traction y",
+          "traction z",
+          "tangential traction",
+          "shear traction"
+        ],
+        "currentCoverage": {
+          "normal": "native-face-data-preferred",
+          "damage": "native-face-data-preferred",
+          "shear": "proxy-fallback-explicit"
+        }
+      },
+      {
+        "name": "cell_dish_center_surface",
+        "file": "febio_interface_cd_center.csv",
+        "surface": "cell_dish_center_surface",
+        "logfileData": "contact gap;contact pressure",
+        "logfileFields": [
+          "contact gap",
+          "contact pressure"
+        ],
+        "optionalExternalFields": [
+          "contact traction",
+          "traction x",
+          "traction y",
+          "traction z",
+          "tangential traction",
+          "shear traction"
+        ],
+        "currentCoverage": {
+          "normal": "native-face-data-preferred",
+          "damage": "native-face-data-preferred",
+          "shear": "proxy-fallback-explicit"
+        }
+      },
+      {
+        "name": "cell_dish_right_surface",
+        "file": "febio_interface_cd_right.csv",
+        "surface": "cell_dish_right_surface",
+        "logfileData": "contact gap;contact pressure",
+        "logfileFields": [
+          "contact gap",
+          "contact pressure"
+        ],
+        "optionalExternalFields": [
+          "contact traction",
+          "traction x",
+          "traction y",
+          "traction z",
+          "tangential traction",
+          "shear traction"
+        ],
+        "currentCoverage": {
+          "normal": "native-face-data-preferred",
+          "damage": "native-face-data-preferred",
+          "shear": "proxy-fallback-explicit"
+        }
+      },
+      {
+        "name": "pipette_cell_contact_surface",
+        "file": "febio_pipette_cell_contact.csv",
+        "surface": "pipette_suction_surface",
+        "logfileData": "contact gap;contact pressure",
+        "logfileFields": [
+          "contact gap",
+          "contact pressure"
+        ],
+        "optionalExternalFields": [
+          "contact traction",
+          "traction x",
+          "traction y",
+          "traction z",
+          "tangential traction",
+          "shear traction"
+        ],
+        "currentCoverage": {
+          "normal": "native-face-data-preferred",
+          "damage": "proxy-fallback-explicit",
+          "shear": "proxy-fallback-explicit"
+        }
+      },
+      {
+        "name": "pipette_contact_surface",
+        "file": "febio_pipette_contact.csv",
+        "surface": "pipette_contact_surface",
+        "logfileData": "contact gap;contact pressure",
+        "logfileFields": [
+          "contact gap",
+          "contact pressure"
+        ],
+        "optionalExternalFields": [
+          "contact traction",
+          "traction x",
+          "traction y",
+          "traction z",
+          "tangential traction",
+          "shear traction"
+        ],
+        "currentCoverage": {
+          "normal": "native-face-data-preferred",
+          "damage": "proxy-fallback-explicit",
+          "shear": "not-used"
+        }
+      }
+    ],
+    "plotfileSurfaceData": [
+      {
+        "name": "nucleus_cytoplasm_left_surface",
+        "variable": "contact traction",
+        "surface": "nucleus_interface_left_surface",
+        "interfaceGroup": "localNc",
+        "region": "left",
+        "alias": "nucleus_cytoplasm_left_surface_contact_traction",
+        "payloadPath": "plotfileSurfaceData.localNc.left",
+        "preferredSource": "native-plotfile-contact-traction",
+        "sectionAxes": {
+          "normal": "x",
+          "tangential": "z"
+        }
+      },
+      {
+        "name": "nucleus_cytoplasm_right_surface",
+        "variable": "contact traction",
+        "surface": "nucleus_interface_right_surface",
+        "interfaceGroup": "localNc",
+        "region": "right",
+        "alias": "nucleus_cytoplasm_right_surface_contact_traction",
+        "payloadPath": "plotfileSurfaceData.localNc.right",
+        "preferredSource": "native-plotfile-contact-traction",
+        "sectionAxes": {
+          "normal": "x",
+          "tangential": "z"
+        }
+      },
+      {
+        "name": "nucleus_cytoplasm_top_surface",
+        "variable": "contact traction",
+        "surface": "nucleus_interface_top_surface",
+        "interfaceGroup": "localNc",
+        "region": "top",
+        "alias": "nucleus_cytoplasm_top_surface_contact_traction",
+        "payloadPath": "plotfileSurfaceData.localNc.top",
+        "preferredSource": "native-plotfile-contact-traction",
+        "sectionAxes": {
+          "normal": "z",
+          "tangential": "x"
+        }
+      },
+      {
+        "name": "nucleus_cytoplasm_bottom_surface",
+        "variable": "contact traction",
+        "surface": "nucleus_interface_bottom_surface",
+        "interfaceGroup": "localNc",
+        "region": "bottom",
+        "alias": "nucleus_cytoplasm_bottom_surface_contact_traction",
+        "payloadPath": "plotfileSurfaceData.localNc.bottom",
+        "preferredSource": "native-plotfile-contact-traction",
+        "sectionAxes": {
+          "normal": "z",
+          "tangential": "x"
+        }
+      },
+      {
+        "name": "cell_dish_left_surface",
+        "variable": "contact traction",
+        "surface": "cell_dish_left_surface",
+        "interfaceGroup": "localCd",
+        "region": "left",
+        "alias": "cell_dish_left_surface_contact_traction",
+        "payloadPath": "plotfileSurfaceData.localCd.left",
+        "preferredSource": "native-plotfile-contact-traction",
+        "sectionAxes": {
+          "normal": "z",
+          "tangential": "x"
+        }
+      },
+      {
+        "name": "cell_dish_center_surface",
+        "variable": "contact traction",
+        "surface": "cell_dish_center_surface",
+        "interfaceGroup": "localCd",
+        "region": "center",
+        "alias": "cell_dish_center_surface_contact_traction",
+        "payloadPath": "plotfileSurfaceData.localCd.center",
+        "preferredSource": "native-plotfile-contact-traction",
+        "sectionAxes": {
+          "normal": "z",
+          "tangential": "x"
+        }
+      },
+      {
+        "name": "cell_dish_right_surface",
+        "variable": "contact traction",
+        "surface": "cell_dish_right_surface",
+        "interfaceGroup": "localCd",
+        "region": "right",
+        "alias": "cell_dish_right_surface_contact_traction",
+        "payloadPath": "plotfileSurfaceData.localCd.right",
+        "preferredSource": "native-plotfile-contact-traction",
+        "sectionAxes": {
+          "normal": "z",
+          "tangential": "x"
+        }
+      }
+    ]
+  },
+  "stageS7": {
+    "purpose": "FEBio-native direct parameter path and force-transfer validation",
+    "status": "exported-for-febio-native-direct-review",
+    "checks": [
+      "FEBio Studio readability",
+      "pressure load active in solver steps",
+      "pipette contact pair declaration",
+      "cell-dish contact pair declaration",
+      "nonzero displacement/contact pressure/reaction force after FEBio run"
+    ]
+  },
+  "studioConfirmation": {
+    "febPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb/S7_direct_force_transfer.feb",
+    "runDirectory": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb",
+    "logPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb/S7_direct_force_transfer.log",
+    "resultPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb/S7_direct_force_transfer_result.json",
+    "outputCsv": [
+      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb/febio_pipette_contact.csv",
+      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb/febio_rigid_pipette.csv",
+      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_confirmation_feb/febio_interface_cell_dish.csv"
+    ]
+  }
+}

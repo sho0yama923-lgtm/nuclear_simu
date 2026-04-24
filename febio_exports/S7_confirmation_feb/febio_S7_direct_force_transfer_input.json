@@ -1,0 +1,5314 @@
+{
+  "caseName": "S7_direct_force_transfer",
+  "nativeSpec": {
+    "caseName": "S7_direct_force_transfer",
+    "unitSystem": "um-nN-s",
+    "geometry": {
+      "nucleus": {
+        "width": 28,
+        "height": 18,
+        "center": {
+          "x": 0,
+          "z": 17
+        }
+      },
+      "cytoplasm": {
+        "width": 52,
+        "height": 34
+      },
+      "pipette": {
+        "radius": 6.5,
+        "tip": {
+          "x": 26,
+          "z": 8.5
+        }
+      },
+      "meshMode": "refined"
+    },
+    "materials": {
+      "nucleus": {
+        "type": "viscoelastic",
+        "E": 20,
+        "nu": 0.34,
+        "eta": 4.2,
+        "alphaNonlinear": 0.12
+      },
+      "cytoplasm": {
+        "type": "viscoelastic",
+        "E": 7.5,
+        "nu": 0.41,
+        "eta": 5.6
+      },
+      "dish": {
+        "type": "neo-Hookean",
+        "E": 250,
+        "nu": 0.3
+      },
+      "pipette": {
+        "type": "rigid body",
+        "density": 1,
+        "E": 600,
+        "nu": 0.25
+      }
+    },
+    "contacts": {
+      "nucleusCytoplasm": {
+        "type": "sticky",
+        "normalStiffness": 1.35,
+        "tangentialStiffness": 1.05,
+        "criticalNormalStress": 0.78,
+        "criticalShearStress": 0.58,
+        "fractureEnergy": 0.28
+      },
+      "cellDish": {
+        "type": "tied-elastic",
+        "normalStiffness": 1.55,
+        "tangentialStiffness": 1.25,
+        "criticalNormalStress": 0.95,
+        "criticalShearStress": 0.65,
+        "fractureEnergy": 0.35
+      },
+      "pipetteNucleus": {
+        "type": "sticky",
+        "tolerance": 0.2,
+        "searchTolerance": 2.2,
+        "friction": 0.26,
+        "maxTraction": 1,
+        "snapTolerance": 0.18
+      },
+      "pipetteCell": {
+        "type": "sliding-elastic",
+        "tolerance": 0.2,
+        "searchTolerance": 2.64,
+        "friction": 0.091
+      }
+    },
+    "loads": {
+      "suctionPressure": {
+        "name": "pipette_suction_pressure",
+        "surface": "pipette_suction_surface",
+        "value": -0.7,
+        "unit": "kPa",
+        "loadController": 202,
+        "curve": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ],
+          [
+            5,
+            1
+          ]
+        ],
+        "magnitude": 0.7
+      },
+      "holdForceProxy": {
+        "value": 20,
+        "loadController": 201
+      }
+    },
+    "boundary": {
+      "fixedNodeSet": "dish_fixed_nodes",
+      "pipetteMotion": {
+        "liftZ": 8,
+        "inwardX": 4,
+        "tangentY": 7.5
+      }
+    },
+    "steps": [
+      {
+        "id": 1,
+        "name": "approach"
+      },
+      {
+        "id": 2,
+        "name": "hold"
+      },
+      {
+        "id": 3,
+        "name": "lift"
+      },
+      {
+        "id": 4,
+        "name": "manipulation-1"
+      },
+      {
+        "id": 5,
+        "name": "manipulation-2"
+      }
+    ],
+    "outputs": {
+      "displacement": true,
+      "reactionForce": true,
+      "contactPressure": true,
+      "contactGap": true,
+      "contactTraction": true,
+      "aspirationLength": true
+    },
+    "diagnostics": {
+      "targets": [
+        "pressure-load-declared",
+        "pressure-load-step-active",
+        "contact-pair-declared",
+        "contact-pressure-nonzero",
+        "reaction-force-nonzero",
+        "displacement-nonzero"
+      ]
+    }
+  },
+  "parameterDigest": "fdig_07cf952d",
+  "templateData": {
+    "status": {
+      "buildMode": "febio-native-direct",
+      "isPlaceholder": false,
+      "meshValidated": true,
+      "interfaceValidated": true,
+      "membraneModel": "cortex_proxy",
+      "source": "febio-native-spec",
+      "notes": [
+        "built from FEBio-native spec JSON without UI parameter conversion",
+        "initial S7 direct path reuses the refined mesh generator and FEBio XML serializer",
+        "force-transfer validation still requires FEBio CLI/Studio confirmation"
+      ]
+    },
+    "parameterDigest": "fdig_07cf952d",
+    "coordinateSystem": {
+      "unitSystem": "um-nN-s",
+      "length": "um",
+      "force": "nN",
+      "time": "s",
+      "stress": "kPa"
+    },
+    "nativeSpec": {
+      "caseName": "S7_direct_force_transfer",
+      "unitSystem": "um-nN-s",
+      "geometry": {
+        "nucleus": {
+          "width": 28,
+          "height": 18,
+          "center": {
+            "x": 0,
+            "z": 17
+          }
+        },
+        "cytoplasm": {
+          "width": 52,
+          "height": 34
+        },
+        "pipette": {
+          "radius": 6.5,
+          "tip": {
+            "x": 26,
+            "z": 8.5
+          }
+        },
+        "meshMode": "refined"
+      },
+      "materials": {
+        "nucleus": {
+          "type": "viscoelastic",
+          "E": 20,
+          "nu": 0.34,
+          "eta": 4.2,
+          "alphaNonlinear": 0.12
+        },
+        "cytoplasm": {
+          "type": "viscoelastic",
+          "E": 7.5,
+          "nu": 0.41,
+          "eta": 5.6
+        },
+        "dish": {
+          "type": "neo-Hookean",
+          "E": 250,
+          "nu": 0.3
+        },
+        "pipette": {
+          "type": "rigid body",
+          "density": 1,
+          "E": 600,
+          "nu": 0.25
+        }
+      },
+      "contacts": {
+        "nucleusCytoplasm": {
+          "type": "sticky",
+          "normalStiffness": 1.35,
+          "tangentialStiffness": 1.05,
+          "criticalNormalStress": 0.78,
+          "criticalShearStress": 0.58,
+          "fractureEnergy": 0.28
+        },
+        "cellDish": {
+          "type": "tied-elastic",
+          "normalStiffness": 1.55,
+          "tangentialStiffness": 1.25,
+          "criticalNormalStress": 0.95,
+          "criticalShearStress": 0.65,
+          "fractureEnergy": 0.35
+        },
+        "pipetteNucleus": {
+          "type": "sticky",
+          "tolerance": 0.2,
+          "searchTolerance": 2.2,
+          "friction": 0.26,
+          "maxTraction": 1,
+          "snapTolerance": 0.18
+        },
+        "pipetteCell": {
+          "type": "sliding-elastic",
+          "tolerance": 0.2,
+          "searchTolerance": 2.64,
+          "friction": 0.091
+        }
+      },
+      "loads": {
+        "suctionPressure": {
+          "name": "pipette_suction_pressure",
+          "surface": "pipette_suction_surface",
+          "value": -0.7,
+          "unit": "kPa",
+          "loadController": 202,
+          "curve": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              2,
+              1
+            ],
+            [
+              5,
+              1
+            ]
+          ],
+          "magnitude": 0.7
+        },
+        "holdForceProxy": {
+          "value": 20,
+          "loadController": 201
+        }
+      },
+      "boundary": {
+        "fixedNodeSet": "dish_fixed_nodes",
+        "pipetteMotion": {
+          "liftZ": 8,
+          "inwardX": 4,
+          "tangentY": 7.5
+        }
+      },
+      "steps": [
+        {
+          "id": 1,
+          "name": "approach"
+        },
+        {
+          "id": 2,
+          "name": "hold"
+        },
+        {
+          "id": 3,
+          "name": "lift"
+        },
+        {
+          "id": 4,
+          "name": "manipulation-1"
+        },
+        {
+          "id": 5,
+          "name": "manipulation-2"
+        }
+      ],
+      "outputs": {
+        "displacement": true,
+        "reactionForce": true,
+        "contactPressure": true,
+        "contactGap": true,
+        "contactTraction": true,
+        "aspirationLength": true
+      },
+      "diagnostics": {
+        "targets": [
+          "pressure-load-declared",
+          "pressure-load-step-active",
+          "contact-pair-declared",
+          "contact-pressure-nonzero",
+          "reaction-force-nonzero",
+          "displacement-nonzero"
+        ]
+      }
+    },
+    "geometry": {
+      "mesh": {
+        "meshMode": "refined",
+        "bounds": {
+          "cellLeft": -26,
+          "cellRight": 26,
+          "cellTop": 34,
+          "nucleusLeft": -14,
+          "nucleusRight": 14,
+          "nucleusBottom": 8,
+          "nucleusTop": 26,
+          "dishBottom": -2.72,
+          "pipetteLeft": 26,
+          "pipetteRight": 39,
+          "pipetteContactX": 26,
+          "pipetteBottom": 2,
+          "pipetteTop": 15
+        },
+        "nodes": [
+          {
+            "id": 1,
+            "x": -26,
+            "y": -0.5,
+            "z": 0
+          },
+          {
+            "id": 2,
+            "x": -14,
+            "y": -0.5,
+            "z": 0
+          },
+          {
+            "id": 3,
+            "x": -14,
+            "y": 0.5,
+            "z": 0
+          },
+          {
+            "id": 4,
+            "x": -26,
+            "y": 0.5,
+            "z": 0
+          },
+          {
+            "id": 5,
+            "x": -26,
+            "y": -0.5,
+            "z": 34
+          },
+          {
+            "id": 6,
+            "x": -14,
+            "y": -0.5,
+            "z": 34
+          },
+          {
+            "id": 7,
+            "x": -14,
+            "y": 0.5,
+            "z": 34
+          },
+          {
+            "id": 8,
+            "x": -26,
+            "y": 0.5,
+            "z": 34
+          },
+          {
+            "id": 9,
+            "x": -14,
+            "y": -0.25,
+            "z": 8
+          },
+          {
+            "id": 10,
+            "x": 14,
+            "y": -0.25,
+            "z": 8
+          },
+          {
+            "id": 11,
+            "x": 14,
+            "y": 0.25,
+            "z": 8
+          },
+          {
+            "id": 12,
+            "x": -14,
+            "y": 0.25,
+            "z": 8
+          },
+          {
+            "id": 13,
+            "x": -14,
+            "y": -0.25,
+            "z": 26
+          },
+          {
+            "id": 14,
+            "x": 14,
+            "y": -0.25,
+            "z": 26
+          },
+          {
+            "id": 15,
+            "x": 14,
+            "y": 0.25,
+            "z": 26
+          },
+          {
+            "id": 16,
+            "x": -14,
+            "y": 0.25,
+            "z": 26
+          },
+          {
+            "id": 17,
+            "x": 26,
+            "y": -0.2,
+            "z": 2
+          },
+          {
+            "id": 18,
+            "x": 39,
+            "y": -0.2,
+            "z": 2
+          },
+          {
+            "id": 19,
+            "x": 39,
+            "y": 0.2,
+            "z": 2
+          },
+          {
+            "id": 20,
+            "x": 26,
+            "y": 0.2,
+            "z": 2
+          },
+          {
+            "id": 21,
+            "x": 26,
+            "y": -0.2,
+            "z": 15
+          },
+          {
+            "id": 22,
+            "x": 39,
+            "y": -0.2,
+            "z": 15
+          },
+          {
+            "id": 23,
+            "x": 39,
+            "y": 0.2,
+            "z": 15
+          },
+          {
+            "id": 24,
+            "x": 26,
+            "y": 0.2,
+            "z": 15
+          },
+          {
+            "id": 25,
+            "x": -26,
+            "y": -0.5,
+            "z": -2.72
+          },
+          {
+            "id": 26,
+            "x": 26,
+            "y": -0.5,
+            "z": -2.72
+          },
+          {
+            "id": 27,
+            "x": 26,
+            "y": 0.5,
+            "z": -2.72
+          },
+          {
+            "id": 28,
+            "x": -26,
+            "y": 0.5,
+            "z": -2.72
+          },
+          {
+            "id": 29,
+            "x": -26,
+            "y": -0.5,
+            "z": 0
+          },
+          {
+            "id": 30,
+            "x": 26,
+            "y": -0.5,
+            "z": 0
+          },
+          {
+            "id": 31,
+            "x": 26,
+            "y": 0.5,
+            "z": 0
+          },
+          {
+            "id": 32,
+            "x": -26,
+            "y": 0.5,
+            "z": 0
+          },
+          {
+            "id": 33,
+            "x": 14,
+            "y": -0.5,
+            "z": 0
+          },
+          {
+            "id": 34,
+            "x": 26,
+            "y": -0.5,
+            "z": 0
+          },
+          {
+            "id": 35,
+            "x": 26,
+            "y": 0.5,
+            "z": 0
+          },
+          {
+            "id": 36,
+            "x": 14,
+            "y": 0.5,
+            "z": 0
+          },
+          {
+            "id": 37,
+            "x": 14,
+            "y": -0.5,
+            "z": 34
+          },
+          {
+            "id": 38,
+            "x": 26,
+            "y": -0.5,
+            "z": 34
+          },
+          {
+            "id": 39,
+            "x": 26,
+            "y": 0.5,
+            "z": 34
+          },
+          {
+            "id": 40,
+            "x": 14,
+            "y": 0.5,
+            "z": 34
+          },
+          {
+            "id": 41,
+            "x": -14,
+            "y": -0.5,
+            "z": 0
+          },
+          {
+            "id": 42,
+            "x": 14,
+            "y": -0.5,
+            "z": 0
+          },
+          {
+            "id": 43,
+            "x": 14,
+            "y": 0.5,
+            "z": 0
+          },
+          {
+            "id": 44,
+            "x": -14,
+            "y": 0.5,
+            "z": 0
+          },
+          {
+            "id": 45,
+            "x": -14,
+            "y": -0.5,
+            "z": 8
+          },
+          {
+            "id": 46,
+            "x": 14,
+            "y": -0.5,
+            "z": 8
+          },
+          {
+            "id": 47,
+            "x": 14,
+            "y": 0.5,
+            "z": 8
+          },
+          {
+            "id": 48,
+            "x": -14,
+            "y": 0.5,
+            "z": 8
+          },
+          {
+            "id": 49,
+            "x": -14,
+            "y": -0.5,
+            "z": 26
+          },
+          {
+            "id": 50,
+            "x": 14,
+            "y": -0.5,
+            "z": 26
+          },
+          {
+            "id": 51,
+            "x": 14,
+            "y": 0.5,
+            "z": 26
+          },
+          {
+            "id": 52,
+            "x": -14,
+            "y": 0.5,
+            "z": 26
+          },
+          {
+            "id": 53,
+            "x": -14,
+            "y": -0.5,
+            "z": 34
+          },
+          {
+            "id": 54,
+            "x": 14,
+            "y": -0.5,
+            "z": 34
+          },
+          {
+            "id": 55,
+            "x": 14,
+            "y": 0.5,
+            "z": 34
+          },
+          {
+            "id": 56,
+            "x": -14,
+            "y": 0.5,
+            "z": 34
+          }
+        ],
+        "elements": [
+          {
+            "id": 1,
+            "type": "hex8",
+            "material": "cytoplasm",
+            "nodes": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "id": 2,
+            "type": "hex8",
+            "material": "nucleus",
+            "nodes": [
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16
+            ]
+          },
+          {
+            "id": 3,
+            "type": "hex8",
+            "material": "pipette",
+            "nodes": [
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24
+            ]
+          },
+          {
+            "id": 4,
+            "type": "hex8",
+            "material": "dish",
+            "nodes": [
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32
+            ]
+          },
+          {
+            "id": 5,
+            "type": "hex8",
+            "material": "cytoplasm",
+            "nodes": [
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40
+            ]
+          },
+          {
+            "id": 6,
+            "type": "hex8",
+            "material": "cytoplasm",
+            "nodes": [
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48
+            ]
+          },
+          {
+            "id": 7,
+            "type": "hex8",
+            "material": "cytoplasm",
+            "nodes": [
+              49,
+              50,
+              51,
+              52,
+              53,
+              54,
+              55,
+              56
+            ]
+          }
+        ],
+        "surfaces": {
+          "nucleus_interface_surface": [
+            {
+              "id": 1,
+              "type": "quad4",
+              "nodes": [
+                9,
+                12,
+                16,
+                13
+              ]
+            },
+            {
+              "id": 2,
+              "type": "quad4",
+              "nodes": [
+                10,
+                11,
+                15,
+                14
+              ]
+            },
+            {
+              "id": 3,
+              "type": "quad4",
+              "nodes": [
+                13,
+                14,
+                15,
+                16
+              ]
+            },
+            {
+              "id": 4,
+              "type": "quad4",
+              "nodes": [
+                9,
+                10,
+                11,
+                12
+              ]
+            }
+          ],
+          "nucleus_interface_left_surface": [
+            {
+              "id": 2,
+              "type": "quad4",
+              "nodes": [
+                9,
+                12,
+                16,
+                13
+              ]
+            }
+          ],
+          "nucleus_interface_right_surface": [
+            {
+              "id": 3,
+              "type": "quad4",
+              "nodes": [
+                10,
+                11,
+                15,
+                14
+              ]
+            }
+          ],
+          "nucleus_interface_top_surface": [
+            {
+              "id": 4,
+              "type": "quad4",
+              "nodes": [
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "nucleus_interface_bottom_surface": [
+            {
+              "id": 5,
+              "type": "quad4",
+              "nodes": [
+                9,
+                10,
+                11,
+                12
+              ]
+            }
+          ],
+          "cytoplasm_interface_surface": [
+            {
+              "id": 6,
+              "type": "quad4",
+              "nodes": [
+                2,
+                3,
+                7,
+                6
+              ]
+            },
+            {
+              "id": 7,
+              "type": "quad4",
+              "nodes": [
+                33,
+                36,
+                40,
+                37
+              ]
+            },
+            {
+              "id": 8,
+              "type": "quad4",
+              "nodes": [
+                45,
+                46,
+                47,
+                48
+              ]
+            },
+            {
+              "id": 9,
+              "type": "quad4",
+              "nodes": [
+                49,
+                50,
+                51,
+                52
+              ]
+            }
+          ],
+          "cytoplasm_interface_left_surface": [
+            {
+              "id": 10,
+              "type": "quad4",
+              "nodes": [
+                2,
+                3,
+                7,
+                6
+              ]
+            }
+          ],
+          "cytoplasm_interface_right_surface": [
+            {
+              "id": 11,
+              "type": "quad4",
+              "nodes": [
+                33,
+                36,
+                40,
+                37
+              ]
+            }
+          ],
+          "cytoplasm_interface_top_surface": [
+            {
+              "id": 12,
+              "type": "quad4",
+              "nodes": [
+                49,
+                50,
+                51,
+                52
+              ]
+            }
+          ],
+          "cytoplasm_interface_bottom_surface": [
+            {
+              "id": 13,
+              "type": "quad4",
+              "nodes": [
+                45,
+                46,
+                47,
+                48
+              ]
+            }
+          ],
+          "cell_dish_surface": [
+            {
+              "id": 14,
+              "type": "quad4",
+              "nodes": [
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            {
+              "id": 15,
+              "type": "quad4",
+              "nodes": [
+                41,
+                42,
+                43,
+                44
+              ]
+            },
+            {
+              "id": 16,
+              "type": "quad4",
+              "nodes": [
+                33,
+                34,
+                35,
+                36
+              ]
+            }
+          ],
+          "dish_contact_surface": [
+            {
+              "id": 12,
+              "type": "quad4",
+              "nodes": [
+                29,
+                30,
+                31,
+                32
+              ]
+            }
+          ],
+          "cell_dish_left_surface": [
+            {
+              "id": 17,
+              "type": "quad4",
+              "nodes": [
+                1,
+                2,
+                3,
+                4
+              ]
+            }
+          ],
+          "cell_dish_center_surface": [
+            {
+              "id": 18,
+              "type": "quad4",
+              "nodes": [
+                41,
+                42,
+                43,
+                44
+              ]
+            }
+          ],
+          "cell_dish_right_surface": [
+            {
+              "id": 19,
+              "type": "quad4",
+              "nodes": [
+                33,
+                34,
+                35,
+                36
+              ]
+            }
+          ],
+          "pipette_suction_surface": [
+            {
+              "id": 20,
+              "type": "quad4",
+              "nodes": [
+                34,
+                38,
+                39,
+                35
+              ]
+            }
+          ],
+          "pipette_contact_surface": [
+            {
+              "id": 16,
+              "type": "quad4",
+              "nodes": [
+                17,
+                20,
+                24,
+                21
+              ]
+            }
+          ]
+        },
+        "nodeSets": {
+          "nc_left_nucleus_nodes": [
+            9,
+            12,
+            13,
+            16
+          ],
+          "nc_right_nucleus_nodes": [
+            10,
+            11,
+            14,
+            15
+          ],
+          "nc_top_nucleus_nodes": [
+            13,
+            14,
+            15,
+            16
+          ],
+          "nc_bottom_nucleus_nodes": [
+            9,
+            10,
+            11,
+            12
+          ],
+          "nc_left_cytoplasm_nodes": [
+            2,
+            3,
+            6,
+            7
+          ],
+          "nc_right_cytoplasm_nodes": [
+            33,
+            36,
+            37,
+            40
+          ],
+          "nc_top_cytoplasm_nodes": [
+            49,
+            50,
+            51,
+            52
+          ],
+          "nc_bottom_cytoplasm_nodes": [
+            45,
+            46,
+            47,
+            48
+          ],
+          "cd_left_cell_nodes": [
+            1,
+            4
+          ],
+          "cd_center_cell_nodes": [
+            41,
+            42,
+            43,
+            44
+          ],
+          "cd_right_cell_nodes": [
+            34,
+            35
+          ],
+          "dish_fixed_nodes": [
+            25,
+            26,
+            27,
+            28
+          ],
+          "pipette_contact_nodes": [
+            17,
+            20,
+            21,
+            24
+          ]
+        },
+        "elementSets": {
+          "cytoplasm": [
+            1,
+            5,
+            6,
+            7
+          ],
+          "nucleus": [
+            2
+          ],
+          "pipette": [
+            3
+          ],
+          "dish": [
+            4
+          ]
+        },
+        "surfacePairs": {
+          "nucleus_cytoplasm_pair": {
+            "name": "nucleus_cytoplasm_pair",
+            "primary": "cytoplasm_interface_surface",
+            "secondary": "nucleus_interface_surface"
+          },
+          "cell_dish_pair": {
+            "name": "cell_dish_pair",
+            "primary": "cell_dish_surface",
+            "secondary": "dish_contact_surface"
+          },
+          "pipette_nucleus_pair": {
+            "name": "pipette_nucleus_pair",
+            "primary": "nucleus_interface_right_surface",
+            "secondary": "pipette_contact_surface"
+          },
+          "pipette_cell_pair": {
+            "name": "pipette_cell_pair",
+            "primary": "pipette_suction_surface",
+            "secondary": "pipette_contact_surface"
+          }
+        }
+      },
+      "meshValidation": {
+        "valid": true,
+        "invalidElements": [],
+        "aspectRatioWarnings": [],
+        "requiredDomains": {
+          "nucleus": "present",
+          "cytoplasm": "present",
+          "dish": "present",
+          "pipette": "present"
+        },
+        "requiredNodeSets": {
+          "dish_fixed_nodes": "present",
+          "pipette_contact_nodes": "present",
+          "nc_left_nucleus_nodes": "present",
+          "nc_right_nucleus_nodes": "present",
+          "nc_top_nucleus_nodes": "present",
+          "nc_bottom_nucleus_nodes": "present",
+          "nc_left_cytoplasm_nodes": "present",
+          "nc_right_cytoplasm_nodes": "present",
+          "nc_top_cytoplasm_nodes": "present",
+          "nc_bottom_cytoplasm_nodes": "present",
+          "cd_left_cell_nodes": "present",
+          "cd_center_cell_nodes": "present",
+          "cd_right_cell_nodes": "present"
+        },
+        "requiredSurfaces": {
+          "nucleus_interface_surface": true,
+          "nucleus_interface_left_surface": true,
+          "nucleus_interface_right_surface": true,
+          "nucleus_interface_top_surface": true,
+          "nucleus_interface_bottom_surface": true,
+          "cytoplasm_interface_surface": true,
+          "cytoplasm_interface_left_surface": true,
+          "cytoplasm_interface_right_surface": true,
+          "cytoplasm_interface_top_surface": true,
+          "cytoplasm_interface_bottom_surface": true,
+          "cell_dish_surface": true,
+          "dish_contact_surface": true,
+          "cell_dish_left_surface": true,
+          "cell_dish_center_surface": true,
+          "cell_dish_right_surface": true,
+          "pipette_suction_surface": true,
+          "pipette_contact_surface": true
+        },
+        "requiredSurfacePairs": {
+          "nucleus_cytoplasm_pair": {
+            "present": true,
+            "primary": true,
+            "secondary": true,
+            "surfacesReady": true
+          },
+          "cell_dish_pair": {
+            "present": true,
+            "primary": true,
+            "secondary": true,
+            "surfacesReady": true
+          },
+          "pipette_nucleus_pair": {
+            "present": true,
+            "primary": true,
+            "secondary": true,
+            "surfacesReady": true
+          },
+          "pipette_cell_pair": {
+            "present": true,
+            "primary": true,
+            "secondary": true,
+            "surfacesReady": true
+          }
+        }
+      },
+      "nucleus": {
+        "shape": "ellipse",
+        "width": 28,
+        "height": 18,
+        "center": {
+          "x": 0,
+          "z": 17
+        }
+      },
+      "cytoplasm": {
+        "shape": "cap",
+        "width": 52,
+        "height": 34,
+        "dishZ": 0
+      },
+      "membrane": {
+        "attachment": "cytoplasm_outer_surface",
+        "model": "cortex_proxy",
+        "status": "implemented-proxy",
+        "thresholds": {}
+      },
+      "pipette": {
+        "radius": 6.5,
+        "puncture": {
+          "x": 26,
+          "z": 8.5
+        }
+      }
+    },
+    "materials": {
+      "nucleus": {
+        "id": 1,
+        "name": "nucleus",
+        "type": "viscoelastic",
+        "domain": "nucleus",
+        "elastic": {
+          "E": 20,
+          "nu": 0.34
+        },
+        "viscous": {
+          "implemented": true,
+          "eta": 4.2,
+          "g1": 0.35,
+          "t1": 1.2
+        },
+        "optionalNonlinear": {
+          "implemented": false,
+          "alpha": 0.12
+        }
+      },
+      "cytoplasm": {
+        "id": 2,
+        "name": "cytoplasm",
+        "type": "viscoelastic",
+        "domain": "cytoplasm",
+        "elastic": {
+          "E": 7.5,
+          "nu": 0.41
+        },
+        "viscous": {
+          "implemented": true,
+          "eta": 5.6,
+          "g1": 0.35,
+          "t1": 1.2
+        },
+        "optionalNonlinear": {
+          "implemented": false,
+          "alpha": null
+        }
+      },
+      "dish": {
+        "id": 3,
+        "name": "dish",
+        "type": "neo-Hookean",
+        "domain": "dish",
+        "elastic": {
+          "E": 250,
+          "v": 0.3
+        }
+      },
+      "pipette": {
+        "id": 4,
+        "name": "pipette_rigid",
+        "type": "rigid body",
+        "domain": "pipette",
+        "density": 1,
+        "centerOfMass": [
+          32.5,
+          0,
+          8.5
+        ],
+        "elastic": {
+          "E": 600,
+          "v": 0.25
+        }
+      },
+      "membrane": {
+        "id": 5,
+        "name": "membrane",
+        "type": "cortex_proxy",
+        "status": "implemented-proxy",
+        "tension": 4.7
+      }
+    },
+    "interfaces": {
+      "nucleusCytoplasm": {
+        "type": "sticky",
+        "status": "partial-true-cohesive / sticky-active / stabilization-validated",
+        "mode": "solver-primary cohesive-approximation",
+        "surfacePair": {
+          "name": "nucleus_cytoplasm_pair",
+          "primary": "cytoplasm_interface_surface",
+          "secondary": "nucleus_interface_surface"
+        },
+        "normalStiffness": 1.35,
+        "tangentialStiffness": 1.05,
+        "criticalNormalStress": 0.78,
+        "criticalShearStress": 0.58,
+        "fractureEnergy": 0.28,
+        "penalty": {
+          "Kn": 0.35,
+          "Kt": 0.2162571428571428
+        },
+        "tolerance": 0.08,
+        "stabilization": {
+          "searchTolerance": 0.08,
+          "symmetricStiffness": false,
+          "augmentation": {
+            "enabled": true,
+            "minPasses": 0,
+            "maxPasses": 12
+          },
+          "ramp": [
+            {
+              "step": "approach",
+              "normalPenalty": 0.13999999999999999,
+              "tangentialPenalty": 0.0540642857142857,
+              "frictionProxy": 0.06475
+            },
+            {
+              "step": "hold",
+              "normalPenalty": 0.24499999999999997,
+              "tangentialPenalty": 0.11894142857142855,
+              "frictionProxy": 0.1295
+            },
+            {
+              "step": "lift",
+              "normalPenalty": 0.35,
+              "tangentialPenalty": 0.2162571428571428,
+              "frictionProxy": 0.185
+            }
+          ]
+        },
+        "cohesiveApproximation": {
+          "penalty": 0.35,
+          "tangentialPenalty": 0.2162571428571428,
+          "maxTraction": 0.25,
+          "snapTolerance": 0.10051282051282052,
+          "frictionProxy": 0.185
+        },
+        "nativeObservation": {
+          "normal": "native-face-data-preferred",
+          "shear": "proxy-fallback-explicit",
+          "damage": "native-face-data-preferred",
+          "detachment": "damage-plus-geometry"
+        },
+        "notes": [
+          "serialized as a sticky-contact cohesive approximation with soft-start stabilization",
+          "normal/tangential stiffness and traction limits are preserved for later true cohesive serialization",
+          "penalty and friction are ramped through approach/hold before full lift activation",
+          "detachment should migrate from proxy-assisted observation toward native cohesive output",
+          "stabilization validation passed for the sticky cohesive approximation"
+        ],
+        "validation": {
+          "valid": true,
+          "warnings": [],
+          "diagnostics": {
+            "monotonicRamp": true,
+            "rampSteps": [
+              "approach",
+              "hold",
+              "lift"
+            ],
+            "normalPenaltyRatio": 0.25925925925925924,
+            "tangentialPenaltyRatio": 0.2059591836734693,
+            "snapToSearchRatio": 1.2564102564102566,
+            "tractionToCriticalRatio": 0.3205128205128205
+          }
+        }
+      },
+      "cellDish": {
+        "type": "tied-elastic",
+        "status": "partial-cohesive-ready / tied-elastic-active",
+        "mode": "solver-primary tied-contact",
+        "surfacePair": {
+          "name": "cell_dish_pair",
+          "primary": "cell_dish_surface",
+          "secondary": "dish_contact_surface"
+        },
+        "normalStiffness": 1.55,
+        "tangentialStiffness": 1.25,
+        "criticalNormalStress": 0.95,
+        "criticalShearStress": 0.65,
+        "fractureEnergy": 0.35,
+        "nativeObservation": {
+          "normal": "native-face-data-preferred",
+          "shear": "proxy-fallback-explicit",
+          "damage": "native-face-data-preferred"
+        }
+      }
+    },
+    "contact": {
+      "pipetteNucleus": {
+        "type": "sticky",
+        "status": "solver-active capture-hold contact",
+        "mode": "capture-hold",
+        "tolerance": 0.2,
+        "searchTolerance": 2.2,
+        "searchRadius": 14.3,
+        "surfacePair": {
+          "name": "pipette_nucleus_pair",
+          "primary": "nucleus_interface_right_surface",
+          "secondary": "pipette_contact_surface"
+        },
+        "penalty": 0.6075,
+        "symmetricStiffness": 0,
+        "autoPenalty": 1,
+        "friction": 0.26,
+        "maxTraction": 1,
+        "snapTolerance": 0.18,
+        "releaseCondition": {
+          "type": "traction-or-slip-threshold",
+          "tractionLimit": 1,
+          "slipDistance": 0.3
+        }
+      },
+      "pipetteCell": {
+        "type": "sliding-elastic",
+        "status": "solver-active secondary contact",
+        "mode": "secondary-contact-proxy",
+        "tolerance": 0.2,
+        "searchTolerance": 2.64,
+        "searchRadius": 16.25,
+        "surfacePair": {
+          "name": "pipette_cell_pair",
+          "primary": "pipette_suction_surface",
+          "secondary": "pipette_contact_surface"
+        },
+        "penalty": 0.6975,
+        "symmetricStiffness": 0,
+        "autoPenalty": 1,
+        "friction": 0.091
+      }
+    },
+    "interfaceRegions": {
+      "localNc": {
+        "left": {
+          "nucleusNodeSet": "nc_left_nucleus_nodes",
+          "cytoplasmNodeSet": "nc_left_cytoplasm_nodes"
+        },
+        "right": {
+          "nucleusNodeSet": "nc_right_nucleus_nodes",
+          "cytoplasmNodeSet": "nc_right_cytoplasm_nodes"
+        },
+        "top": {
+          "nucleusNodeSet": "nc_top_nucleus_nodes",
+          "cytoplasmNodeSet": "nc_top_cytoplasm_nodes"
+        },
+        "bottom": {
+          "nucleusNodeSet": "nc_bottom_nucleus_nodes",
+          "cytoplasmNodeSet": "nc_bottom_cytoplasm_nodes"
+        }
+      },
+      "localCd": {
+        "left": {
+          "cellNodeSet": "cd_left_cell_nodes"
+        },
+        "center": {
+          "cellNodeSet": "cd_center_cell_nodes"
+        },
+        "right": {
+          "cellNodeSet": "cd_right_cell_nodes"
+        }
+      }
+    },
+    "boundary": {
+      "fixed": [
+        {
+          "name": "dish_fixed",
+          "nodeSet": "dish_fixed_nodes",
+          "dofs": [
+            "x",
+            "y",
+            "z"
+          ],
+          "nodeIds": [
+            25,
+            26,
+            27,
+            28
+          ]
+        }
+      ],
+      "prescribed": [
+        {
+          "name": "pipette_lift_z",
+          "nodeSet": "pipette_contact_nodes",
+          "dof": "z",
+          "value": 8,
+          "loadController": 101,
+          "mode": "relative"
+        },
+        {
+          "name": "pipette_inward_x",
+          "nodeSet": "pipette_contact_nodes",
+          "dof": "x",
+          "value": 4,
+          "loadController": 102,
+          "mode": "relative"
+        },
+        {
+          "name": "pipette_tangent_y",
+          "nodeSet": "pipette_contact_nodes",
+          "dof": "y",
+          "value": 7.5,
+          "loadController": 103,
+          "mode": "relative"
+        }
+      ],
+      "notes": [
+        "direct native spec boundary path"
+      ]
+    },
+    "loads": {
+      "nodal": [
+        {
+          "name": "hold_force_proxy",
+          "surface": "pipette_contact_surface",
+          "value": 20,
+          "loadController": 201,
+          "status": "proxy-load / not pressure-driven"
+        }
+      ],
+      "pressure": [
+        {
+          "name": "pipette_suction_pressure",
+          "surface": "pipette_suction_surface",
+          "value": -0.7,
+          "magnitude": 0.7,
+          "loadController": 202,
+          "status": "solver-active pressure-driven suction / febio-native-direct",
+          "direction": "inward-negative-pressure",
+          "unit": "kPa"
+        }
+      ],
+      "controllers": [
+        {
+          "id": 101,
+          "name": "lift_ramp",
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              0
+            ],
+            [
+              2,
+              1
+            ],
+            [
+              5,
+              1
+            ]
+          ]
+        },
+        {
+          "id": 102,
+          "name": "inward_ramp",
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              3,
+              0
+            ],
+            [
+              4,
+              1
+            ],
+            [
+              5,
+              1
+            ]
+          ]
+        },
+        {
+          "id": 202,
+          "name": "suction_pressure_curve",
+          "unit": "kPa",
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              2,
+              1
+            ],
+            [
+              5,
+              1
+            ]
+          ]
+        }
+      ],
+      "notes": [
+        "pressure load is sourced directly from FEBio-native spec loads.suctionPressure"
+      ]
+    },
+    "steps": [
+      {
+        "id": 1,
+        "name": "approach"
+      },
+      {
+        "id": 2,
+        "name": "hold"
+      },
+      {
+        "id": 3,
+        "name": "lift"
+      },
+      {
+        "id": 4,
+        "name": "manipulation-1"
+      },
+      {
+        "id": 5,
+        "name": "manipulation-2"
+      }
+    ],
+    "outputs": {
+      "faceData": [
+        {
+          "name": "nucleus_cytoplasm_interface_surface",
+          "file": "febio_interface_nucleus_cytoplasm.csv",
+          "surface": "nucleus_interface_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_left_surface",
+          "file": "febio_interface_nc_left.csv",
+          "surface": "nucleus_interface_left_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_right_surface",
+          "file": "febio_interface_nc_right.csv",
+          "surface": "nucleus_interface_right_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_top_surface",
+          "file": "febio_interface_nc_top.csv",
+          "surface": "nucleus_interface_top_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_bottom_surface",
+          "file": "febio_interface_nc_bottom.csv",
+          "surface": "nucleus_interface_bottom_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "cell_dish_interface_surface",
+          "file": "febio_interface_cell_dish.csv",
+          "surface": "cell_dish_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "cell_dish_left_surface",
+          "file": "febio_interface_cd_left.csv",
+          "surface": "cell_dish_left_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "cell_dish_center_surface",
+          "file": "febio_interface_cd_center.csv",
+          "surface": "cell_dish_center_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "cell_dish_right_surface",
+          "file": "febio_interface_cd_right.csv",
+          "surface": "cell_dish_right_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "pipette_cell_contact_surface",
+          "file": "febio_pipette_cell_contact.csv",
+          "surface": "pipette_suction_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "proxy-fallback-explicit",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "pipette_contact_surface",
+          "file": "febio_pipette_contact.csv",
+          "surface": "pipette_contact_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "proxy-fallback-explicit",
+            "shear": "not-used"
+          }
+        }
+      ],
+      "plotfileSurfaceData": [
+        {
+          "name": "nucleus_cytoplasm_left_surface",
+          "variable": "contact traction",
+          "surface": "nucleus_interface_left_surface",
+          "interfaceGroup": "localNc",
+          "region": "left",
+          "alias": "nucleus_cytoplasm_left_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localNc.left",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "x",
+            "tangential": "z"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_right_surface",
+          "variable": "contact traction",
+          "surface": "nucleus_interface_right_surface",
+          "interfaceGroup": "localNc",
+          "region": "right",
+          "alias": "nucleus_cytoplasm_right_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localNc.right",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "x",
+            "tangential": "z"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_top_surface",
+          "variable": "contact traction",
+          "surface": "nucleus_interface_top_surface",
+          "interfaceGroup": "localNc",
+          "region": "top",
+          "alias": "nucleus_cytoplasm_top_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localNc.top",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "z",
+            "tangential": "x"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_bottom_surface",
+          "variable": "contact traction",
+          "surface": "nucleus_interface_bottom_surface",
+          "interfaceGroup": "localNc",
+          "region": "bottom",
+          "alias": "nucleus_cytoplasm_bottom_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localNc.bottom",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "z",
+            "tangential": "x"
+          }
+        },
+        {
+          "name": "cell_dish_left_surface",
+          "variable": "contact traction",
+          "surface": "cell_dish_left_surface",
+          "interfaceGroup": "localCd",
+          "region": "left",
+          "alias": "cell_dish_left_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localCd.left",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "z",
+            "tangential": "x"
+          }
+        },
+        {
+          "name": "cell_dish_center_surface",
+          "variable": "contact traction",
+          "surface": "cell_dish_center_surface",
+          "interfaceGroup": "localCd",
+          "region": "center",
+          "alias": "cell_dish_center_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localCd.center",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "z",
+            "tangential": "x"
+          }
+        },
+        {
+          "name": "cell_dish_right_surface",
+          "variable": "contact traction",
+          "surface": "cell_dish_right_surface",
+          "interfaceGroup": "localCd",
+          "region": "right",
+          "alias": "cell_dish_right_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localCd.right",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "z",
+            "tangential": "x"
+          }
+        }
+      ],
+      "detachment": {
+        "evaluation": "damage-plus-geometry",
+        "preferredSource": "native-first / proxy-assisted fallback",
+        "events": [
+          "detachmentStart",
+          "detachmentComplete"
+        ],
+        "metrics": [
+          "contactAreaRatio",
+          "relativeNucleusDisplacement"
+        ],
+        "payloadPath": "normalizedResult.events"
+      },
+      "aspiration": {
+        "name": "pipette_aspiration_length",
+        "metric": "L(t)",
+        "unit": "um",
+        "status": "native-or-postprocessed-contract",
+        "preferredSource": "native-node-displacement",
+        "payloadPath": "aspiration.length",
+        "historyPath": "history[].aspirationLength",
+        "peakPath": "peaks.peakAspirationLength",
+        "reference": {
+          "surface": "pipette_contact_surface",
+          "nodeSet": "pipette_contact_nodes",
+          "mouthPlaneX": 26,
+          "inwardAxis": "-x",
+          "sectionPlane": "x-z"
+        },
+        "definition": "Clamp to >=0 the projected distance from the pipette mouth plane to the most inward aspirated nucleus/cytoplasm node.",
+        "mapsTo": [
+          "history[].aspirationLength",
+          "aspiration.length",
+          "peaks.peakAspirationLength"
+        ]
+      }
+    },
+    "logOutputs": {
+      "nodeData": [
+        {
+          "name": "nucleus_nodes",
+          "file": "febio_nucleus_nodes.csv",
+          "nodeSet": "nucleus",
+          "data": "ux;uy;uz",
+          "mapsTo": [
+            "history[].nucleus",
+            "displacements.nucleus",
+            "aspiration.length"
+          ]
+        },
+        {
+          "name": "cytoplasm_nodes",
+          "file": "febio_cytoplasm_nodes.csv",
+          "nodeSet": "cytoplasm",
+          "data": "ux;uy;uz",
+          "mapsTo": [
+            "history[].cell",
+            "displacements.cell",
+            "aspiration.length"
+          ]
+        },
+        {
+          "name": "pipette_contact_nodes",
+          "file": "febio_pipette_contact_nodes.csv",
+          "nodeSet": "pipette_contact_nodes",
+          "data": "ux;uy;uz",
+          "mapsTo": [
+            "history[].pipette",
+            "aspiration.reference"
+          ]
+        }
+      ],
+      "rigidBodyData": [
+        {
+          "name": "pipette_rigid_body",
+          "file": "febio_rigid_pipette.csv",
+          "data": "x;y;z;Fx;Fy;Fz",
+          "item": "pipette",
+          "mapsTo": [
+            "history[].pipette",
+            "history[].pipetteCenter",
+            "history[].holdForce",
+            "peaks.peakHoldForce"
+          ]
+        }
+      ],
+      "faceData": [
+        {
+          "name": "nucleus_cytoplasm_interface_surface",
+          "file": "febio_interface_nucleus_cytoplasm.csv",
+          "surface": "nucleus_interface_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_left_surface",
+          "file": "febio_interface_nc_left.csv",
+          "surface": "nucleus_interface_left_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_right_surface",
+          "file": "febio_interface_nc_right.csv",
+          "surface": "nucleus_interface_right_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_top_surface",
+          "file": "febio_interface_nc_top.csv",
+          "surface": "nucleus_interface_top_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_bottom_surface",
+          "file": "febio_interface_nc_bottom.csv",
+          "surface": "nucleus_interface_bottom_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "cell_dish_interface_surface",
+          "file": "febio_interface_cell_dish.csv",
+          "surface": "cell_dish_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "cell_dish_left_surface",
+          "file": "febio_interface_cd_left.csv",
+          "surface": "cell_dish_left_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "cell_dish_center_surface",
+          "file": "febio_interface_cd_center.csv",
+          "surface": "cell_dish_center_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "cell_dish_right_surface",
+          "file": "febio_interface_cd_right.csv",
+          "surface": "cell_dish_right_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "pipette_cell_contact_surface",
+          "file": "febio_pipette_cell_contact.csv",
+          "surface": "pipette_suction_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "proxy-fallback-explicit",
+            "shear": "proxy-fallback-explicit"
+          }
+        },
+        {
+          "name": "pipette_contact_surface",
+          "file": "febio_pipette_contact.csv",
+          "surface": "pipette_contact_surface",
+          "logfileData": "contact gap;contact pressure",
+          "logfileFields": [
+            "contact gap",
+            "contact pressure"
+          ],
+          "optionalExternalFields": [
+            "contact traction",
+            "traction x",
+            "traction y",
+            "traction z",
+            "tangential traction",
+            "shear traction"
+          ],
+          "currentCoverage": {
+            "normal": "native-face-data-preferred",
+            "damage": "proxy-fallback-explicit",
+            "shear": "not-used"
+          }
+        }
+      ],
+      "plotfileSurfaceData": [
+        {
+          "name": "nucleus_cytoplasm_left_surface",
+          "variable": "contact traction",
+          "surface": "nucleus_interface_left_surface",
+          "interfaceGroup": "localNc",
+          "region": "left",
+          "alias": "nucleus_cytoplasm_left_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localNc.left",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "x",
+            "tangential": "z"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_right_surface",
+          "variable": "contact traction",
+          "surface": "nucleus_interface_right_surface",
+          "interfaceGroup": "localNc",
+          "region": "right",
+          "alias": "nucleus_cytoplasm_right_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localNc.right",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "x",
+            "tangential": "z"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_top_surface",
+          "variable": "contact traction",
+          "surface": "nucleus_interface_top_surface",
+          "interfaceGroup": "localNc",
+          "region": "top",
+          "alias": "nucleus_cytoplasm_top_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localNc.top",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "z",
+            "tangential": "x"
+          }
+        },
+        {
+          "name": "nucleus_cytoplasm_bottom_surface",
+          "variable": "contact traction",
+          "surface": "nucleus_interface_bottom_surface",
+          "interfaceGroup": "localNc",
+          "region": "bottom",
+          "alias": "nucleus_cytoplasm_bottom_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localNc.bottom",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "z",
+            "tangential": "x"
+          }
+        },
+        {
+          "name": "cell_dish_left_surface",
+          "variable": "contact traction",
+          "surface": "cell_dish_left_surface",
+          "interfaceGroup": "localCd",
+          "region": "left",
+          "alias": "cell_dish_left_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localCd.left",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "z",
+            "tangential": "x"
+          }
+        },
+        {
+          "name": "cell_dish_center_surface",
+          "variable": "contact traction",
+          "surface": "cell_dish_center_surface",
+          "interfaceGroup": "localCd",
+          "region": "center",
+          "alias": "cell_dish_center_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localCd.center",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "z",
+            "tangential": "x"
+          }
+        },
+        {
+          "name": "cell_dish_right_surface",
+          "variable": "contact traction",
+          "surface": "cell_dish_right_surface",
+          "interfaceGroup": "localCd",
+          "region": "right",
+          "alias": "cell_dish_right_surface_contact_traction",
+          "payloadPath": "plotfileSurfaceData.localCd.right",
+          "preferredSource": "native-plotfile-contact-traction",
+          "sectionAxes": {
+            "normal": "z",
+            "tangential": "x"
+          }
+        }
+      ],
+      "aspiration": {
+        "name": "pipette_aspiration_length",
+        "metric": "L(t)",
+        "unit": "um",
+        "status": "native-or-postprocessed-contract",
+        "preferredSource": "native-node-displacement",
+        "payloadPath": "aspiration.length",
+        "historyPath": "history[].aspirationLength",
+        "peakPath": "peaks.peakAspirationLength",
+        "reference": {
+          "surface": "pipette_contact_surface",
+          "nodeSet": "pipette_contact_nodes",
+          "mouthPlaneX": 26,
+          "inwardAxis": "-x",
+          "sectionPlane": "x-z"
+        },
+        "definition": "Clamp to >=0 the projected distance from the pipette mouth plane to the most inward aspirated nucleus/cytoplasm node.",
+        "mapsTo": [
+          "history[].aspirationLength",
+          "aspiration.length",
+          "peaks.peakAspirationLength"
+        ]
+      }
+    },
+    "diagnostics": {
+      "targets": [
+        "pressure-load-declared",
+        "pressure-load-step-active",
+        "contact-pair-declared",
+        "contact-pressure-nonzero",
+        "reaction-force-nonzero",
+        "displacement-nonzero"
+      ],
+      "validationReport": {
+        "valid": true,
+        "errors": [],
+        "warnings": [],
+        "source": "febio-native-spec"
+      },
+      "expectedStudioConfirmation": {
+        "febPath": "set-by-export-cli",
+        "logPath": "set-by-febio-run",
+        "resultPath": "set-by-converter",
+        "outputCsv": [
+          "febio_pipette_cell_contact.csv",
+          "febio_pipette_contact.csv",
+          "febio_rigid_pipette.csv",
+          "febio_interface_cell_dish.csv"
+        ]
+      }
+    },
+    "discreteCohesive": {
+      "nucleusCytoplasm": {
+        "type": "discrete-cohesive-springs",
+        "status": "implemented-sidecar / not solver-primary"
+      }
+    }
+  },
+  "exportBundle": {
+    "parameterDigest": "fdig_07cf952d",
+    "nativeSpec": {
+      "caseName": "S7_direct_force_transfer",
+      "unitSystem": "um-nN-s",
+      "geometry": {
+        "nucleus": {
+          "width": 28,
+          "height": 18,
+          "center": {
+            "x": 0,
+            "z": 17
+          }
+        },
+        "cytoplasm": {
+          "width": 52,
+          "height": 34
+        },
+        "pipette": {
+          "radius": 6.5,
+          "tip": {
+            "x": 26,
+            "z": 8.5
+          }
+        },
+        "meshMode": "refined"
+      },
+      "materials": {
+        "nucleus": {
+          "type": "viscoelastic",
+          "E": 20,
+          "nu": 0.34,
+          "eta": 4.2,
+          "alphaNonlinear": 0.12
+        },
+        "cytoplasm": {
+          "type": "viscoelastic",
+          "E": 7.5,
+          "nu": 0.41,
+          "eta": 5.6
+        },
+        "dish": {
+          "type": "neo-Hookean",
+          "E": 250,
+          "nu": 0.3
+        },
+        "pipette": {
+          "type": "rigid body",
+          "density": 1,
+          "E": 600,
+          "nu": 0.25
+        }
+      },
+      "contacts": {
+        "nucleusCytoplasm": {
+          "type": "sticky",
+          "normalStiffness": 1.35,
+          "tangentialStiffness": 1.05,
+          "criticalNormalStress": 0.78,
+          "criticalShearStress": 0.58,
+          "fractureEnergy": 0.28
+        },
+        "cellDish": {
+          "type": "tied-elastic",
+          "normalStiffness": 1.55,
+          "tangentialStiffness": 1.25,
+          "criticalNormalStress": 0.95,
+          "criticalShearStress": 0.65,
+          "fractureEnergy": 0.35
+        },
+        "pipetteNucleus": {
+          "type": "sticky",
+          "tolerance": 0.2,
+          "searchTolerance": 2.2,
+          "friction": 0.26,
+          "maxTraction": 1,
+          "snapTolerance": 0.18
+        },
+        "pipetteCell": {
+          "type": "sliding-elastic",
+          "tolerance": 0.2,
+          "searchTolerance": 2.64,
+          "friction": 0.091
+        }
+      },
+      "loads": {
+        "suctionPressure": {
+          "name": "pipette_suction_pressure",
+          "surface": "pipette_suction_surface",
+          "value": -0.7,
+          "unit": "kPa",
+          "loadController": 202,
+          "curve": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              2,
+              1
+            ],
+            [
+              5,
+              1
+            ]
+          ],
+          "magnitude": 0.7
+        },
+        "holdForceProxy": {
+          "value": 20,
+          "loadController": 201
+        }
+      },
+      "boundary": {
+        "fixedNodeSet": "dish_fixed_nodes",
+        "pipetteMotion": {
+          "liftZ": 8,
+          "inwardX": 4,
+          "tangentY": 7.5
+        }
+      },
+      "steps": [
+        {
+          "id": 1,
+          "name": "approach"
+        },
+        {
+          "id": 2,
+          "name": "hold"
+        },
+        {
+          "id": 3,
+          "name": "lift"
+        },
+        {
+          "id": 4,
+          "name": "manipulation-1"
+        },
+        {
+          "id": 5,
+          "name": "manipulation-2"
+        }
+      ],
+      "outputs": {
+        "displacement": true,
+        "reactionForce": true,
+        "contactPressure": true,
+        "contactGap": true,
+        "contactTraction": true,
+        "aspirationLength": true
+      },
+      "diagnostics": {
+        "targets": [
+          "pressure-load-declared",
+          "pressure-load-step-active",
+          "contact-pair-declared",
+          "contact-pressure-nonzero",
+          "reaction-force-nonzero",
+          "displacement-nonzero"
+        ]
+      }
+    },
+    "templateData": {
+      "status": {
+        "buildMode": "febio-native-direct",
+        "isPlaceholder": false,
+        "meshValidated": true,
+        "interfaceValidated": true,
+        "membraneModel": "cortex_proxy",
+        "source": "febio-native-spec",
+        "notes": [
+          "built from FEBio-native spec JSON without UI parameter conversion",
+          "initial S7 direct path reuses the refined mesh generator and FEBio XML serializer",
+          "force-transfer validation still requires FEBio CLI/Studio confirmation"
+        ]
+      },
+      "parameterDigest": "fdig_07cf952d",
+      "coordinateSystem": {
+        "unitSystem": "um-nN-s",
+        "length": "um",
+        "force": "nN",
+        "time": "s",
+        "stress": "kPa"
+      },
+      "nativeSpec": {
+        "caseName": "S7_direct_force_transfer",
+        "unitSystem": "um-nN-s",
+        "geometry": {
+          "nucleus": {
+            "width": 28,
+            "height": 18,
+            "center": {
+              "x": 0,
+              "z": 17
+            }
+          },
+          "cytoplasm": {
+            "width": 52,
+            "height": 34
+          },
+          "pipette": {
+            "radius": 6.5,
+            "tip": {
+              "x": 26,
+              "z": 8.5
+            }
+          },
+          "meshMode": "refined"
+        },
+        "materials": {
+          "nucleus": {
+            "type": "viscoelastic",
+            "E": 20,
+            "nu": 0.34,
+            "eta": 4.2,
+            "alphaNonlinear": 0.12
+          },
+          "cytoplasm": {
+            "type": "viscoelastic",
+            "E": 7.5,
+            "nu": 0.41,
+            "eta": 5.6
+          },
+          "dish": {
+            "type": "neo-Hookean",
+            "E": 250,
+            "nu": 0.3
+          },
+          "pipette": {
+            "type": "rigid body",
+            "density": 1,
+            "E": 600,
+            "nu": 0.25
+          }
+        },
+        "contacts": {
+          "nucleusCytoplasm": {
+            "type": "sticky",
+            "normalStiffness": 1.35,
+            "tangentialStiffness": 1.05,
+            "criticalNormalStress": 0.78,
+            "criticalShearStress": 0.58,
+            "fractureEnergy": 0.28
+          },
+          "cellDish": {
+            "type": "tied-elastic",
+            "normalStiffness": 1.55,
+            "tangentialStiffness": 1.25,
+            "criticalNormalStress": 0.95,
+            "criticalShearStress": 0.65,
+            "fractureEnergy": 0.35
+          },
+          "pipetteNucleus": {
+            "type": "sticky",
+            "tolerance": 0.2,
+            "searchTolerance": 2.2,
+            "friction": 0.26,
+            "maxTraction": 1,
+            "snapTolerance": 0.18
+          },
+          "pipetteCell": {
+            "type": "sliding-elastic",
+            "tolerance": 0.2,
+            "searchTolerance": 2.64,
+            "friction": 0.091
+          }
+        },
+        "loads": {
+          "suctionPressure": {
+            "name": "pipette_suction_pressure",
+            "surface": "pipette_suction_surface",
+            "value": -0.7,
+            "unit": "kPa",
+            "loadController": 202,
+            "curve": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                1
+              ],
+              [
+                2,
+                1
+              ],
+              [
+                5,
+                1
+              ]
+            ],
+            "magnitude": 0.7
+          },
+          "holdForceProxy": {
+            "value": 20,
+            "loadController": 201
+          }
+        },
+        "boundary": {
+          "fixedNodeSet": "dish_fixed_nodes",
+          "pipetteMotion": {
+            "liftZ": 8,
+            "inwardX": 4,
+            "tangentY": 7.5
+          }
+        },
+        "steps": [
+          {
+            "id": 1,
+            "name": "approach"
+          },
+          {
+            "id": 2,
+            "name": "hold"
+          },
+          {
+            "id": 3,
+            "name": "lift"
+          },
+          {
+            "id": 4,
+            "name": "manipulation-1"
+          },
+          {
+            "id": 5,
+            "name": "manipulation-2"
+          }
+        ],
+        "outputs": {
+          "displacement": true,
+          "reactionForce": true,
+          "contactPressure": true,
+          "contactGap": true,
+          "contactTraction": true,
+          "aspirationLength": true
+        },
+        "diagnostics": {
+          "targets": [
+            "pressure-load-declared",
+            "pressure-load-step-active",
+            "contact-pair-declared",
+            "contact-pressure-nonzero",
+            "reaction-force-nonzero",
+            "displacement-nonzero"
+          ]
+        }
+      },
+      "geometry": {
+        "mesh": {
+          "meshMode": "refined",
+          "bounds": {
+            "cellLeft": -26,
+            "cellRight": 26,
+            "cellTop": 34,
+            "nucleusLeft": -14,
+            "nucleusRight": 14,
+            "nucleusBottom": 8,
+            "nucleusTop": 26,
+            "dishBottom": -2.72,
+            "pipetteLeft": 26,
+            "pipetteRight": 39,
+            "pipetteContactX": 26,
+            "pipetteBottom": 2,
+            "pipetteTop": 15
+          },
+          "nodes": [
+            {
+              "id": 1,
+              "x": -26,
+              "y": -0.5,
+              "z": 0
+            },
+            {
+              "id": 2,
+              "x": -14,
+              "y": -0.5,
+              "z": 0
+            },
+            {
+              "id": 3,
+              "x": -14,
+              "y": 0.5,
+              "z": 0
+            },
+            {
+              "id": 4,
+              "x": -26,
+              "y": 0.5,
+              "z": 0
+            },
+            {
+              "id": 5,
+              "x": -26,
+              "y": -0.5,
+              "z": 34
+            },
+            {
+              "id": 6,
+              "x": -14,
+              "y": -0.5,
+              "z": 34
+            },
+            {
+              "id": 7,
+              "x": -14,
+              "y": 0.5,
+              "z": 34
+            },
+            {
+              "id": 8,
+              "x": -26,
+              "y": 0.5,
+              "z": 34
+            },
+            {
+              "id": 9,
+              "x": -14,
+              "y": -0.25,
+              "z": 8
+            },
+            {
+              "id": 10,
+              "x": 14,
+              "y": -0.25,
+              "z": 8
+            },
+            {
+              "id": 11,
+              "x": 14,
+              "y": 0.25,
+              "z": 8
+            },
+            {
+              "id": 12,
+              "x": -14,
+              "y": 0.25,
+              "z": 8
+            },
+            {
+              "id": 13,
+              "x": -14,
+              "y": -0.25,
+              "z": 26
+            },
+            {
+              "id": 14,
+              "x": 14,
+              "y": -0.25,
+              "z": 26
+            },
+            {
+              "id": 15,
+              "x": 14,
+              "y": 0.25,
+              "z": 26
+            },
+            {
+              "id": 16,
+              "x": -14,
+              "y": 0.25,
+              "z": 26
+            },
+            {
+              "id": 17,
+              "x": 26,
+              "y": -0.2,
+              "z": 2
+            },
+            {
+              "id": 18,
+              "x": 39,
+              "y": -0.2,
+              "z": 2
+            },
+            {
+              "id": 19,
+              "x": 39,
+              "y": 0.2,
+              "z": 2
+            },
+            {
+              "id": 20,
+              "x": 26,
+              "y": 0.2,
+              "z": 2
+            },
+            {
+              "id": 21,
+              "x": 26,
+              "y": -0.2,
+              "z": 15
+            },
+            {
+              "id": 22,
+              "x": 39,
+              "y": -0.2,
+              "z": 15
+            },
+            {
+              "id": 23,
+              "x": 39,
+              "y": 0.2,
+              "z": 15
+            },
+            {
+              "id": 24,
+              "x": 26,
+              "y": 0.2,
+              "z": 15
+            },
+            {
+              "id": 25,
+              "x": -26,
+              "y": -0.5,
+              "z": -2.72
+            },
+            {
+              "id": 26,
+              "x": 26,
+              "y": -0.5,
+              "z": -2.72
+            },
+            {
+              "id": 27,
+              "x": 26,
+              "y": 0.5,
+              "z": -2.72
+            },
+            {
+              "id": 28,
+              "x": -26,
+              "y": 0.5,
+              "z": -2.72
+            },
+            {
+              "id": 29,
+              "x": -26,
+              "y": -0.5,
+              "z": 0
+            },
+            {
+              "id": 30,
+              "x": 26,
+              "y": -0.5,
+              "z": 0
+            },
+            {
+              "id": 31,
+              "x": 26,
+              "y": 0.5,
+              "z": 0
+            },
+            {
+              "id": 32,
+              "x": -26,
+              "y": 0.5,
+              "z": 0
+            },
+            {
+              "id": 33,
+              "x": 14,
+              "y": -0.5,
+              "z": 0
+            },
+            {
+              "id": 34,
+              "x": 26,
+              "y": -0.5,
+              "z": 0
+            },
+            {
+              "id": 35,
+              "x": 26,
+              "y": 0.5,
+              "z": 0
+            },
+            {
+              "id": 36,
+              "x": 14,
+              "y": 0.5,
+              "z": 0
+            },
+            {
+              "id": 37,
+              "x": 14,
+              "y": -0.5,
+              "z": 34
+            },
+            {
+              "id": 38,
+              "x": 26,
+              "y": -0.5,
+              "z": 34
+            },
+            {
+              "id": 39,
+              "x": 26,
+              "y": 0.5,
+              "z": 34
+            },
+            {
+              "id": 40,
+              "x": 14,
+              "y": 0.5,
+              "z": 34
+            },
+            {
+              "id": 41,
+              "x": -14,
+              "y": -0.5,
+              "z": 0
+            },
+            {
+              "id": 42,
+              "x": 14,
+              "y": -0.5,
+              "z": 0
+            },
+            {
+              "id": 43,
+              "x": 14,
+              "y": 0.5,
+              "z": 0
+            },
+            {
+              "id": 44,
+              "x": -14,
+              "y": 0.5,
+              "z": 0
+            },
+            {
+              "id": 45,
+              "x": -14,
+              "y": -0.5,
+              "z": 8
+            },
+            {
+              "id": 46,
+              "x": 14,
+              "y": -0.5,
+              "z": 8
+            },
+            {
+              "id": 47,
+              "x": 14,
+              "y": 0.5,
+              "z": 8
+            },
+            {
+              "id": 48,
+              "x": -14,
+              "y": 0.5,
+              "z": 8
+            },
+            {
+              "id": 49,
+              "x": -14,
+              "y": -0.5,
+              "z": 26
+            },
+            {
+              "id": 50,
+              "x": 14,
+              "y": -0.5,
+              "z": 26
+            },
+            {
+              "id": 51,
+              "x": 14,
+              "y": 0.5,
+              "z": 26
+            },
+            {
+              "id": 52,
+              "x": -14,
+              "y": 0.5,
+              "z": 26
+            },
+            {
+              "id": 53,
+              "x": -14,
+              "y": -0.5,
+              "z": 34
+            },
+            {
+              "id": 54,
+              "x": 14,
+              "y": -0.5,
+              "z": 34
+            },
+            {
+              "id": 55,
+              "x": 14,
+              "y": 0.5,
+              "z": 34
+            },
+            {
+              "id": 56,
+              "x": -14,
+              "y": 0.5,
+              "z": 34
+            }
+          ],
+          "elements": [
+            {
+              "id": 1,
+              "type": "hex8",
+              "material": "cytoplasm",
+              "nodes": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ]
+            },
+            {
+              "id": 2,
+              "type": "hex8",
+              "material": "nucleus",
+              "nodes": [
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            },
+            {
+              "id": 3,
+              "type": "hex8",
+              "material": "pipette",
+              "nodes": [
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24
+              ]
+            },
+            {
+              "id": 4,
+              "type": "hex8",
+              "material": "dish",
+              "nodes": [
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32
+              ]
+            },
+            {
+              "id": 5,
+              "type": "hex8",
+              "material": "cytoplasm",
+              "nodes": [
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40
+              ]
+            },
+            {
+              "id": 6,
+              "type": "hex8",
+              "material": "cytoplasm",
+              "nodes": [
+                41,
+                42,
+                43,
+                44,
+                45,
+                46,
+                47,
+                48
+              ]
+            },
+            {
+              "id": 7,
+              "type": "hex8",
+              "material": "cytoplasm",
+              "nodes": [
+                49,
+                50,
+                51,
+                52,
+                53,
+                54,
+                55,
+                56
+              ]
+            }
+          ],
+          "surfaces": {
+            "nucleus_interface_surface": [
+              {
+                "id": 1,
+                "type": "quad4",
+                "nodes": [
+                  9,
+                  12,
+                  16,
+                  13
+                ]
+              },
+              {
+                "id": 2,
+                "type": "quad4",
+                "nodes": [
+                  10,
+                  11,
+                  15,
+                  14
+                ]
+              },
+              {
+                "id": 3,
+                "type": "quad4",
+                "nodes": [
+                  13,
+                  14,
+                  15,
+                  16
+                ]
+              },
+              {
+                "id": 4,
+                "type": "quad4",
+                "nodes": [
+                  9,
+                  10,
+                  11,
+                  12
+                ]
+              }
+            ],
+            "nucleus_interface_left_surface": [
+              {
+                "id": 2,
+                "type": "quad4",
+                "nodes": [
+                  9,
+                  12,
+                  16,
+                  13
+                ]
+              }
+            ],
+            "nucleus_interface_right_surface": [
+              {
+                "id": 3,
+                "type": "quad4",
+                "nodes": [
+                  10,
+                  11,
+                  15,
+                  14
+                ]
+              }
+            ],
+            "nucleus_interface_top_surface": [
+              {
+                "id": 4,
+                "type": "quad4",
+                "nodes": [
+                  13,
+                  14,
+                  15,
+                  16
+                ]
+              }
+            ],
+            "nucleus_interface_bottom_surface": [
+              {
+                "id": 5,
+                "type": "quad4",
+                "nodes": [
+                  9,
+                  10,
+                  11,
+                  12
+                ]
+              }
+            ],
+            "cytoplasm_interface_surface": [
+              {
+                "id": 6,
+                "type": "quad4",
+                "nodes": [
+                  2,
+                  3,
+                  7,
+                  6
+                ]
+              },
+              {
+                "id": 7,
+                "type": "quad4",
+                "nodes": [
+                  33,
+                  36,
+                  40,
+                  37
+                ]
+              },
+              {
+                "id": 8,
+                "type": "quad4",
+                "nodes": [
+                  45,
+                  46,
+                  47,
+                  48
+                ]
+              },
+              {
+                "id": 9,
+                "type": "quad4",
+                "nodes": [
+                  49,
+                  50,
+                  51,
+                  52
+                ]
+              }
+            ],
+            "cytoplasm_interface_left_surface": [
+              {
+                "id": 10,
+                "type": "quad4",
+                "nodes": [
+                  2,
+                  3,
+                  7,
+                  6
+                ]
+              }
+            ],
+            "cytoplasm_interface_right_surface": [
+              {
+                "id": 11,
+                "type": "quad4",
+                "nodes": [
+                  33,
+                  36,
+                  40,
+                  37
+                ]
+              }
+            ],
+            "cytoplasm_interface_top_surface": [
+              {
+                "id": 12,
+                "type": "quad4",
+                "nodes": [
+                  49,
+                  50,
+                  51,
+                  52
+                ]
+              }
+            ],
+            "cytoplasm_interface_bottom_surface": [
+              {
+                "id": 13,
+                "type": "quad4",
+                "nodes": [
+                  45,
+                  46,
+                  47,
+                  48
+                ]
+              }
+            ],
+            "cell_dish_surface": [
+              {
+                "id": 14,
+                "type": "quad4",
+                "nodes": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              {
+                "id": 15,
+                "type": "quad4",
+                "nodes": [
+                  41,
+                  42,
+                  43,
+                  44
+                ]
+              },
+              {
+                "id": 16,
+                "type": "quad4",
+                "nodes": [
+                  33,
+                  34,
+                  35,
+                  36
+                ]
+              }
+            ],
+            "dish_contact_surface": [
+              {
+                "id": 12,
+                "type": "quad4",
+                "nodes": [
+                  29,
+                  30,
+                  31,
+                  32
+                ]
+              }
+            ],
+            "cell_dish_left_surface": [
+              {
+                "id": 17,
+                "type": "quad4",
+                "nodes": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            ],
+            "cell_dish_center_surface": [
+              {
+                "id": 18,
+                "type": "quad4",
+                "nodes": [
+                  41,
+                  42,
+                  43,
+                  44
+                ]
+              }
+            ],
+            "cell_dish_right_surface": [
+              {
+                "id": 19,
+                "type": "quad4",
+                "nodes": [
+                  33,
+                  34,
+                  35,
+                  36
+                ]
+              }
+            ],
+            "pipette_suction_surface": [
+              {
+                "id": 20,
+                "type": "quad4",
+                "nodes": [
+                  34,
+                  38,
+                  39,
+                  35
+                ]
+              }
+            ],
+            "pipette_contact_surface": [
+              {
+                "id": 16,
+                "type": "quad4",
+                "nodes": [
+                  17,
+                  20,
+                  24,
+                  21
+                ]
+              }
+            ]
+          },
+          "nodeSets": {
+            "nc_left_nucleus_nodes": [
+              9,
+              12,
+              13,
+              16
+            ],
+            "nc_right_nucleus_nodes": [
+              10,
+              11,
+              14,
+              15
+            ],
+            "nc_top_nucleus_nodes": [
+              13,
+              14,
+              15,
+              16
+            ],
+            "nc_bottom_nucleus_nodes": [
+              9,
+              10,
+              11,
+              12
+            ],
+            "nc_left_cytoplasm_nodes": [
+              2,
+              3,
+              6,
+              7
+            ],
+            "nc_right_cytoplasm_nodes": [
+              33,
+              36,
+              37,
+              40
+            ],
+            "nc_top_cytoplasm_nodes": [
+              49,
+              50,
+              51,
+              52
+            ],
+            "nc_bottom_cytoplasm_nodes": [
+              45,
+              46,
+              47,
+              48
+            ],
+            "cd_left_cell_nodes": [
+              1,
+              4
+            ],
+            "cd_center_cell_nodes": [
+              41,
+              42,
+              43,
+              44
+            ],
+            "cd_right_cell_nodes": [
+              34,
+              35
+            ],
+            "dish_fixed_nodes": [
+              25,
+              26,
+              27,
+              28
+            ],
+            "pipette_contact_nodes": [
+              17,
+              20,
+              21,
+              24
+            ]
+          },
+          "elementSets": {
+            "cytoplasm": [
+              1,
+              5,
+              6,
+              7
+            ],
+            "nucleus": [
+              2
+            ],
+            "pipette": [
+              3
+            ],
+            "dish": [
+              4
+            ]
+          },
+          "surfacePairs": {
+            "nucleus_cytoplasm_pair": {
+              "name": "nucleus_cytoplasm_pair",
+              "primary": "cytoplasm_interface_surface",
+              "secondary": "nucleus_interface_surface"
+            },
+            "cell_dish_pair": {
+              "name": "cell_dish_pair",
+              "primary": "cell_dish_surface",
+              "secondary": "dish_contact_surface"
+            },
+            "pipette_nucleus_pair": {
+              "name": "pipette_nucleus_pair",
+              "primary": "nucleus_interface_right_surface",
+              "secondary": "pipette_contact_surface"
+            },
+            "pipette_cell_pair": {
+              "name": "pipette_cell_pair",
+              "primary": "pipette_suction_surface",
+              "secondary": "pipette_contact_surface"
+            }
+          }
+        },
+        "meshValidation": {
+          "valid": true,
+          "invalidElements": [],
+          "aspectRatioWarnings": [],
+          "requiredDomains": {
+            "nucleus": "present",
+            "cytoplasm": "present",
+            "dish": "present",
+            "pipette": "present"
+          },
+          "requiredNodeSets": {
+            "dish_fixed_nodes": "present",
+            "pipette_contact_nodes": "present",
+            "nc_left_nucleus_nodes": "present",
+            "nc_right_nucleus_nodes": "present",
+            "nc_top_nucleus_nodes": "present",
+            "nc_bottom_nucleus_nodes": "present",
+            "nc_left_cytoplasm_nodes": "present",
+            "nc_right_cytoplasm_nodes": "present",
+            "nc_top_cytoplasm_nodes": "present",
+            "nc_bottom_cytoplasm_nodes": "present",
+            "cd_left_cell_nodes": "present",
+            "cd_center_cell_nodes": "present",
+            "cd_right_cell_nodes": "present"
+          },
+          "requiredSurfaces": {
+            "nucleus_interface_surface": true,
+            "nucleus_interface_left_surface": true,
+            "nucleus_interface_right_surface": true,
+            "nucleus_interface_top_surface": true,
+            "nucleus_interface_bottom_surface": true,
+            "cytoplasm_interface_surface": true,
+            "cytoplasm_interface_left_surface": true,
+            "cytoplasm_interface_right_surface": true,
+            "cytoplasm_interface_top_surface": true,
+            "cytoplasm_interface_bottom_surface": true,
+            "cell_dish_surface": true,
+            "dish_contact_surface": true,
+            "cell_dish_left_surface": true,
+            "cell_dish_center_surface": true,
+            "cell_dish_right_surface": true,
+            "pipette_suction_surface": true,
+            "pipette_contact_surface": true
+          },
+          "requiredSurfacePairs": {
+            "nucleus_cytoplasm_pair": {
+              "present": true,
+              "primary": true,
+              "secondary": true,
+              "surfacesReady": true
+            },
+            "cell_dish_pair": {
+              "present": true,
+              "primary": true,
+              "secondary": true,
+              "surfacesReady": true
+            },
+            "pipette_nucleus_pair": {
+              "present": true,
+              "primary": true,
+              "secondary": true,
+              "surfacesReady": true
+            },
+            "pipette_cell_pair": {
+              "present": true,
+              "primary": true,
+              "secondary": true,
+              "surfacesReady": true
+            }
+          }
+        },
+        "nucleus": {
+          "shape": "ellipse",
+          "width": 28,
+          "height": 18,
+          "center": {
+            "x": 0,
+            "z": 17
+          }
+        },
+        "cytoplasm": {
+          "shape": "cap",
+          "width": 52,
+          "height": 34,
+          "dishZ": 0
+        },
+        "membrane": {
+          "attachment": "cytoplasm_outer_surface",
+          "model": "cortex_proxy",
+          "status": "implemented-proxy",
+          "thresholds": {}
+        },
+        "pipette": {
+          "radius": 6.5,
+          "puncture": {
+            "x": 26,
+            "z": 8.5
+          }
+        }
+      },
+      "materials": {
+        "nucleus": {
+          "id": 1,
+          "name": "nucleus",
+          "type": "viscoelastic",
+          "domain": "nucleus",
+          "elastic": {
+            "E": 20,
+            "nu": 0.34
+          },
+          "viscous": {
+            "implemented": true,
+            "eta": 4.2,
+            "g1": 0.35,
+            "t1": 1.2
+          },
+          "optionalNonlinear": {
+            "implemented": false,
+            "alpha": 0.12
+          }
+        },
+        "cytoplasm": {
+          "id": 2,
+          "name": "cytoplasm",
+          "type": "viscoelastic",
+          "domain": "cytoplasm",
+          "elastic": {
+            "E": 7.5,
+            "nu": 0.41
+          },
+          "viscous": {
+            "implemented": true,
+            "eta": 5.6,
+            "g1": 0.35,
+            "t1": 1.2
+          },
+          "optionalNonlinear": {
+            "implemented": false,
+            "alpha": null
+          }
+        },
+        "dish": {
+          "id": 3,
+          "name": "dish",
+          "type": "neo-Hookean",
+          "domain": "dish",
+          "elastic": {
+            "E": 250,
+            "v": 0.3
+          }
+        },
+        "pipette": {
+          "id": 4,
+          "name": "pipette_rigid",
+          "type": "rigid body",
+          "domain": "pipette",
+          "density": 1,
+          "centerOfMass": [
+            32.5,
+            0,
+            8.5
+          ],
+          "elastic": {
+            "E": 600,
+            "v": 0.25
+          }
+        },
+        "membrane": {
+          "id": 5,
+          "name": "membrane",
+          "type": "cortex_proxy",
+          "status": "implemented-proxy",
+          "tension": 4.7
+        }
+      },
+      "interfaces": {
+        "nucleusCytoplasm": {
+          "type": "sticky",
+          "status": "partial-true-cohesive / sticky-active / stabilization-validated",
+          "mode": "solver-primary cohesive-approximation",
+          "surfacePair": {
+            "name": "nucleus_cytoplasm_pair",
+            "primary": "cytoplasm_interface_surface",
+            "secondary": "nucleus_interface_surface"
+          },
+          "normalStiffness": 1.35,
+          "tangentialStiffness": 1.05,
+          "criticalNormalStress": 0.78,
+          "criticalShearStress": 0.58,
+          "fractureEnergy": 0.28,
+          "penalty": {
+            "Kn": 0.35,
+            "Kt": 0.2162571428571428
+          },
+          "tolerance": 0.08,
+          "stabilization": {
+            "searchTolerance": 0.08,
+            "symmetricStiffness": false,
+            "augmentation": {
+              "enabled": true,
+              "minPasses": 0,
+              "maxPasses": 12
+            },
+            "ramp": [
+              {
+                "step": "approach",
+                "normalPenalty": 0.13999999999999999,
+                "tangentialPenalty": 0.0540642857142857,
+                "frictionProxy": 0.06475
+              },
+              {
+                "step": "hold",
+                "normalPenalty": 0.24499999999999997,
+                "tangentialPenalty": 0.11894142857142855,
+                "frictionProxy": 0.1295
+              },
+              {
+                "step": "lift",
+                "normalPenalty": 0.35,
+                "tangentialPenalty": 0.2162571428571428,
+                "frictionProxy": 0.185
+              }
+            ]
+          },
+          "cohesiveApproximation": {
+            "penalty": 0.35,
+            "tangentialPenalty": 0.2162571428571428,
+            "maxTraction": 0.25,
+            "snapTolerance": 0.10051282051282052,
+            "frictionProxy": 0.185
+          },
+          "nativeObservation": {
+            "normal": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit",
+            "damage": "native-face-data-preferred",
+            "detachment": "damage-plus-geometry"
+          },
+          "notes": [
+            "serialized as a sticky-contact cohesive approximation with soft-start stabilization",
+            "normal/tangential stiffness and traction limits are preserved for later true cohesive serialization",
+            "penalty and friction are ramped through approach/hold before full lift activation",
+            "detachment should migrate from proxy-assisted observation toward native cohesive output",
+            "stabilization validation passed for the sticky cohesive approximation"
+          ],
+          "validation": {
+            "valid": true,
+            "warnings": [],
+            "diagnostics": {
+              "monotonicRamp": true,
+              "rampSteps": [
+                "approach",
+                "hold",
+                "lift"
+              ],
+              "normalPenaltyRatio": 0.25925925925925924,
+              "tangentialPenaltyRatio": 0.2059591836734693,
+              "snapToSearchRatio": 1.2564102564102566,
+              "tractionToCriticalRatio": 0.3205128205128205
+            }
+          }
+        },
+        "cellDish": {
+          "type": "tied-elastic",
+          "status": "partial-cohesive-ready / tied-elastic-active",
+          "mode": "solver-primary tied-contact",
+          "surfacePair": {
+            "name": "cell_dish_pair",
+            "primary": "cell_dish_surface",
+            "secondary": "dish_contact_surface"
+          },
+          "normalStiffness": 1.55,
+          "tangentialStiffness": 1.25,
+          "criticalNormalStress": 0.95,
+          "criticalShearStress": 0.65,
+          "fractureEnergy": 0.35,
+          "nativeObservation": {
+            "normal": "native-face-data-preferred",
+            "shear": "proxy-fallback-explicit",
+            "damage": "native-face-data-preferred"
+          }
+        }
+      },
+      "contact": {
+        "pipetteNucleus": {
+          "type": "sticky",
+          "status": "solver-active capture-hold contact",
+          "mode": "capture-hold",
+          "tolerance": 0.2,
+          "searchTolerance": 2.2,
+          "searchRadius": 14.3,
+          "surfacePair": {
+            "name": "pipette_nucleus_pair",
+            "primary": "nucleus_interface_right_surface",
+            "secondary": "pipette_contact_surface"
+          },
+          "penalty": 0.6075,
+          "symmetricStiffness": 0,
+          "autoPenalty": 1,
+          "friction": 0.26,
+          "maxTraction": 1,
+          "snapTolerance": 0.18,
+          "releaseCondition": {
+            "type": "traction-or-slip-threshold",
+            "tractionLimit": 1,
+            "slipDistance": 0.3
+          }
+        },
+        "pipetteCell": {
+          "type": "sliding-elastic",
+          "status": "solver-active secondary contact",
+          "mode": "secondary-contact-proxy",
+          "tolerance": 0.2,
+          "searchTolerance": 2.64,
+          "searchRadius": 16.25,
+          "surfacePair": {
+            "name": "pipette_cell_pair",
+            "primary": "pipette_suction_surface",
+            "secondary": "pipette_contact_surface"
+          },
+          "penalty": 0.6975,
+          "symmetricStiffness": 0,
+          "autoPenalty": 1,
+          "friction": 0.091
+        }
+      },
+      "interfaceRegions": {
+        "localNc": {
+          "left": {
+            "nucleusNodeSet": "nc_left_nucleus_nodes",
+            "cytoplasmNodeSet": "nc_left_cytoplasm_nodes"
+          },
+          "right": {
+            "nucleusNodeSet": "nc_right_nucleus_nodes",
+            "cytoplasmNodeSet": "nc_right_cytoplasm_nodes"
+          },
+          "top": {
+            "nucleusNodeSet": "nc_top_nucleus_nodes",
+            "cytoplasmNodeSet": "nc_top_cytoplasm_nodes"
+          },
+          "bottom": {
+            "nucleusNodeSet": "nc_bottom_nucleus_nodes",
+            "cytoplasmNodeSet": "nc_bottom_cytoplasm_nodes"
+          }
+        },
+        "localCd": {
+          "left": {
+            "cellNodeSet": "cd_left_cell_nodes"
+          },
+          "center": {
+            "cellNodeSet": "cd_center_cell_nodes"
+          },
+          "right": {
+            "cellNodeSet": "cd_right_cell_nodes"
+          }
+        }
+      },
+      "boundary": {
+        "fixed": [
+          {
+            "name": "dish_fixed",
+            "nodeSet": "dish_fixed_nodes",
+            "dofs": [
+              "x",
+              "y",
+              "z"
+            ],
+            "nodeIds": [
+              25,
+              26,
+              27,
+              28
+            ]
+          }
+        ],
+        "prescribed": [
+          {
+            "name": "pipette_lift_z",
+            "nodeSet": "pipette_contact_nodes",
+            "dof": "z",
+            "value": 8,
+            "loadController": 101,
+            "mode": "relative"
+          },
+          {
+            "name": "pipette_inward_x",
+            "nodeSet": "pipette_contact_nodes",
+            "dof": "x",
+            "value": 4,
+            "loadController": 102,
+            "mode": "relative"
+          },
+          {
+            "name": "pipette_tangent_y",
+            "nodeSet": "pipette_contact_nodes",
+            "dof": "y",
+            "value": 7.5,
+            "loadController": 103,
+            "mode": "relative"
+          }
+        ],
+        "notes": [
+          "direct native spec boundary path"
+        ]
+      },
+      "loads": {
+        "nodal": [
+          {
+            "name": "hold_force_proxy",
+            "surface": "pipette_contact_surface",
+            "value": 20,
+            "loadController": 201,
+            "status": "proxy-load / not pressure-driven"
+          }
+        ],
+        "pressure": [
+          {
+            "name": "pipette_suction_pressure",
+            "surface": "pipette_suction_surface",
+            "value": -0.7,
+            "magnitude": 0.7,
+            "loadController": 202,
+            "status": "solver-active pressure-driven suction / febio-native-direct",
+            "direction": "inward-negative-pressure",
+            "unit": "kPa"
+          }
+        ],
+        "controllers": [
+          {
+            "id": 101,
+            "name": "lift_ramp",
+            "points": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                1
+              ],
+              [
+                5,
+                1
+              ]
+            ]
+          },
+          {
+            "id": 102,
+            "name": "inward_ramp",
+            "points": [
+              [
+                0,
+                0
+              ],
+              [
+                3,
+                0
+              ],
+              [
+                4,
+                1
+              ],
+              [
+                5,
+                1
+              ]
+            ]
+          },
+          {
+            "id": 202,
+            "name": "suction_pressure_curve",
+            "unit": "kPa",
+            "points": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                1
+              ],
+              [
+                2,
+                1
+              ],
+              [
+                5,
+                1
+              ]
+            ]
+          }
+        ],
+        "notes": [
+          "pressure load is sourced directly from FEBio-native spec loads.suctionPressure"
+        ]
+      },
+      "steps": [
+        {
+          "id": 1,
+          "name": "approach"
+        },
+        {
+          "id": 2,
+          "name": "hold"
+        },
+        {
+          "id": 3,
+          "name": "lift"
+        },
+        {
+          "id": 4,
+          "name": "manipulation-1"
+        },
+        {
+          "id": 5,
+          "name": "manipulation-2"
+        }
+      ],
+      "outputs": {
+        "faceData": [
+          {
+            "name": "nucleus_cytoplasm_interface_surface",
+            "file": "febio_interface_nucleus_cytoplasm.csv",
+            "surface": "nucleus_interface_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_left_surface",
+            "file": "febio_interface_nc_left.csv",
+            "surface": "nucleus_interface_left_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_right_surface",
+            "file": "febio_interface_nc_right.csv",
+            "surface": "nucleus_interface_right_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_top_surface",
+            "file": "febio_interface_nc_top.csv",
+            "surface": "nucleus_interface_top_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_bottom_surface",
+            "file": "febio_interface_nc_bottom.csv",
+            "surface": "nucleus_interface_bottom_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "cell_dish_interface_surface",
+            "file": "febio_interface_cell_dish.csv",
+            "surface": "cell_dish_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "cell_dish_left_surface",
+            "file": "febio_interface_cd_left.csv",
+            "surface": "cell_dish_left_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "cell_dish_center_surface",
+            "file": "febio_interface_cd_center.csv",
+            "surface": "cell_dish_center_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "cell_dish_right_surface",
+            "file": "febio_interface_cd_right.csv",
+            "surface": "cell_dish_right_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "pipette_cell_contact_surface",
+            "file": "febio_pipette_cell_contact.csv",
+            "surface": "pipette_suction_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "proxy-fallback-explicit",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "pipette_contact_surface",
+            "file": "febio_pipette_contact.csv",
+            "surface": "pipette_contact_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "proxy-fallback-explicit",
+              "shear": "not-used"
+            }
+          }
+        ],
+        "plotfileSurfaceData": [
+          {
+            "name": "nucleus_cytoplasm_left_surface",
+            "variable": "contact traction",
+            "surface": "nucleus_interface_left_surface",
+            "interfaceGroup": "localNc",
+            "region": "left",
+            "alias": "nucleus_cytoplasm_left_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localNc.left",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "x",
+              "tangential": "z"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_right_surface",
+            "variable": "contact traction",
+            "surface": "nucleus_interface_right_surface",
+            "interfaceGroup": "localNc",
+            "region": "right",
+            "alias": "nucleus_cytoplasm_right_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localNc.right",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "x",
+              "tangential": "z"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_top_surface",
+            "variable": "contact traction",
+            "surface": "nucleus_interface_top_surface",
+            "interfaceGroup": "localNc",
+            "region": "top",
+            "alias": "nucleus_cytoplasm_top_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localNc.top",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "z",
+              "tangential": "x"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_bottom_surface",
+            "variable": "contact traction",
+            "surface": "nucleus_interface_bottom_surface",
+            "interfaceGroup": "localNc",
+            "region": "bottom",
+            "alias": "nucleus_cytoplasm_bottom_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localNc.bottom",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "z",
+              "tangential": "x"
+            }
+          },
+          {
+            "name": "cell_dish_left_surface",
+            "variable": "contact traction",
+            "surface": "cell_dish_left_surface",
+            "interfaceGroup": "localCd",
+            "region": "left",
+            "alias": "cell_dish_left_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localCd.left",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "z",
+              "tangential": "x"
+            }
+          },
+          {
+            "name": "cell_dish_center_surface",
+            "variable": "contact traction",
+            "surface": "cell_dish_center_surface",
+            "interfaceGroup": "localCd",
+            "region": "center",
+            "alias": "cell_dish_center_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localCd.center",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "z",
+              "tangential": "x"
+            }
+          },
+          {
+            "name": "cell_dish_right_surface",
+            "variable": "contact traction",
+            "surface": "cell_dish_right_surface",
+            "interfaceGroup": "localCd",
+            "region": "right",
+            "alias": "cell_dish_right_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localCd.right",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "z",
+              "tangential": "x"
+            }
+          }
+        ],
+        "detachment": {
+          "evaluation": "damage-plus-geometry",
+          "preferredSource": "native-first / proxy-assisted fallback",
+          "events": [
+            "detachmentStart",
+            "detachmentComplete"
+          ],
+          "metrics": [
+            "contactAreaRatio",
+            "relativeNucleusDisplacement"
+          ],
+          "payloadPath": "normalizedResult.events"
+        },
+        "aspiration": {
+          "name": "pipette_aspiration_length",
+          "metric": "L(t)",
+          "unit": "um",
+          "status": "native-or-postprocessed-contract",
+          "preferredSource": "native-node-displacement",
+          "payloadPath": "aspiration.length",
+          "historyPath": "history[].aspirationLength",
+          "peakPath": "peaks.peakAspirationLength",
+          "reference": {
+            "surface": "pipette_contact_surface",
+            "nodeSet": "pipette_contact_nodes",
+            "mouthPlaneX": 26,
+            "inwardAxis": "-x",
+            "sectionPlane": "x-z"
+          },
+          "definition": "Clamp to >=0 the projected distance from the pipette mouth plane to the most inward aspirated nucleus/cytoplasm node.",
+          "mapsTo": [
+            "history[].aspirationLength",
+            "aspiration.length",
+            "peaks.peakAspirationLength"
+          ]
+        }
+      },
+      "logOutputs": {
+        "nodeData": [
+          {
+            "name": "nucleus_nodes",
+            "file": "febio_nucleus_nodes.csv",
+            "nodeSet": "nucleus",
+            "data": "ux;uy;uz",
+            "mapsTo": [
+              "history[].nucleus",
+              "displacements.nucleus",
+              "aspiration.length"
+            ]
+          },
+          {
+            "name": "cytoplasm_nodes",
+            "file": "febio_cytoplasm_nodes.csv",
+            "nodeSet": "cytoplasm",
+            "data": "ux;uy;uz",
+            "mapsTo": [
+              "history[].cell",
+              "displacements.cell",
+              "aspiration.length"
+            ]
+          },
+          {
+            "name": "pipette_contact_nodes",
+            "file": "febio_pipette_contact_nodes.csv",
+            "nodeSet": "pipette_contact_nodes",
+            "data": "ux;uy;uz",
+            "mapsTo": [
+              "history[].pipette",
+              "aspiration.reference"
+            ]
+          }
+        ],
+        "rigidBodyData": [
+          {
+            "name": "pipette_rigid_body",
+            "file": "febio_rigid_pipette.csv",
+            "data": "x;y;z;Fx;Fy;Fz",
+            "item": "pipette",
+            "mapsTo": [
+              "history[].pipette",
+              "history[].pipetteCenter",
+              "history[].holdForce",
+              "peaks.peakHoldForce"
+            ]
+          }
+        ],
+        "faceData": [
+          {
+            "name": "nucleus_cytoplasm_interface_surface",
+            "file": "febio_interface_nucleus_cytoplasm.csv",
+            "surface": "nucleus_interface_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_left_surface",
+            "file": "febio_interface_nc_left.csv",
+            "surface": "nucleus_interface_left_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_right_surface",
+            "file": "febio_interface_nc_right.csv",
+            "surface": "nucleus_interface_right_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_top_surface",
+            "file": "febio_interface_nc_top.csv",
+            "surface": "nucleus_interface_top_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_bottom_surface",
+            "file": "febio_interface_nc_bottom.csv",
+            "surface": "nucleus_interface_bottom_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "cell_dish_interface_surface",
+            "file": "febio_interface_cell_dish.csv",
+            "surface": "cell_dish_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "cell_dish_left_surface",
+            "file": "febio_interface_cd_left.csv",
+            "surface": "cell_dish_left_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "cell_dish_center_surface",
+            "file": "febio_interface_cd_center.csv",
+            "surface": "cell_dish_center_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "cell_dish_right_surface",
+            "file": "febio_interface_cd_right.csv",
+            "surface": "cell_dish_right_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "native-face-data-preferred",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "pipette_cell_contact_surface",
+            "file": "febio_pipette_cell_contact.csv",
+            "surface": "pipette_suction_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "proxy-fallback-explicit",
+              "shear": "proxy-fallback-explicit"
+            }
+          },
+          {
+            "name": "pipette_contact_surface",
+            "file": "febio_pipette_contact.csv",
+            "surface": "pipette_contact_surface",
+            "logfileData": "contact gap;contact pressure",
+            "logfileFields": [
+              "contact gap",
+              "contact pressure"
+            ],
+            "optionalExternalFields": [
+              "contact traction",
+              "traction x",
+              "traction y",
+              "traction z",
+              "tangential traction",
+              "shear traction"
+            ],
+            "currentCoverage": {
+              "normal": "native-face-data-preferred",
+              "damage": "proxy-fallback-explicit",
+              "shear": "not-used"
+            }
+          }
+        ],
+        "plotfileSurfaceData": [
+          {
+            "name": "nucleus_cytoplasm_left_surface",
+            "variable": "contact traction",
+            "surface": "nucleus_interface_left_surface",
+            "interfaceGroup": "localNc",
+            "region": "left",
+            "alias": "nucleus_cytoplasm_left_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localNc.left",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "x",
+              "tangential": "z"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_right_surface",
+            "variable": "contact traction",
+            "surface": "nucleus_interface_right_surface",
+            "interfaceGroup": "localNc",
+            "region": "right",
+            "alias": "nucleus_cytoplasm_right_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localNc.right",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "x",
+              "tangential": "z"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_top_surface",
+            "variable": "contact traction",
+            "surface": "nucleus_interface_top_surface",
+            "interfaceGroup": "localNc",
+            "region": "top",
+            "alias": "nucleus_cytoplasm_top_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localNc.top",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "z",
+              "tangential": "x"
+            }
+          },
+          {
+            "name": "nucleus_cytoplasm_bottom_surface",
+            "variable": "contact traction",
+            "surface": "nucleus_interface_bottom_surface",
+            "interfaceGroup": "localNc",
+            "region": "bottom",
+            "alias": "nucleus_cytoplasm_bottom_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localNc.bottom",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "z",
+              "tangential": "x"
+            }
+          },
+          {
+            "name": "cell_dish_left_surface",
+            "variable": "contact traction",
+            "surface": "cell_dish_left_surface",
+            "interfaceGroup": "localCd",
+            "region": "left",
+            "alias": "cell_dish_left_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localCd.left",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "z",
+              "tangential": "x"
+            }
+          },
+          {
+            "name": "cell_dish_center_surface",
+            "variable": "contact traction",
+            "surface": "cell_dish_center_surface",
+            "interfaceGroup": "localCd",
+            "region": "center",
+            "alias": "cell_dish_center_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localCd.center",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "z",
+              "tangential": "x"
+            }
+          },
+          {
+            "name": "cell_dish_right_surface",
+            "variable": "contact traction",
+            "surface": "cell_dish_right_surface",
+            "interfaceGroup": "localCd",
+            "region": "right",
+            "alias": "cell_dish_right_surface_contact_traction",
+            "payloadPath": "plotfileSurfaceData.localCd.right",
+            "preferredSource": "native-plotfile-contact-traction",
+            "sectionAxes": {
+              "normal": "z",
+              "tangential": "x"
+            }
+          }
+        ],
+        "aspiration": {
+          "name": "pipette_aspiration_length",
+          "metric": "L(t)",
+          "unit": "um",
+          "status": "native-or-postprocessed-contract",
+          "preferredSource": "native-node-displacement",
+          "payloadPath": "aspiration.length",
+          "historyPath": "history[].aspirationLength",
+          "peakPath": "peaks.peakAspirationLength",
+          "reference": {
+            "surface": "pipette_contact_surface",
+            "nodeSet": "pipette_contact_nodes",
+            "mouthPlaneX": 26,
+            "inwardAxis": "-x",
+            "sectionPlane": "x-z"
+          },
+          "definition": "Clamp to >=0 the projected distance from the pipette mouth plane to the most inward aspirated nucleus/cytoplasm node.",
+          "mapsTo": [
+            "history[].aspirationLength",
+            "aspiration.length",
+            "peaks.peakAspirationLength"
+          ]
+        }
+      },
+      "diagnostics": {
+        "targets": [
+          "pressure-load-declared",
+          "pressure-load-step-active",
+          "contact-pair-declared",
+          "contact-pressure-nonzero",
+          "reaction-force-nonzero",
+          "displacement-nonzero"
+        ],
+        "validationReport": {
+          "valid": true,
+          "errors": [],
+          "warnings": [],
+          "source": "febio-native-spec"
+        },
+        "expectedStudioConfirmation": {
+          "febPath": "set-by-export-cli",
+          "logPath": "set-by-febio-run",
+          "resultPath": "set-by-converter",
+          "outputCsv": [
+            "febio_pipette_cell_contact.csv",
+            "febio_pipette_contact.csv",
+            "febio_rigid_pipette.csv",
+            "febio_interface_cell_dish.csv"
+          ]
+        }
+      },
+      "discreteCohesive": {
+        "nucleusCytoplasm": {
+          "type": "discrete-cohesive-springs",
+          "status": "implemented-sidecar / not solver-primary"
+        }
+      }
+    },
+    "febXml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<febio_spec version=\"4.0\">\n  <Module type=\"solid\" />\n  <Material>\n    <material id=\"1\" name=\"nucleus\" type=\"viscoelastic\">\n      <elastic type=\"neo-Hookean\">\n        <E>20.000000</E>\n        <v>0.340000</v>\n      </elastic>\n      <g1>0.350000</g1>\n      <t1>1.200000</t1>\n      <!-- viscosity eta=4.200000 -->\n    </material>\n    <material id=\"2\" name=\"cytoplasm\" type=\"viscoelastic\">\n      <elastic type=\"neo-Hookean\">\n        <E>7.500000</E>\n        <v>0.410000</v>\n      </elastic>\n      <g1>0.350000</g1>\n      <t1>1.200000</t1>\n      <!-- viscosity eta=5.600000 -->\n    </material>\n    <material id=\"3\" name=\"dish\" type=\"neo-Hookean\">\n        <E>250.000000</E>\n        <v>0.300000</v>\n    </material>\n    <material id=\"4\" name=\"pipette_rigid\" type=\"rigid body\">\n        <E>600.000000</E>\n        <v>0.250000</v>\n      <density>1.000000</density>\n      <center_of_mass>32.500000,0.000000,8.500000</center_of_mass>\n    </material>\n  </Material>\n  <Mesh>\n    <Nodes name=\"all_nodes\">\n      <node id=\"1\">-26.000000,-0.500000,0.000000</node>\n      <node id=\"2\">-14.000000,-0.500000,0.000000</node>\n      <node id=\"3\">-14.000000,0.500000,0.000000</node>\n      <node id=\"4\">-26.000000,0.500000,0.000000</node>\n      <node id=\"5\">-26.000000,-0.500000,34.000000</node>\n      <node id=\"6\">-14.000000,-0.500000,34.000000</node>\n      <node id=\"7\">-14.000000,0.500000,34.000000</node>\n      <node id=\"8\">-26.000000,0.500000,34.000000</node>\n      <node id=\"9\">-14.000000,-0.250000,8.000000</node>\n      <node id=\"10\">14.000000,-0.250000,8.000000</node>\n      <node id=\"11\">14.000000,0.250000,8.000000</node>\n      <node id=\"12\">-14.000000,0.250000,8.000000</node>\n      <node id=\"13\">-14.000000,-0.250000,26.000000</node>\n      <node id=\"14\">14.000000,-0.250000,26.000000</node>\n      <node id=\"15\">14.000000,0.250000,26.000000</node>\n      <node id=\"16\">-14.000000,0.250000,26.000000</node>\n      <node id=\"17\">26.000000,-0.200000,2.000000</node>\n      <node id=\"18\">39.000000,-0.200000,2.000000</node>\n      <node id=\"19\">39.000000,0.200000,2.000000</node>\n      <node id=\"20\">26.000000,0.200000,2.000000</node>\n      <node id=\"21\">26.000000,-0.200000,15.000000</node>\n      <node id=\"22\">39.000000,-0.200000,15.000000</node>\n      <node id=\"23\">39.000000,0.200000,15.000000</node>\n      <node id=\"24\">26.000000,0.200000,15.000000</node>\n      <node id=\"25\">-26.000000,-0.500000,-2.720000</node>\n      <node id=\"26\">26.000000,-0.500000,-2.720000</node>\n      <node id=\"27\">26.000000,0.500000,-2.720000</node>\n      <node id=\"28\">-26.000000,0.500000,-2.720000</node>\n      <node id=\"29\">-26.000000,-0.500000,0.000000</node>\n      <node id=\"30\">26.000000,-0.500000,0.000000</node>\n      <node id=\"31\">26.000000,0.500000,0.000000</node>\n      <node id=\"32\">-26.000000,0.500000,0.000000</node>\n      <node id=\"33\">14.000000,-0.500000,0.000000</node>\n      <node id=\"34\">26.000000,-0.500000,0.000000</node>\n      <node id=\"35\">26.000000,0.500000,0.000000</node>\n      <node id=\"36\">14.000000,0.500000,0.000000</node>\n      <node id=\"37\">14.000000,-0.500000,34.000000</node>\n      <node id=\"38\">26.000000,-0.500000,34.000000</node>\n      <node id=\"39\">26.000000,0.500000,34.000000</node>\n      <node id=\"40\">14.000000,0.500000,34.000000</node>\n      <node id=\"41\">-14.000000,-0.500000,0.000000</node>\n      <node id=\"42\">14.000000,-0.500000,0.000000</node>\n      <node id=\"43\">14.000000,0.500000,0.000000</node>\n      <node id=\"44\">-14.000000,0.500000,0.000000</node>\n      <node id=\"45\">-14.000000,-0.500000,8.000000</node>\n      <node id=\"46\">14.000000,-0.500000,8.000000</node>\n      <node id=\"47\">14.000000,0.500000,8.000000</node>\n      <node id=\"48\">-14.000000,0.500000,8.000000</node>\n      <node id=\"49\">-14.000000,-0.500000,26.000000</node>\n      <node id=\"50\">14.000000,-0.500000,26.000000</node>\n      <node id=\"51\">14.000000,0.500000,26.000000</node>\n      <node id=\"52\">-14.000000,0.500000,26.000000</node>\n      <node id=\"53\">-14.000000,-0.500000,34.000000</node>\n      <node id=\"54\">14.000000,-0.500000,34.000000</node>\n      <node id=\"55\">14.000000,0.500000,34.000000</node>\n      <node id=\"56\">-14.000000,0.500000,34.000000</node>\n    </Nodes>\n    <Elements type=\"hex8\" name=\"cytoplasm\">\n      <elem id=\"1\">1,2,3,4,5,6,7,8</elem>\n      <elem id=\"5\">33,34,35,36,37,38,39,40</elem>\n      <elem id=\"6\">41,42,43,44,45,46,47,48</elem>\n      <elem id=\"7\">49,50,51,52,53,54,55,56</elem>\n    </Elements>\n    <Elements type=\"hex8\" name=\"nucleus\">\n      <elem id=\"2\">9,10,11,12,13,14,15,16</elem>\n    </Elements>\n    <Elements type=\"hex8\" name=\"pipette\">\n      <elem id=\"3\">17,18,19,20,21,22,23,24</elem>\n    </Elements>\n    <Elements type=\"hex8\" name=\"dish\">\n      <elem id=\"4\">25,26,27,28,29,30,31,32</elem>\n    </Elements>\n    <Surface name=\"nucleus_interface_surface\">\n      <quad4 id=\"1\">9,12,16,13</quad4>\n      <quad4 id=\"2\">10,11,15,14</quad4>\n      <quad4 id=\"3\">13,14,15,16</quad4>\n      <quad4 id=\"4\">9,10,11,12</quad4>\n    </Surface>\n    <Surface name=\"nucleus_interface_left_surface\">\n      <quad4 id=\"2\">9,12,16,13</quad4>\n    </Surface>\n    <Surface name=\"nucleus_interface_right_surface\">\n      <quad4 id=\"3\">10,11,15,14</quad4>\n    </Surface>\n    <Surface name=\"nucleus_interface_top_surface\">\n      <quad4 id=\"4\">13,14,15,16</quad4>\n    </Surface>\n    <Surface name=\"nucleus_interface_bottom_surface\">\n      <quad4 id=\"5\">9,10,11,12</quad4>\n    </Surface>\n    <Surface name=\"cytoplasm_interface_surface\">\n      <quad4 id=\"6\">2,3,7,6</quad4>\n      <quad4 id=\"7\">33,36,40,37</quad4>\n      <quad4 id=\"8\">45,46,47,48</quad4>\n      <quad4 id=\"9\">49,50,51,52</quad4>\n    </Surface>\n    <Surface name=\"cytoplasm_interface_left_surface\">\n      <quad4 id=\"10\">2,3,7,6</quad4>\n    </Surface>\n    <Surface name=\"cytoplasm_interface_right_surface\">\n      <quad4 id=\"11\">33,36,40,37</quad4>\n    </Surface>\n    <Surface name=\"cytoplasm_interface_top_surface\">\n      <quad4 id=\"12\">49,50,51,52</quad4>\n    </Surface>\n    <Surface name=\"cytoplasm_interface_bottom_surface\">\n      <quad4 id=\"13\">45,46,47,48</quad4>\n    </Surface>\n    <Surface name=\"cell_dish_surface\">\n      <quad4 id=\"14\">1,2,3,4</quad4>\n      <quad4 id=\"15\">41,42,43,44</quad4>\n      <quad4 id=\"16\">33,34,35,36</quad4>\n    </Surface>\n    <Surface name=\"dish_contact_surface\">\n      <quad4 id=\"12\">29,30,31,32</quad4>\n    </Surface>\n    <Surface name=\"cell_dish_left_surface\">\n      <quad4 id=\"17\">1,2,3,4</quad4>\n    </Surface>\n    <Surface name=\"cell_dish_center_surface\">\n      <quad4 id=\"18\">41,42,43,44</quad4>\n    </Surface>\n    <Surface name=\"cell_dish_right_surface\">\n      <quad4 id=\"19\">33,34,35,36</quad4>\n    </Surface>\n    <Surface name=\"pipette_suction_surface\">\n      <quad4 id=\"20\">34,38,39,35</quad4>\n    </Surface>\n    <Surface name=\"pipette_contact_surface\">\n      <quad4 id=\"16\">17,20,24,21</quad4>\n    </Surface>\n    <NodeSet name=\"cytoplasm_nodes\">1,2,3,4,5,6,7,8,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56</NodeSet>\n    <NodeSet name=\"nucleus_nodes\">9,10,11,12,13,14,15,16</NodeSet>\n    <NodeSet name=\"pipette_nodes\">17,18,19,20,21,22,23,24</NodeSet>\n    <NodeSet name=\"dish_nodes\">25,26,27,28,29,30,31,32</NodeSet>\n    <NodeSet name=\"nc_left_nucleus_nodes\">9,12,13,16</NodeSet>\n    <NodeSet name=\"nc_right_nucleus_nodes\">10,11,14,15</NodeSet>\n    <NodeSet name=\"nc_top_nucleus_nodes\">13,14,15,16</NodeSet>\n    <NodeSet name=\"nc_bottom_nucleus_nodes\">9,10,11,12</NodeSet>\n    <NodeSet name=\"nc_left_cytoplasm_nodes\">2,3,6,7</NodeSet>\n    <NodeSet name=\"nc_right_cytoplasm_nodes\">33,36,37,40</NodeSet>\n    <NodeSet name=\"nc_top_cytoplasm_nodes\">49,50,51,52</NodeSet>\n    <NodeSet name=\"nc_bottom_cytoplasm_nodes\">45,46,47,48</NodeSet>\n    <NodeSet name=\"cd_left_cell_nodes\">1,4</NodeSet>\n    <NodeSet name=\"cd_center_cell_nodes\">41,42,43,44</NodeSet>\n    <NodeSet name=\"cd_right_cell_nodes\">34,35</NodeSet>\n    <NodeSet name=\"dish_fixed_nodes\">25,26,27,28</NodeSet>\n    <NodeSet name=\"pipette_contact_nodes\">17,20,21,24</NodeSet>\n    <NodeSet name=\"all_nodes_set\">1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56</NodeSet>\n    <NodeSet name=\"deformable_nodes_set\">1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56</NodeSet>\n    <SurfacePair name=\"nucleus_cytoplasm_pair\">\n      <primary>cytoplasm_interface_surface</primary>\n      <secondary>nucleus_interface_surface</secondary>\n    </SurfacePair>\n    <SurfacePair name=\"cell_dish_pair\">\n      <primary>cell_dish_surface</primary>\n      <secondary>dish_contact_surface</secondary>\n    </SurfacePair>\n    <SurfacePair name=\"pipette_nucleus_pair\">\n      <primary>nucleus_interface_right_surface</primary>\n      <secondary>pipette_contact_surface</secondary>\n    </SurfacePair>\n    <SurfacePair name=\"pipette_cell_pair\">\n      <primary>pipette_suction_surface</primary>\n      <secondary>pipette_contact_surface</secondary>\n    </SurfacePair>\n  </Mesh>\n  <MeshDomains>\n    <SolidDomain name=\"nucleus\" mat=\"nucleus\" />\n    <SolidDomain name=\"cytoplasm\" mat=\"cytoplasm\" />\n    <SolidDomain name=\"dish\" mat=\"dish\" />\n    <SolidDomain name=\"pipette\" mat=\"pipette_rigid\" />\n  </MeshDomains>\n  <Boundary>\n    <bc name=\"dish_fixed\" node_set=\"dish_fixed_nodes\" type=\"zero displacement\">\n      <x_dof>1</x_dof>\n      <y_dof>1</y_dof>\n      <z_dof>1</z_dof>\n    </bc>\n    <bc name=\"section_plane_lock\" node_set=\"deformable_nodes_set\" type=\"zero displacement\">\n      <y_dof>1</y_dof>\n    </bc>\n  </Boundary>\n  <Contact>\n    <contact name=\"nucleus_cytoplasm_interface\" type=\"sticky\" surface_pair=\"nucleus_cytoplasm_pair\">\n      <!-- solver-primary cohesive approximation -->\n      <penalty>0.350000</penalty>\n      <tolerance>0.080000</tolerance>\n      <search_tolerance>0.080000</search_tolerance>\n      <laugon>1</laugon>\n      <minaug>0</minaug>\n      <maxaug>12</maxaug>\n      <max_traction>0.250000</max_traction>\n      <snap_tol>0.100513</snap_tol>\n      <!-- cohesive criticalNormalStress=0.780000 -->\n      <!-- ramp approach: normalPenalty=0.140000 tangentialPenalty=0.054064 frictionProxy=0.064750 -->\n      <!-- ramp hold: normalPenalty=0.245000 tangentialPenalty=0.118941 frictionProxy=0.129500 -->\n      <!-- ramp lift: normalPenalty=0.350000 tangentialPenalty=0.216257 frictionProxy=0.185000 -->\n    </contact>\n    <contact name=\"cell_dish_interface\" type=\"tied-elastic\" surface_pair=\"cell_dish_pair\">\n      <penalty>1.550000</penalty>\n      <tolerance>0.050000</tolerance>\n      <!-- cohesive-ready normalStiffness=1.550000 tangentialStiffness=1.250000 -->\n      <!-- cohesive-ready criticalNormalStress=0.950000 criticalShearStress=0.650000 fractureEnergy=0.350000 -->\n    </contact>\n    <contact name=\"pipette_nucleus_contact\" type=\"sticky\" surface_pair=\"pipette_nucleus_pair\">\n      <penalty>0.607500</penalty>\n      <laugon>0</laugon>\n      <tolerance>0.200000</tolerance>\n      <minaug>0</minaug>\n      <maxaug>10</maxaug>\n      <search_tolerance>2.200000</search_tolerance>\n      <max_traction>1.000000</max_traction>\n      <snap_tol>0.180000</snap_tol>\n      <!-- solver-active pipette capture-hold contact status=solver-active capture-hold contact friction=0.260000 releaseTraction=1.000000 slipDistance=0.300000 -->\n    </contact>\n    <contact name=\"pipette_cell_contact\" type=\"sliding-elastic\" surface_pair=\"pipette_cell_pair\">\n      <penalty>0.697500</penalty>\n      <auto_penalty>1</auto_penalty>\n      <two_pass>0</two_pass>\n      <laugon>0</laugon>\n      <tolerance>0.200000</tolerance>\n      <search_tol>2.640000</search_tol>\n      <search_radius>16.250000</search_radius>\n      <symmetric_stiffness>0</symmetric_stiffness>\n      <fric_coeff>0.091000</fric_coeff>\n      <!-- status=solver-active secondary contact mode=secondary-contact-proxy -->\n    </contact>\n  </Contact>\n  <Rigid>\n    <rigid_bc type=\"rigid_fixed\">\n      <rb>pipette_rigid</rb>\n      <Ry_dof>1</Ry_dof>\n      <Ru_dof>1</Ru_dof>\n      <Rv_dof>1</Rv_dof>\n      <Rw_dof>1</Rw_dof>\n    </rigid_bc>\n  </Rigid>\n  <Loads>\n    <!-- nodal_load hold_force_proxy surface=pipette_contact_surface lc=201 status=proxy-load / not pressure-driven value=20.000000 -->\n    <surface_load name=\"pipette_suction_pressure\" surface=\"pipette_suction_surface\" type=\"pressure\">\n      <pressure lc=\"3\">-0.700000</pressure>\n      <!-- status=solver-active pressure-driven suction / febio-native-direct unit=kPa direction=inward-negative-pressure magnitude=0.700000 -->\n    </surface_load>\n  </Loads>\n  <LoadData>\n    <load_controller id=\"1\" name=\"lift_ramp\" type=\"loadcurve\">\n      <interpolate>LINEAR</interpolate>\n      <extend>CONSTANT</extend>\n      <points>\n        <point>0.000000, 0.000000</point>\n        <point>1.000000, 0.000000</point>\n        <point>2.000000, 1.000000</point>\n        <point>5.000000, 1.000000</point>\n      </points>\n    </load_controller>\n    <load_controller id=\"2\" name=\"inward_ramp\" type=\"loadcurve\">\n      <interpolate>LINEAR</interpolate>\n      <extend>CONSTANT</extend>\n      <points>\n        <point>0.000000, 0.000000</point>\n        <point>3.000000, 0.000000</point>\n        <point>4.000000, 1.000000</point>\n        <point>5.000000, 1.000000</point>\n      </points>\n    </load_controller>\n    <load_controller id=\"3\" name=\"suction_pressure_curve\" type=\"loadcurve\">\n      <interpolate>LINEAR</interpolate>\n      <extend>CONSTANT</extend>\n      <points>\n        <point>0.000000, 0.000000</point>\n        <point>1.000000, 1.000000</point>\n        <point>2.000000, 1.000000</point>\n        <point>5.000000, 1.000000</point>\n      </points>\n    </load_controller>\n  </LoadData>\n  <Step>\n    <step id=\"1\" name=\"approach\">\n    <Control>\n      <analysis>static</analysis>\n      <time_steps>60</time_steps>\n      <step_size>0.016667</step_size>\n      <plot_level>PLOT_MAJOR_ITRS</plot_level>\n      <output_level>OUTPUT_MAJOR_ITRS</output_level>\n      <solver>\n        <symmetric_stiffness>0</symmetric_stiffness>\n      </solver>\n    </Control>\n    <Rigid>\n      <rigid_bc type=\"rigid_displacement\">\n        <rb>pipette_rigid</rb>\n        <dof>x</dof>\n        <value>0.000000</value>\n        <relative>1</relative>\n      </rigid_bc>\n      <rigid_bc type=\"rigid_displacement\">\n        <rb>pipette_rigid</rb>\n        <dof>z</dof>\n        <value>-0.350000</value>\n        <relative>1</relative>\n      </rigid_bc>\n    </Rigid>\n    </step>\n    <step id=\"2\" name=\"hold\">\n    <Control>\n      <analysis>static</analysis>\n      <time_steps>40</time_steps>\n      <step_size>0.025000</step_size>\n      <plot_level>PLOT_MAJOR_ITRS</plot_level>\n      <output_level>OUTPUT_MAJOR_ITRS</output_level>\n      <solver>\n        <symmetric_stiffness>0</symmetric_stiffness>\n      </solver>\n    </Control>\n    <Rigid>\n      <rigid_bc type=\"rigid_displacement\">\n        <rb>pipette_rigid</rb>\n        <dof>x</dof>\n        <value>0.000000</value>\n        <relative>1</relative>\n      </rigid_bc>\n      <rigid_bc type=\"rigid_displacement\">\n        <rb>pipette_rigid</rb>\n        <dof>z</dof>\n        <value>0.000000</value>\n        <relative>1</relative>\n      </rigid_bc>\n    </Rigid>\n    <Loads>\n      <surface_load name=\"pipette_suction_pressure_hold\" surface=\"pipette_suction_surface\" type=\"pressure\">\n        <pressure lc=\"3\">-0.700000</pressure>\n        <!-- active-step pressure source=pipette_suction_pressure status=solver-active pressure-driven suction / febio-native-direct -->\n      </surface_load>\n    </Loads>\n    </step>\n    <step id=\"3\" name=\"lift\">\n    <Control>\n      <analysis>static</analysis>\n      <time_steps>60</time_steps>\n      <step_size>0.016667</step_size>\n      <plot_level>PLOT_MAJOR_ITRS</plot_level>\n      <output_level>OUTPUT_MAJOR_ITRS</output_level>\n      <solver>\n        <symmetric_stiffness>0</symmetric_stiffness>\n      </solver>\n    </Control>\n    <Rigid>\n      <rigid_bc type=\"rigid_displacement\">\n        <rb>pipette_rigid</rb>\n        <dof>x</dof>\n        <value>0.000000</value>\n        <relative>1</relative>\n      </rigid_bc>\n      <rigid_bc type=\"rigid_displacement\">\n        <rb>pipette_rigid</rb>\n        <dof>z</dof>\n        <value lc=\"1\">8.000000</value>\n        <relative>1</relative>\n      </rigid_bc>\n    </Rigid>\n    <Loads>\n      <surface_load name=\"pipette_suction_pressure_lift\" surface=\"pipette_suction_surface\" type=\"pressure\">\n        <pressure lc=\"3\">-0.700000</pressure>\n        <!-- active-step pressure source=pipette_suction_pressure status=solver-active pressure-driven suction / febio-native-direct -->\n      </surface_load>\n    </Loads>\n    </step>\n    <step id=\"4\" name=\"manipulation-1\">\n    <Control>\n      <analysis>static</analysis>\n      <time_steps>90</time_steps>\n      <step_size>0.011111</step_size>\n      <plot_level>PLOT_MAJOR_ITRS</plot_level>\n      <output_level>OUTPUT_MAJOR_ITRS</output_level>\n      <solver>\n        <symmetric_stiffness>0</symmetric_stiffness>\n      </solver>\n    </Control>\n    <Rigid>\n      <rigid_bc type=\"rigid_displacement\">\n        <rb>pipette_rigid</rb>\n        <dof>x</dof>\n        <value lc=\"2\">-1.800000</value>\n        <relative>1</relative>\n      </rigid_bc>\n      <rigid_bc type=\"rigid_displacement\">\n        <rb>pipette_rigid</rb>\n        <dof>z</dof>\n        <value>0.000000</value>\n        <relative>1</relative>\n      </rigid_bc>\n    </Rigid>\n    <Loads>\n      <surface_load name=\"pipette_suction_pressure_manipulation-1\" surface=\"pipette_suction_surface\" type=\"pressure\">\n        <pressure lc=\"3\">-0.700000</pressure>\n        <!-- active-step pressure source=pipette_suction_pressure status=solver-active pressure-driven suction / febio-native-direct -->\n      </surface_load>\n    </Loads>\n    </step>\n    <step id=\"5\" name=\"manipulation-2\">\n    <Control>\n      <analysis>static</analysis>\n      <time_steps>100</time_steps>\n      <step_size>0.010000</step_size>\n      <plot_level>PLOT_MAJOR_ITRS</plot_level>\n      <output_level>OUTPUT_MAJOR_ITRS</output_level>\n      <solver>\n        <symmetric_stiffness>0</symmetric_stiffness>\n      </solver>\n    </Control>\n    <Rigid>\n      <rigid_bc type=\"rigid_displacement\">\n        <rb>pipette_rigid</rb>\n        <dof>x</dof>\n        <value lc=\"2\">-2.200000</value>\n        <relative>1</relative>\n      </rigid_bc>\n      <rigid_bc type=\"rigid_displacement\">\n        <rb>pipette_rigid</rb>\n        <dof>z</dof>\n        <value>0.000000</value>\n        <relative>1</relative>\n      </rigid_bc>\n    </Rigid>\n    <Loads>\n      <surface_load name=\"pipette_suction_pressure_manipulation-2\" surface=\"pipette_suction_surface\" type=\"pressure\">\n        <pressure lc=\"3\">-0.700000</pressure>\n        <!-- active-step pressure source=pipette_suction_pressure status=solver-active pressure-driven suction / febio-native-direct -->\n      </surface_load>\n    </Loads>\n    </step>\n  </Step>\n  <Output>\n    <logfile>\n      <node_data name=\"nucleus_nodes\" file=\"febio_nucleus_nodes.csv\" data=\"ux;uy;uz\" delim=\",\">9,10,11,12,13,14,15,16</node_data>\n      <node_data name=\"cytoplasm_nodes\" file=\"febio_cytoplasm_nodes.csv\" data=\"ux;uy;uz\" delim=\",\">1,2,3,4,5,6,7,8,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56</node_data>\n      <node_data name=\"pipette_contact_nodes\" file=\"febio_pipette_contact_nodes.csv\" data=\"ux;uy;uz\" delim=\",\">17,20,21,24</node_data>\n      <rigid_body_data name=\"pipette_rigid_body\" file=\"febio_rigid_pipette.csv\" data=\"x;y;z;Fx;Fy;Fz\" delim=\",\">4</rigid_body_data>\n      <face_data name=\"nucleus_cytoplasm_interface_surface\" file=\"febio_interface_nucleus_cytoplasm.csv\" data=\"contact gap;contact pressure\" delim=\",\" surface=\"nucleus_interface_surface\" />\n      <face_data name=\"nucleus_cytoplasm_left_surface\" file=\"febio_interface_nc_left.csv\" data=\"contact gap;contact pressure\" delim=\",\" surface=\"nucleus_interface_left_surface\" />\n      <face_data name=\"nucleus_cytoplasm_right_surface\" file=\"febio_interface_nc_right.csv\" data=\"contact gap;contact pressure\" delim=\",\" surface=\"nucleus_interface_right_surface\" />\n      <face_data name=\"nucleus_cytoplasm_top_surface\" file=\"febio_interface_nc_top.csv\" data=\"contact gap;contact pressure\" delim=\",\" surface=\"nucleus_interface_top_surface\" />\n      <face_data name=\"nucleus_cytoplasm_bottom_surface\" file=\"febio_interface_nc_bottom.csv\" data=\"contact gap;contact pressure\" delim=\",\" surface=\"nucleus_interface_bottom_surface\" />\n      <face_data name=\"cell_dish_interface_surface\" file=\"febio_interface_cell_dish.csv\" data=\"contact gap;contact pressure\" delim=\",\" surface=\"cell_dish_surface\" />\n      <face_data name=\"cell_dish_left_surface\" file=\"febio_interface_cd_left.csv\" data=\"contact gap;contact pressure\" delim=\",\" surface=\"cell_dish_left_surface\" />\n      <face_data name=\"cell_dish_center_surface\" file=\"febio_interface_cd_center.csv\" data=\"contact gap;contact pressure\" delim=\",\" surface=\"cell_dish_center_surface\" />\n      <face_data name=\"cell_dish_right_surface\" file=\"febio_interface_cd_right.csv\" data=\"contact gap;contact pressure\" delim=\",\" surface=\"cell_dish_right_surface\" />\n      <face_data name=\"pipette_cell_contact_surface\" file=\"febio_pipette_cell_contact.csv\" data=\"contact gap;contact pressure\" delim=\",\" surface=\"pipette_suction_surface\" />\n      <face_data name=\"pipette_contact_surface\" file=\"febio_pipette_contact.csv\" data=\"contact gap;contact pressure\" delim=\",\" surface=\"pipette_contact_surface\" />\n      <!-- derived_data name=\"pipette_aspiration_length\" metric=\"L(t)\" unit=\"um\" payload=\"aspiration.length\" source=\"native-node-displacement\" -->\n    </logfile>\n    <plotfile type=\"febio\">\n      <var type=\"displacement\" />\n      <var type=\"stress\" />\n      <var type=\"contact force\" />\n      <var type=\"reaction forces\" />\n      <var type=\"contact traction\" surface=\"nucleus_interface_left_surface\"/>\n      <var type=\"contact traction\" surface=\"nucleus_interface_right_surface\"/>\n      <var type=\"contact traction\" surface=\"nucleus_interface_top_surface\"/>\n      <var type=\"contact traction\" surface=\"nucleus_interface_bottom_surface\"/>\n      <var type=\"contact traction\" surface=\"cell_dish_left_surface\"/>\n      <var type=\"contact traction\" surface=\"cell_dish_center_surface\"/>\n      <var type=\"contact traction\" surface=\"cell_dish_right_surface\"/>\n    </plotfile>\n  </Output>\n  <!-- cohesive discrete sidecar (not solver-active yet)\n  <DiscreteSet name=\"nucleus_cytoplasm_left_springs\">\n  </DiscreteSet>\n  discrete_material nucleus_cytoplasm_left_springs_material type=nonlinear spring\n  load_controller 300 points=\n  -->\n</febio_spec>",
+    "expectedOutputs": {
+      "feb": "S7_direct_force_transfer.feb",
+      "log": "S7_direct_force_transfer.log",
+      "xplt": "S7_direct_force_transfer.xplt",
+      "resultJson": "S7_direct_force_transfer_result.json"
+    },
+    "eventContract": {
+      "detachment": {
+        "evaluation": "damage-plus-geometry",
+        "preferredSource": "native-first / proxy-assisted fallback",
+        "events": [
+          "detachmentStart",
+          "detachmentComplete"
+        ],
+        "metrics": [
+          "contactAreaRatio",
+          "relativeNucleusDisplacement"
+        ],
+        "payloadPath": "normalizedResult.events"
+      }
+    },
+    "validation": {
+      "nativeSpec": {
+        "valid": true,
+        "errors": [],
+        "warnings": [],
+        "source": "febio-native-spec"
+      },
+      "mesh": {
+        "valid": true,
+        "invalidElements": [],
+        "aspectRatioWarnings": [],
+        "requiredDomains": {
+          "nucleus": "present",
+          "cytoplasm": "present",
+          "dish": "present",
+          "pipette": "present"
+        },
+        "requiredNodeSets": {
+          "dish_fixed_nodes": "present",
+          "pipette_contact_nodes": "present",
+          "nc_left_nucleus_nodes": "present",
+          "nc_right_nucleus_nodes": "present",
+          "nc_top_nucleus_nodes": "present",
+          "nc_bottom_nucleus_nodes": "present",
+          "nc_left_cytoplasm_nodes": "present",
+          "nc_right_cytoplasm_nodes": "present",
+          "nc_top_cytoplasm_nodes": "present",
+          "nc_bottom_cytoplasm_nodes": "present",
+          "cd_left_cell_nodes": "present",
+          "cd_center_cell_nodes": "present",
+          "cd_right_cell_nodes": "present"
+        },
+        "requiredSurfaces": {
+          "nucleus_interface_surface": true,
+          "nucleus_interface_left_surface": true,
+          "nucleus_interface_right_surface": true,
+          "nucleus_interface_top_surface": true,
+          "nucleus_interface_bottom_surface": true,
+          "cytoplasm_interface_surface": true,
+          "cytoplasm_interface_left_surface": true,
+          "cytoplasm_interface_right_surface": true,
+          "cytoplasm_interface_top_surface": true,
+          "cytoplasm_interface_bottom_surface": true,
+          "cell_dish_surface": true,
+          "dish_contact_surface": true,
+          "cell_dish_left_surface": true,
+          "cell_dish_center_surface": true,
+          "cell_dish_right_surface": true,
+          "pipette_suction_surface": true,
+          "pipette_contact_surface": true
+        },
+        "requiredSurfacePairs": {
+          "nucleus_cytoplasm_pair": {
+            "present": true,
+            "primary": true,
+            "secondary": true,
+            "surfacesReady": true
+          },
+          "cell_dish_pair": {
+            "present": true,
+            "primary": true,
+            "secondary": true,
+            "surfacesReady": true
+          },
+          "pipette_nucleus_pair": {
+            "present": true,
+            "primary": true,
+            "secondary": true,
+            "surfacesReady": true
+          },
+          "pipette_cell_pair": {
+            "present": true,
+            "primary": true,
+            "secondary": true,
+            "surfacesReady": true
+          }
+        }
+      },
+      "nucleusCytoplasm": {
+        "valid": true,
+        "warnings": [],
+        "diagnostics": {
+          "monotonicRamp": true,
+          "rampSteps": [
+            "approach",
+            "hold",
+            "lift"
+          ],
+          "normalPenaltyRatio": 0.25925925925925924,
+          "tangentialPenaltyRatio": 0.2059591836734693,
+          "snapToSearchRatio": 1.2564102564102566,
+          "tractionToCriticalRatio": 0.3205128205128205
+        }
+      }
+    },
+    "exportTimestamp": "2026-04-24T14:59:19.499Z",
+    "exportReady": true,
+    "solverMetadata": {
+      "solverMode": "febio",
+      "source": "febio-native-direct"
+    }
+  },
+  "generatedAt": "2026-04-24T14:59:19.499Z",
+  "source": "febio-native-direct"
+}

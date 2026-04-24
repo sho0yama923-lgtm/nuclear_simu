@@ -130,7 +130,7 @@ function buildDetachmentOutputContract() {
 }
 
 function buildAspirationOutputContract(inputSpec, mesh) {
-  const mouthPlaneX = mesh.bounds?.pipetteRight ?? inputSpec.geometry.xp;
+  const mouthPlaneX = mesh.bounds?.pipetteContactX ?? mesh.bounds?.pipetteLeft ?? inputSpec.geometry.xp;
   return {
     name: "pipette_aspiration_length",
     metric: "L(t)",
@@ -215,7 +215,7 @@ function buildLoadSpec(inputSpec) {
     pressure: [
       {
         name: "pipette_suction_pressure",
-        surface: "pipette_contact_surface",
+        surface: "pipette_suction_surface",
         value: -suctionPressure,
         magnitude: suctionPressure,
         loadController: 202,
@@ -230,7 +230,7 @@ function buildLoadSpec(inputSpec) {
       { id: 202, name: "suction_pressure_curve", unit: "kPa", points: [[0, 0], [1, 1], [2, 1], [5, 1]] },
     ],
     notes: [
-      "P_hold is serialized as a solver-active pressure magnitude on the pipette contact surface.",
+      "P_hold is serialized as a solver-active pressure magnitude on the deformable pipette suction surface.",
       "Fhold remains a hold-force proxy for continuity and is separate from suction pressure.",
     ],
   };

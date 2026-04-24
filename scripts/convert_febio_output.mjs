@@ -1311,16 +1311,62 @@ function nearestSnapshotFromTimeline(timeline, time) {
   return best;
 }
 
+function buildLegacyParamsFromNativeSpec(nativeSpec = {}) {
+  return {
+    Ln: nativeSpec.geometry?.nucleus?.width,
+    Hn: nativeSpec.geometry?.nucleus?.height,
+    Lc: nativeSpec.geometry?.cytoplasm?.width,
+    Hc: nativeSpec.geometry?.cytoplasm?.height,
+    xn: nativeSpec.geometry?.nucleus?.center?.x,
+    yn: nativeSpec.geometry?.nucleus?.center?.z,
+    rp: nativeSpec.geometry?.pipette?.radius,
+    xp: nativeSpec.geometry?.pipette?.tip?.x,
+    zp: nativeSpec.geometry?.pipette?.tip?.z,
+    En: nativeSpec.materials?.nucleus?.E,
+    nun: nativeSpec.materials?.nucleus?.nu,
+    etan: nativeSpec.materials?.nucleus?.eta,
+    alpha_nonlinear: nativeSpec.materials?.nucleus?.alphaNonlinear,
+    Ec: nativeSpec.materials?.cytoplasm?.E,
+    nuc: nativeSpec.materials?.cytoplasm?.nu,
+    etac: nativeSpec.materials?.cytoplasm?.eta,
+    Kn_nc: nativeSpec.contacts?.nucleusCytoplasm?.normalStiffness,
+    Kt_nc: nativeSpec.contacts?.nucleusCytoplasm?.tangentialStiffness,
+    sig_nc_crit: nativeSpec.contacts?.nucleusCytoplasm?.criticalNormalStress,
+    tau_nc_crit: nativeSpec.contacts?.nucleusCytoplasm?.criticalShearStress,
+    Gc_nc: nativeSpec.contacts?.nucleusCytoplasm?.fractureEnergy,
+    Kn_cd: nativeSpec.contacts?.cellDish?.normalStiffness,
+    Kt_cd: nativeSpec.contacts?.cellDish?.tangentialStiffness,
+    sig_cd_crit: nativeSpec.contacts?.cellDish?.criticalNormalStress,
+    tau_cd_crit: nativeSpec.contacts?.cellDish?.criticalShearStress,
+    Gc_cd: nativeSpec.contacts?.cellDish?.fractureEnergy,
+    Fhold: nativeSpec.loads?.holdForceProxy?.value,
+    P_hold: Math.abs(Number(nativeSpec.loads?.suctionPressure?.value || 0)),
+    dz_lift: nativeSpec.boundary?.pipetteMotion?.liftZ,
+    dx_inward: nativeSpec.boundary?.pipetteMotion?.inwardX,
+    ds_tangent: nativeSpec.boundary?.pipetteMotion?.tangentY,
+    mu_p: nativeSpec.contacts?.pipetteNucleus?.friction,
+    contact_tol: nativeSpec.contacts?.pipetteNucleus?.searchTolerance,
+  };
+}
+
 function buildResultFromLogs(sandbox, payload, runDir) {
+  const nativeSpec = payload.nativeSpec || payload.inputSpec?.nativeSpec || payload.exportBundle?.nativeSpec || null;
+  const nativeTemplateData = payload.templateData || payload.exportBundle?.templateData || null;
   const canonicalSpec = payload.canonicalSpec || payload.inputSpec || payload.exportBundle?.canonicalSpec || null;
-  const caseName = canonicalSpec?.caseName || payload.caseName || "A";
-  const params = canonicalSpec?.params || payload.params || {};
+  const isNativeDirectInput = Boolean(nativeSpec && nativeTemplateData);
+  const caseName = nativeSpec?.caseName || canonicalSpec?.caseName || payload.caseName || "A";
+  const params = isNativeDirectInput
+    ? buildLegacyParamsFromNativeSpec(nativeSpec)
+    : canonicalSpec?.params || payload.params || {};
   const inputSpec = sandbox.buildSimulationInput(caseName, params);
-  if (canonicalSpec?.parameterDigest) {
+  if (isNativeDirectInput && (payload.parameterDigest || payload.exportBundle?.parameterDigest)) {
+    inputSpec.parameterDigest = payload.parameterDigest || payload.exportBundle.parameterDigest;
+  } else if (canonicalSpec?.parameterDigest) {
     inputSpec.parameterDigest = canonicalSpec.parameterDigest;
   }
-  const febioInputSpec = sandbox.buildFebioInputSpec(caseName, params, inputSpec);
-  const templateData = febioInputSpec.febioTemplateData;
+  const templateData = isNativeDirectInput
+    ? nativeTemplateData
+    : sandbox.buildFebioInputSpec(caseName, params, inputSpec).febioTemplateData;
   const logs = buildSnapshotsByName(runDir, getLogOutputSpecs(templateData));
   const outputMapping = buildOutputMappingSummary(templateData);
 
@@ -1418,8 +1464,8 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     peakLength: peakAspirationLength,
     unit: outputMapping.aspiration.unit,
     source: outputMapping.aspiration.source,
-    pressure: canonicalSpec?.operation?.P_hold ?? params.P_hold ?? null,
-    pressureUnit: canonicalSpec?.coordinates?.pressureUnit || "kPa",
+    pressure: nativeSpec?.loads?.suctionPressure?.magnitude ?? canonicalSpec?.operation?.P_hold ?? params.P_hold ?? null,
+    pressureUnit: nativeSpec?.loads?.suctionPressure?.unit || canonicalSpec?.coordinates?.pressureUnit || "kPa",
     mapping: outputMapping.aspiration,
   };
   const interfaceObservationSummary = buildInterfaceObservationSummary(
@@ -1438,6 +1484,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
   const result = {
     caseName,
     params: sandbox.structuredClone(params),
+    ...(nativeSpec ? { nativeSpec: sandbox.structuredClone(nativeSpec) } : {}),
     parameterDigest: inputSpec.parameterDigest,
     schedule: inputSpec.schedule,
     history,
@@ -1487,7 +1534,12 @@ function buildResultFromLogs(sandbox, payload, runDir) {
       parameterDigest: inputSpec.parameterDigest,
       exportTimestamp: payload.exportBundle?.exportTimestamp || payload.generatedAt || null,
       importTimestamp: new Date().toISOString(),
-      digestMatch: canonicalSpec?.parameterDigest ? canonicalSpec.parameterDigest === inputSpec.parameterDigest : null,
+      digestMatch:
+        isNativeDirectInput && (payload.parameterDigest || payload.exportBundle?.parameterDigest)
+          ? (payload.parameterDigest || payload.exportBundle.parameterDigest) === inputSpec.parameterDigest
+          : canonicalSpec?.parameterDigest
+            ? canonicalSpec.parameterDigest === inputSpec.parameterDigest
+            : null,
       fileProvenance: {
         runDirectory: runDir,
         inputJsonPath: payload.files?.inputJson || null,

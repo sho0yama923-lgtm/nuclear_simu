@@ -50,7 +50,7 @@ This file is the stable operating contract for Codex / AI agents in this reposit
 Source-of-truth map:
 
 - parameter schema: `src/model/schema.ts` for the current canonical / compatibility path
-- future FEBio solver parameter source of truth: `docs/febio/FEBIO_NATIVE_SPEC.md`, then implementation under the FEBio-native spec path once added
+- FEBio-native direct parameter path: `docs/febio/FEBIO_NATIVE_SPEC.md` for policy and `src/febio/spec/` for implementation
 - mesh generation: `src/febio/mesh/`
 - nucleus-cytoplasm interface: `src/febio/interfaces/nucleusCytoplasm.ts`
 - FEBio export: `src/febio/export/`

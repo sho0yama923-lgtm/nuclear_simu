@@ -224,6 +224,7 @@ test("template serializes to consistent FEBio XML", async () => {
   assert.match(xml, /<Elements type="hex8" name="dish">/);
   assert.match(xml, /<Elements type="hex8" name="pipette">/);
   assert.match(xml, /<Surface name="pipette_contact_surface">/);
+  assert.match(xml, /<Surface name="pipette_suction_surface">/);
   assert.match(xml, /<SurfacePair name="nucleus_cytoplasm_pair">/);
   assert.match(xml, /<primary>cytoplasm_interface_surface<\/primary>/);
   assert.match(xml, /<secondary>nucleus_interface_surface<\/secondary>/);
@@ -233,6 +234,7 @@ test("template serializes to consistent FEBio XML", async () => {
   assert.match(xml, /<primary>nucleus_interface_right_surface<\/primary>/);
   assert.match(xml, /<secondary>pipette_contact_surface<\/secondary>/);
   assert.match(xml, /<SurfacePair name="pipette_cell_pair">/);
+  assert.match(xml, /<primary>pipette_suction_surface<\/primary>/);
   assert.match(xml, /<MeshDomains>/);
   assert.match(xml, /<SolidDomain name="nucleus" mat="nucleus" \/>/);
   assert.match(xml, /<SolidDomain name="pipette" mat="pipette_rigid" \/>/);
@@ -246,7 +248,7 @@ test("template serializes to consistent FEBio XML", async () => {
   assert.match(xml, /<value lc="2">-2\.200000<\/value>/);
   assert.match(xml, /<Loads>/);
   assert.match(xml, /nodal_load hold_force_proxy surface=pipette_contact_surface lc=201 status=proxy-load \/ not pressure-driven value=20\.000000/);
-  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_contact_surface" type="pressure">/);
+  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_surface" type="pressure">/);
   assert.match(xml, /<pressure lc="3">-0\.700000<\/pressure>/);
   assert.match(xml, /<LoadData>/);
   assert.match(xml, /<load_controller id="1" name="lift_ramp" type="loadcurve">/);
@@ -256,7 +258,7 @@ test("template serializes to consistent FEBio XML", async () => {
   assert.match(xml, /<rigid_body_data name="pipette_rigid_body" file="febio_rigid_pipette\.csv" data="x;y;z;Fx;Fy;Fz" delim=",">4<\/rigid_body_data>/);
   assert.match(xml, /derived_data name="pipette_aspiration_length" metric="L\(t\)" unit="um" payload="aspiration\.length" source="native-node-displacement"/);
   assert.match(xml, /<step id="1" name="approach">/);
-  assert.match(xml, /<step id="2" name="hold">[\s\S]*<surface_load name="pipette_suction_pressure_hold" surface="pipette_contact_surface" type="pressure">/);
+  assert.match(xml, /<step id="2" name="hold">[\s\S]*<surface_load name="pipette_suction_pressure_hold" surface="pipette_suction_surface" type="pressure">/);
   assert.match(xml, /<step id="3" name="lift">[\s\S]*<value lc="1">8\.000000<\/value>/);
   assert.match(xml, /<step id="3" name="lift">[\s\S]*<pressure lc="3">-0\.700000<\/pressure>/);
   assert.match(xml, /<step id="4" name="manipulation-1">[\s\S]*<value lc="2">-1\.800000<\/value>/);
@@ -392,8 +394,13 @@ test("refined mesh validation report is produced", async () => {
   assert.equal(report.requiredNodeSets.dish_fixed_nodes, "present");
   assert.equal(report.requiredNodeSets.pipette_contact_nodes, "present");
   assert.equal(report.requiredSurfaces.pipette_contact_surface, true);
+  assert.equal(report.requiredSurfaces.pipette_suction_surface, true);
   assert.equal(report.requiredSurfacePairs.nucleus_cytoplasm_pair.primary, true);
   assert.equal(report.requiredSurfacePairs.cell_dish_pair.secondary, true);
+  assert.equal(spec.febioTemplateData.geometry.mesh.surfacePairs.pipette_cell_pair.primary, "pipette_suction_surface");
+  assert.equal(spec.febioTemplateData.geometry.mesh.bounds.pipetteContactX, spec.febioTemplateData.geometry.mesh.bounds.pipetteLeft);
+  assert.equal(JSON.stringify(spec.febioTemplateData.geometry.mesh.surfaces.pipette_contact_surface[0].nodes), JSON.stringify([17, 20, 24, 21]));
+  assert.equal(JSON.stringify(spec.febioTemplateData.geometry.mesh.surfaces.pipette_suction_surface[0].nodes), JSON.stringify([10, 14, 15, 11]));
 });
 
 test("mesh validation rejects missing solver-active domains and required surface pairs", async () => {
@@ -994,12 +1001,60 @@ test("external FEBio converter emits explicit detachment events from history", (
   assert.equal(result.detachment.evaluation, "damage-plus-geometry");
 });
 
-test("default FEBio flow does not use lightweight legacy source", async () => {
+test("default FEBio flow is native-spec first and does not use lightweight legacy source", async () => {
   const app = await loadApp();
-  const result = app.runSimulation("A", app.DEFAULTS);
-  assert.equal(result.solverMetadata.source, "febio-export-ready");
+  const result = app.runSimulation({ caseName: "S7_public_native_default", loads: { suctionPressure: { value: -1.4 } } });
+  assert.equal(result.solverMetadata.source, "febio-native-export-ready");
   assert.notEqual(result.solverMetadata.source, "lightweight-js-surrogate");
+  assert.equal(result.nativeSpec.loads.suctionPressure.value, -1.4);
+  assert.equal(result.params && Object.keys(result.params).length, 0);
+  assert.ok(result.parameterDigest.startsWith("fdig_"));
   assert.equal(result.isPhysicalFebioResult, false);
+});
+
+test("canonical FEBio flow is explicit compatibility path", async () => {
+  const app = await loadApp();
+  const result = app.runCanonicalSimulation("A", app.DEFAULTS);
+  assert.equal(result.solverMetadata.source, "febio-export-ready");
+  assert.ok(result.parameterDigest.startsWith("pdig_"));
+  assert.equal(result.params.Lc, app.DEFAULTS.Lc);
+  assert.equal(result.isPhysicalFebioResult, false);
+});
+
+test("FEBio-native direct spec exports XML without UI parameter conversion", async () => {
+  const app = await loadApp();
+  const nativeSpec = app.createDefaultFebioNativeSpec({
+    caseName: "S7_direct_test",
+    loads: {
+      suctionPressure: { value: -1.2 },
+    },
+    contacts: {
+      nucleusCytoplasm: { normalStiffness: 1.9 },
+    },
+  });
+  const input = app.buildFebioNativeInputSpec(nativeSpec);
+  const bundle = app.buildFebioNativeRunBundle(input, app.serializeFebioTemplateToXml);
+  const xml = bundle.febXml;
+
+  assert.equal(input.solverMetadata.source, "febio-native-direct");
+  assert.equal(input.febioTemplateData.status.buildMode, "febio-native-direct");
+  assert.equal(input.febioTemplateData.interfaces.nucleusCytoplasm.normalStiffness, 1.9);
+  assert.equal(input.febioTemplateData.loads.pressure[0].value, -1.2);
+  assert.equal(input.febioTemplateData.loads.pressure[0].magnitude, 1.2);
+  assert.equal(bundle.solverMetadata.source, "febio-native-direct");
+  assert.equal(bundle.exportReady, true);
+  assert.match(xml, /febio-native-direct/);
+  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_surface" type="pressure">/);
+  assert.match(xml, /<pressure lc="3">-1\.200000<\/pressure>/);
+  assert.match(xml, /<contact name="pipette_nucleus_contact" type="sticky" surface_pair="pipette_nucleus_pair">/);
+  assert.equal(input.nativeSpec.geometry.nucleus.width, 28);
+  assert.equal(input.nativeSpec.geometry.pipette.puncture.x, 4.5);
+  assert.equal(input.nativeSpec.geometry.pipette.tip.x, 14);
+  assert.equal(input.nativeSpec.geometry.meshMode, "s7-debug-local-nucleus");
+  assert.equal(input.nativeSpec.loads.suctionPressure.surface, "pipette_suction_surface");
+  assert.equal(input.febioTemplateData.geometry.mesh.bounds.pipetteContactX, 14);
+  assert.equal(JSON.stringify(input.febioTemplateData.geometry.mesh.surfaces.pipette_suction_surface[0].nodes), JSON.stringify([10, 14, 15, 11]));
+  assert.equal(input.nativeSpec.unitSystem, "um-nN-s");
 });
 
 test("docs and governance files exist and stay aligned", () => {
@@ -1007,8 +1062,10 @@ test("docs and governance files exist and stay aligned", () => {
   const progressPath = path.resolve("PROGRESS.md");
   const roadmapPath = path.resolve("docs/ops/ROADMAP.md");
   const codebasePath = path.resolve("docs/CODEBASE_STRUCTURE.md");
+  const nativeSpecDocPath = path.resolve("docs/febio/FEBIO_NATIVE_SPEC.md");
   const febioMappingPath = path.resolve("docs/febio/FEBIO_OUTPUT_MAPPING.md");
   const exportScriptPath = path.resolve("scripts/export_febio_case.mjs");
+  const directExportScriptPath = path.resolve("scripts/export_febio_direct_case.mjs");
   const convertScriptPath = path.resolve("scripts/convert_febio_output.mjs");
   const skillPaths = [
     path.resolve(".skills/nucleus-cytoplasm-interface/SKILL.md"),
@@ -1021,8 +1078,10 @@ test("docs and governance files exist and stay aligned", () => {
   assert.equal(fs.existsSync(progressPath), true);
   assert.equal(fs.existsSync(roadmapPath), true);
   assert.equal(fs.existsSync(codebasePath), true);
+  assert.equal(fs.existsSync(nativeSpecDocPath), true);
   assert.equal(fs.existsSync(febioMappingPath), true);
   assert.equal(fs.existsSync(exportScriptPath), true);
+  assert.equal(fs.existsSync(directExportScriptPath), true);
   assert.equal(fs.existsSync(convertScriptPath), true);
   skillPaths.forEach((skillPath) => assert.equal(fs.existsSync(skillPath), true));
 
@@ -1030,45 +1089,53 @@ test("docs and governance files exist and stay aligned", () => {
   const progress = fs.readFileSync(progressPath, "utf8");
   const roadmap = fs.readFileSync(roadmapPath, "utf8");
   const codebase = fs.readFileSync(codebasePath, "utf8");
+  const nativeSpecDoc = fs.readFileSync(nativeSpecDocPath, "utf8");
   const febioMapping = fs.readFileSync(febioMappingPath, "utf8");
   const exportScript = fs.readFileSync(exportScriptPath, "utf8");
+  const directExportScript = fs.readFileSync(directExportScriptPath, "utf8");
   const convertScript = fs.readFileSync(convertScriptPath, "utf8");
 
   assert.match(agent, /Skill Usage Rule/);
   assert.match(agent, /src\/model\/schema\.ts/);
   assert.match(agent, /src\/febio\/interfaces\/nucleusCytoplasm\.ts/);
   assert.match(agent, /Code Exploration Constraints/);
-  assert.match(agent, /Physics Model Priority/);
+  assert.match(agent, /FEBio-native direct parameter path/);
   assert.match(agent, /docs\/ops\/ROADMAP\.md/);
 
   assert.match(progress, /Stage S6 completed/);
   assert.match(progress, /simulation condition advancement/);
   assert.match(progress, /solver-native load\/contact activation/);
   assert.match(progress, /pressure\/contact load/);
-  assert.match(progress, /## 次の3手/);
+  assert.match(progress, /Milestone S7-A/);
+  assert.match(progress, /FEBio-native spec JSON/);
   assert.match(progress, /implemented-infrastructure \/ output-contract-complete/);
-  assert.match(progress, /um-s-kPa-nN|µm-s-kPa-nN/);
+  assert.match(progress, /um-s-kPa-nN|um-nN-s|µm-s-kPa-nN/);
 
   assert.match(roadmap, /Simulation Condition Advancement/);
   assert.match(roadmap, /Stage S1: Solver-active mesh completeness/);
-  assert.match(roadmap, /Stage S7: Load\/contact activation validation/);
+  assert.match(roadmap, /Stage S7: FEBio-native direct parameter path and load\/contact activation validation/);
   assert.match(roadmap, /After S7 Review Gates/);
   assert.match(roadmap, /Compatibility Retirement/);
-  assert.match(roadmap, /直近で処理する3 priority/);
-  assert.match(roadmap, /このファイルには直近タスクの番号付きリストを置きません/);
+  assert.match(roadmap, /FEBio-native spec first policy/);
+  assert.match(roadmap, /次に編集する具体ファイル/);
 
   assert.match(codebase, /src\/model\/schema\.ts/);
   assert.match(codebase, /src\/febio\/export\/index\.ts/);
+  assert.match(codebase, /src\/febio\/mesh\/index\.ts/);
   assert.match(codebase, /generated\/dist\/browser\/main\.js/);
-  assert.match(progress, /solver-native load\/contact activation が未完了/);
+  assert.match(nativeSpecDoc, /FEBio-native spec JSON/);
+  assert.match(nativeSpecDoc, /force-transfer \/ contact activation/);
+  assert.match(progress, /cell-dish tied contact が no-pair/);
   assert.match(roadmap, /Stage S6: True cohesive\/failure preparation \| completed-with-residual/);
   assert.match(roadmap, /native interface traction \/ damage output/);
-  assert.match(roadmap, /canonical public API/);
+  assert.match(roadmap, /CLI\/backend export/);
   assert.match(progress, /load\/contact\/output 成立後に sticky cohesive solver validation/);
   assert.match(febioMapping, /native 接線成分の更新|Native Tangential Update/);
   assert.match(febioMapping, /rows that start directly with face values/);
   assert.doesNotMatch(exportScript, /simulation\.js|simulation-febio|node:vm|vm\.runInContext/);
+  assert.doesNotMatch(directExportScript, /buildSimulationInput|buildFebioInputSpec|public-api\.ts|simulation\.js|simulation-febio|node:vm|vm\.runInContext/);
   assert.doesNotMatch(convertScript, /simulation\.js|simulation-febio|node:vm|vm\.runInContext/);
   assert.match(`${exportScript}\n${convertScript}`, /src/);
   assert.match(`${exportScript}\n${convertScript}`, /public-api\.ts/);
+  assert.match(directExportScript, /febio-native-direct/);
 });

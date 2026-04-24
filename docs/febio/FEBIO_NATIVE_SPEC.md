@@ -125,6 +125,10 @@ Solver-active load に直接必要な値を持つ。
 - prescribed motion
 - rigid controller reference
 
+S7-C 以降、micropipette suction pressure は剛体ピペット面ではなく、変形体側の `pipette_suction_surface` に載せる。native default では `geometry.pipette.puncture` と `geometry.pipette.tip` を分離し、旧 UI の `xp` 相当は実行接触位置ではなく穿刺 metadata として保持する。確認用 direct case の `pipette_suction_surface` は nucleus right-side capture face を指し、surface orientation は FEBio pressure solve で negative jacobian を起こさない `[10,14,15,11]` に固定する。
+
+現時点の native direct mesh は `meshMode=s7-debug-local-nucleus` の粗い debug mesh であり、refined native mesh ではない。これは Studio / CLI 確認用の過渡状態として扱い、次段階で local suction aperture と cell-dish contact を持つ refined mesh へ置き換える。
+
 ### boundary
 
 Solver boundary condition に直接必要な値を持つ。
@@ -198,6 +202,16 @@ UI は次を行わない:
 - FEBio-native spec に存在しない physics parameter を暗黙に生成する
 - force-transfer / contact activation validation の主経路になる
 
+## Public API policy
+
+アプリ標準の `runSimulation` は FEBio-native spec を入力として扱う。
+
+- `runSimulation(nativeSpec)` は native spec から export-ready result を返す。
+- `runSimulation(caseName, nativeOverrides)` は `caseName` 付き native spec shorthand として扱う。
+- 旧 UI / canonical parameter flow は `runCanonicalSimulation(caseName, params)` のように明示名で呼ぶ。
+
+この分離により、標準実行入口では UI parameter を FEBio-native spec へ暗黙変換しない。
+
 ## Legacy conversion policy
 
 UI parameter -> canonical spec -> FEBio conversion は、FEBio-native spec / CLI backend path が安定するまで compatibility / preset generation 用に維持する。
@@ -223,6 +237,24 @@ UI parameter -> canonical spec -> FEBio conversion は、FEBio-native spec / CLI
 - output parser が missing / all-zero / nonzero を区別できる
 - Studio confirmation request に `.feb`, log, result, output CSV path が出る
 
+## Current implementation entrypoint
+
+S7-C 時点の実装入口:
+
+- `src/febio/spec/index.ts`
+  - FEBio-native spec JSON の normalize / validate / direct template mapping を行う。
+  - UI parameter -> canonical spec 変換と `buildSimulationInput` を通らない。
+- `src/public-api.ts`
+  - 標準 `runSimulation` は FEBio-native spec first。
+  - 旧 canonical flow は `runCanonicalSimulation` として明示的に残す。
+- `scripts/export_febio_direct_case.mjs`
+  - FEBio-native spec JSON から `.feb` / native spec JSON / manifest / README を生成する。
+  - 既定出力例: `febio_exports/S7_native_migration_check/S7_direct_force_transfer.feb`
+- `scripts/convert_febio_output.mjs`
+  - FEBio-native direct input の `nativeSpec` / `templateData` / `fdig_*` を保持して result JSON を生成する。
+
+`febio_exports/S7_native_migration_check/` の確認 run では FEBio 4.12 で read success / normal termination し、nucleus-side suction surface、rigid reaction、native digest preserving conversion が成立した。final contact pressure は `0.734967195035`、final rigid `Fx=12.6000069265`、converted aspiration length は `5.09470348295 um`。残る residual は `cell_dish_interface` の no-pair warning、後半 step の `No force acting on the system` warning、debug mesh の粗さ。
+
 ## Related files
 
 - `AGENT.md`
@@ -230,6 +262,8 @@ UI parameter -> canonical spec -> FEBio conversion は、FEBio-native spec / CLI
 - `docs/ops/ROADMAP.md`
 - `docs/ops/STUDIO_CONFIRMATION_GATES.md`
 - `docs/febio/PARAMETER_MAPPING.md`
+- `src/febio/spec/`
 - `src/febio/export/`
 - `src/febio/mesh/`
+- `scripts/export_febio_direct_case.mjs`
 - `scripts/convert_febio_output.mjs`
