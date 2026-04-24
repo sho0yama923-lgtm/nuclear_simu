@@ -1,4 +1,4 @@
-# FEBio 精度改善の現在状態
+# FEBio 精度改善の現在地
 
 最終更新: 2026-04-24
 
@@ -6,180 +6,76 @@
 
 - 現在の目標: FEBio solver に渡す simulation condition を物理的に成立させ、核が細胞質から脱落する条件を solver-active に評価できる状態へ進める。
 - 現在の main path: UI 入力 -> canonical spec -> FEBio export -> FEBio CLI -> 正規化 import -> classification / detachment judgment -> 結果描画。
-- Priority 2 Stage 6 は完了済み。
-- 現在の最優先: FEBio solver に渡すシミュレーション条件を物理的に成立させること。具体的には、solver-active mesh、完全 FEBio XML、pressure-driven pipette suction、aspiration length output、native interface traction/damage output、unit system clarification を優先する。
-- sticky cohesive validation は重要だが、まず実体 mesh・load・output が成立した後に行う。
-- compatibility cleanup / classification cleanup は Stage 6 完了済みの前提で深追いせず、real solver outputs が出た段階で再評価する。
+- 現在の最優先: solver-native load/contact activation を成立させること。S6 XML は read success / normal termination まで到達したが、FEBio 側で inactive contact pair、未参照 load controller、`No force acting on the system` が残っている。
+- 現在の blocker: pressure/contact load が active solver step に効いていないため、sticky cohesive validation や true cohesive 移行判断を物理的に評価できない。
+- 全体ロードマップ: [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md)
 
 ## 再開位置
 
-- 直近の完了:
-  - Priority 2 Stage 6 completed.
-  - `simulation.js` no longer owns the active classification / detachment path.
-  - browser runtime and FEBio converter sandbox route classification/detachment helpers through canonical public API when available.
-  - `src/febio/mesh/index.ts` now provides non-empty nucleus / cytoplasm / dish / pipette element sets in the refined mesh baseline, and mesh validation rejects missing required domains, required surfaces, and malformed required surface pairs.
-  - `serializeFebioTemplateToXml` now emits mesh nodes, elements, ElementSet, Surface, SurfacePair, and canonical nucleus / cytoplasm material `E`, `nu`, `eta` values into XML.
-  - XML now also emits dish fixed boundary, pipette prescribed motion, cell-dish contact, proxy hold force / pressure metadata, and load controllers.
-  - Stage S3 completed. `P_hold` is now a solver-active suction pressure magnitude in kPa and is exported as negative pressure on `pipette_contact_surface` with `suction_pressure_curve`.
-  - Unit system is recorded as `um-s-kPa-nN` in `src/model/types.ts` and `docs/febio/PRESSURE_SUCTION_STAGE_S3.md`.
-  - Stage S1 completed. Mesh validation now requires non-empty solver-active domains, required node sets, required surfaces, and required surface pairs.
-  - Stage S4 completed. Export/XML/converter/import now declare aspiration length L(t) output, `L(t)` mappings, and provenance for `aspiration.length`.
-  - Stage S5 completed with residual. Existing FEBio-native sticky cohesive run reaches `N O R M A L   T E R M I N A T I O N`; canonical S1-S4 XML readability was restored in Stage S6.
-  - Stage S6 completed. Canonical export now reaches FEBio 4.12 `Reading file ...SUCCESS!` and `N O R M A L   T E R M I N A T I O N` in `generated/febio_exports/s6_native_adapter`.
-- 未完了領域:
-  - solver-native load/contact activation is still incomplete: the S6 run warns about inactive cell-dish contact pairs, unreferenced load controllers, and `No force acting on the system`.
-  - true cohesive / nonlinear spring failure should remain deferred until canonical pressure/contact force transfer is active and output provenance is trustworthy.
-- 次に開くファイル:
-  - `src/febio/mesh/index.ts`
-  - `src/febio/export/index.ts`
-  - `src/febio/interfaces/nucleusCytoplasm.ts`
-  - `src/model/defaults.ts`
-  - `src/model/schema.ts`
-  - `src/model/types.ts`
-  - `docs/febio/PRESSURE_SUCTION_STAGE_S3.md`
-  - `tests/febio-front-end.test.mjs`
-- 次ステップの完了条件:
-  - mesh validation can fail when required solver-active domains are missing.
-  - nucleus element set must be non-empty.
-  - required surface pairs must be present and non-empty.
-  - PROGRESS.md no longer points to compatibility cleanup as the next major task.
+- 最後に完了した節目: Stage S6 completed。canonical FEBio-native XML は FEBio 4.12 で `Reading file ...SUCCESS!` と `N O R M A L   T E R M I N A T I O N` に到達した。
+- 現在の未完了項目: load/contact activation residual。S6 run では cell-dish contact pair が inactive、load controller が未参照、system force が 0 と警告される。
+- 次に開くファイル: `src/febio/export/index.ts`、`src/febio/mesh/index.ts`、`src/model/schema.ts`、`tests/febio-front-end.test.mjs`
+- 次ステップの完了条件: pressure/contact load が active step に参照され、FEBio run の force transfer が 0 でないことを確認でき、`再開位置` と `次の3手（現在処理中タスクの3手）` が次の未完了項目を指すこと。
 
-## 未解決問題
+## 優先順位の見方
+
+- 全体優先順位: 研究・物理モデル全体の順序。頻繁には変えない。詳しくは [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md) に置く。
+- 主ロードマップ: 現在の大きな作業列。いまは simulation condition advancement。
+- 補助ロードマップ: 主ロードマップを支える移行作業。旧「第2優先ロードマップ」は compatibility retirement の補助ロードマップで、Stage 6 completed 済み。主ロードマップの次に自動で戻るものではない。
+- 次の3手（現在処理中タスクの3手）: いまのセッションで進める細分化タスク。作業が進んで next action が変わるたびにこのファイルで更新する。
+
+このファイルには「次に何を開いて、何が終われば進んだと言えるか」を置く。`ROADMAP.md` には「その作業がどの主ロードマップ / 補助ロードマップ / 全体優先順位に属するか」を置く。直近タスクだけが変わった場合、`ROADMAP.md` は更新しない。
+
+## 次の3手（現在処理中タスクの3手）
+
+### 1. load/contact activation residual を潰す
+
+- Target files: `src/febio/export/index.ts`、`src/febio/mesh/index.ts`、`tests/febio-front-end.test.mjs`
+- Expected output: pressure load、prescribed motion、contact pair、load controller が active step から参照される。
+- Done condition: exported FEBio XML の active step 内で load/contact が参照され、既存テストまたは新規テストで未参照 load controller を検出できる。
+
+### 2. S6 run の force transfer を確認する
+
+- Target files: `scripts/export_febio_case.mjs`、`scripts/convert_febio_output.mjs`、`src/febio/import/normalizeFebioResult.ts`、`tests/febio-front-end.test.mjs`
+- Expected output: S6 相当の run / converted result で force または pressure/contact response が 0 でないことを provenance 付きで確認できる。
+- Done condition: `No force acting on the system` が解消、または残る場合は原因と次の修正先が `未解決問題 / Blockers` に記録されている。
+
+### 3. sticky cohesive validation の入口を再判定する
+
+- Target files: `src/febio/interfaces/nucleusCytoplasm.ts`、`src/febio/export/index.ts`、`docs/febio/STICKY_COHESIVE_STAGE_S5.md`
+- Expected output: load/contact activation が成立した後に、sticky cohesive validation を進めるか、先に残差を潰すかを判断する。
+- Done condition: sticky cohesive validation の次の確認条件が docs と `再開位置` に反映されている。
+
+## 未解決問題 / Blockers
 
 | 問題 | 影響 | 暫定対応 | 意図する修正 | 優先度 |
 |---|---|---|---|---|
-| solver-native load/contact activation is incomplete | canonical S6 XML reads and normal-terminates, but FEBio warns about inactive contact pairs, unreferenced load controllers, and `No force acting on the system` | sticky remains solver-primary, but pressure-L(t) physics is not yet validated | wire pressure/contact loads into active solver steps and verify nonzero force transfer | critical |
-| native interface output still needs canonical real-run validation | interface traction / damage paths are declared and provenance-tracked, and historical sticky run produced face logs, but canonical S1-S4 XML has not yet reached read success | converter/import keeps native/proxy/unavailable provenance explicit | validate declared output paths after canonical XML read success | high |
-| sticky cohesive は true traction-separation law ではなく近似のまま | mesh / load / output が未確立のまま検証すると物理解釈が揺れやすい | sticky cohesive は effective coupling proxy として保持し、solver-active mesh / load / output が成立するまで validation scope を広げない | 先に実体 mesh・荷重・出力を成立させ、その後に sticky approximation の安定性と interface geometry を実 FEBio run で検証する | high |
-| native interface observation がまだ部分的 | interface traction / damage を native output として比較できず、proxy 補完が残る | native data がある場合は保持し、欠損だけ明示的に proxy fallback で埋める | native face-data と result normalization を広げ、interface traction / damage を provenance 付きで出せるようにする | high |
-| explicit detachment event が全 result payload で native ではない | classification / detachment cleanup の優先順位を誤ると、solver event ではなく導出 event を先に整え続けてしまう | import と compatibility path で explicit detachment derivation を維持する | real solver outputs が出た後に、export / bridge / import 全体で detachment event を native に運ぶかを再評価する | medium |
-| bridge 側 diagnostics がまだ粗い | FEBio 実行失敗や payload 変換失敗の切り分けに時間がかかる | 現状は manifest と bridge 出力、import 側チェックで追う | solver-condition work をブロックする場合に限って bridge-side execution diagnostics を強化する | medium |
+| solver-native load/contact activation が未完了 | XML は読めて normal termination するが、inactive contact pair、未参照 load controller、`No force acting on the system` が残る | sticky cohesive は solver-primary のまま保持し、物理 validation は保留する | pressure/contact load を active solver step に接続し、非ゼロ force transfer を確認する | critical |
+| native interface output は real-run validation が必要 | interface traction / damage の output contract はあるが、実 run payload での coverage がまだ確定していない | converter/import で native/proxy/unavailable provenance を明示する | active load/contact 成立後に declared output path を real solver output で検証する | high |
+| sticky cohesive は true traction-separation law ではない | mesh / load / output が未確立のまま validation すると物理解釈がぶれる | effective coupling proxy として扱い、validation scope を広げすぎない | load/contact/output 成立後に sticky approximation の安定性と interface geometry を実 FEBio run で検証する | high |
+| explicit detachment event が全 result payload で native ではない | solver event ではなく導出 event を先に整え続けるリスクがある | import と compatibility path で explicit detachment derivation を維持する | real solver output が出た後に native event 化の優先度を再評価する | medium |
+| bridge diagnostics が粗い | FEBio 実行失敗や payload 変換失敗の切り分けに時間がかかる | manifest、bridge 出力、import 側チェックで追う | solver-condition work を妨げる場合に限って bridge-side diagnostics を強化する | medium |
 
 ## 実装状態
 
 | 項目 | 状態 | 現在の挙動 | 既知の制約 | 次の手 |
 |---|---|---|---|---|
-| Canonical parameter schema | implemented | source of truth は `src/model/schema.ts` にある。unit system は `um-s-kPa-nN` として `src/model/types.ts` に記録済み | calibration はまだ暫定値 | aspiration / output metrics の単位を同じ系で揃える |
-| Source-of-truth split | implemented | `src/` modules と `generated/dist/` build path が分離されている | browser runtime には compatibility layer が残る | source-of-truth は `src/` と PROGRESS.md に固定する |
-| FEBio run bundle / bridge | implemented-infrastructure / output-contract-complete / native-read-restored | export / import infrastructure keeps the main path. XML now emits FEBio-native mesh, material, boundary, contact, suction pressure, logfile output declarations, plotfile contact traction declarations, and derived `L(t)` metadata | S6 normal-terminates but still has load/contact activation residuals | verify active pressure/contact force transfer before claiming physical aspiration validation |
-| Refined mesh | completed-contract / simplified-geometry | baseline mesh has non-empty nucleus / cytoplasm / dish / pipette domains, required node sets, contact surfaces, and surface-pair validation | geometry is still box-like and not yet solver-validated physically | validate numerical stability in S5 |
-| Nucleus bulk material | partial | canonical material parameters exist | full solver-active XML serialization と calibration が未完了 | `E`, `nu`, `eta` が FEBio XML に明示反映されることを検証する |
-| Cytoplasm bulk material | partial | canonical material parameters exist | full solver-active XML serialization と calibration が未完了 | `E`, `nu`, `eta` が FEBio XML に明示反映されることを検証する |
-| Optional nonlinear term | partial | canonical schema は `alpha_nonlinear` を保持している | XML 上では metadata を超えて solver-active ではない | simulation condition advancement 後に solver-active branch を追加する |
-| Nucleus-cytoplasm interface | partial | sticky cohesive approximation は `src/febio/interfaces/nucleusCytoplasm.ts` にあり、現時点では nucleus-cytoplasm effective coupling proxy であって LINC / cytoskeleton の明示モデルではない | true traction-separation law ではなく、solver-active output も未完成 | mesh / load / output が成立した後に sticky cohesive solver validation を進める |
-| Native interface traction / damage output | completed-contract / pending-real-run | canonical export declares face-data and plotfile contact traction paths; converter/import preserve native/proxy/unavailable provenance | real solver output coverage still needs validation | validate declared output paths in S5 |
-| Classification | partial | canonical classifier は public API から利用できる | cleanup を続けても real solver output が未成立だと評価軸が弱い | real solver outputs に基づいて後で整理する。今は優先度を下げる |
-| Detachment event | partial | explicit detachment contract と導出 path は存在する | 全 payload で native event emission が揃っていない | native event 化は solver-active output が成立してから進める |
-| True cohesive law | planned | sticky approximation は将来移行できる metadata を保持している | solver-active mesh / load / output の成立前に進める段階ではない | sticky approximation の検証後に true cohesive または nonlinear spring failure の移行方針を固める |
+| Canonical parameter schema | implemented | source of truth は `src/model/schema.ts`。unit system は `um-s-kPa-nN` として `src/model/types.ts` に記録済み | calibration はまだ暫定値 | aspiration / output metrics の単位を同じ系で揃える |
+| Source-of-truth split | implemented | `src/` modules と `generated/dist/` build path は分離済み | browser runtime には compatibility layer が残る | source-of-truth は `src/` と `PROGRESS.md` に固定する |
+| FEBio run bundle / bridge | implemented-infrastructure / output-contract-complete / native-read-restored | export / import infrastructure は main path を保持し、FEBio-native mesh、material、boundary、contact、suction pressure、logfile output、plotfile contact traction、derived `L(t)` metadata を出力する | S6 は normal termination するが load/contact activation residual が残る | physical aspiration validation を主張する前に active pressure/contact force transfer を確認する |
+| Refined mesh | completed-contract / simplified-geometry | nucleus / cytoplasm / dish / pipette domains、required node sets、contact surfaces、surface-pair validation がある | geometry はまだ単純化されており、物理的 validation は未完了 | load/contact activation とあわせて numerical stability を見る |
+| Nucleus-cytoplasm interface | partial | sticky cohesive approximation は `src/febio/interfaces/nucleusCytoplasm.ts` にあり、現時点では effective coupling proxy | true traction-separation law ではなく、solver-active output も validation 待ち | load/contact/output 成立後に sticky cohesive solver validation を進める |
+| Native interface traction / damage output | completed-contract / pending-real-run | export は face-data と plotfile contact traction path を宣言し、converter/import は native/proxy/unavailable provenance を保持する | real solver output coverage は未検証 | active load/contact 成立後に declared output path を検証する |
+| Classification | partial | canonical classifier は public API から利用可能 | real solver output が未成立だと cleanup の評価軸が弱い | real solver outputs に基づいて後で整理する。今は優先度を下げる |
+| Detachment event | partial | explicit detachment contract と導出 path は存在する | 全 payload で native event emission が揃っていない | solver-active output 成立後に native event 化を進める |
+| True cohesive law | planned | sticky approximation は将来移行できる metadata を保持している | solver-active mesh / load / output 成立前に進める段階ではない | sticky approximation 検証後に true cohesive または nonlinear spring failure への移行方針を決める |
 
-## Priority 2 Roadmap
+## 更新ルール
 
-- 目的: compatibility retirement を完了し、classification / detachment の active path を canonical public API へ寄せる。
-- 完了条件: browser runtime と FEBio converter sandbox が、classification / detachment helper を canonical public API 経由で使う。
-- 現在位置: Stage 6 completed。
-
-| Stage | 状態 | 範囲 |
-|---|---|---|
-| Stage 1: Canonical import preservation | completed | native `localNc` / `localCd` payload、`contactFraction` / `nativeGap`、`sourceNormal` / `sourceDamage` / `sourceShear` を final state と `history[]` に保持する |
-| Stage 2: Converter face-log robustness | completed | face snapshot の複数 row layout、leading entity id、extra metadata、descriptor-driven field order を読む |
-| Stage 3: Export self-description | completed | standard export bundle が現行 face-data fields と optional traction extensions を宣言する |
-| Stage 4: Converted result provenance visibility | completed | converted output mapping が interface region ごとの coverage と optional traction extensions を示す |
-| Stage 5: Standard path native shear expansion | completed | standard export / bridge path に solver-native tangential observation branch を追加する |
-| Stage 6: Compatibility retirement | completed | compatibility-owned proxy-first classification / detachment branch を退役させる |
-
-## Simulation Condition Advancement Roadmap
-
-| Stage | Status | Scope |
-|---|---|---|
-| Stage S1: Solver-active mesh completeness | completed | nucleus / cytoplasm / dish / pipette domains, required node sets, required surfaces, and surface pairs are emitted and validated |
-| Stage S2: Complete FEBio XML serialization | completed | nodes / elements / ElementSet / Surface / SurfacePair / material / boundary / contact / load を solver input として完全に出力する |
-| Stage S3: Pressure-driven pipette suction | completed | `P_hold` / `ΔP(t)` を pressure load curve として実装し、prescribed motion と suction を区別する |
-| Stage S4: Aspiration and interface output | completed | aspiration length `L(t)`, displacement logs, contact pressure/gap face logs, plotfile contact traction bridge, and provenance paths are declared in export/XML/converter/import |
-| Stage S5: Sticky cohesive solver validation | completed-with-residual | existing FEBio-native sticky run reaches normal termination; canonical readability residual was carried into S6 |
-| Stage S6: True cohesive/failure preparation | completed-with-residual | canonical FEBio-native read success and normal termination restored; true cohesive/failure deferred until load/contact activation is validated |
-
-## 次の3手
-
-### 1. aspiration length L(t) と interface output を定義する
-
-- Target files:
-  - `src/febio/export/index.ts`
-  - `tests/febio-front-end.test.mjs`
-  - `scripts/convert_febio_output.mjs`
-  - `docs/febio/FEBIO_OUTPUT_MAPPING.md`
-- Expected output:
-  - aspiration length `L(t)` を output contract に追加する。
-  - displacement / contact pressure / interface traction / damage の native または後処理 payload path を明示する。
-  - pressure-driven suction と `L(t)` を比較できる形にする。
-- Done condition:
-  - 既存テストが通る。
-  - `L(t)` output contract が bundle / XML / converter expectation に残る。
-  - native interface output の不足が provenance 付きで分かる。
-
-### 2. FEBio XML completeness の実装方針を固める
-
-- Target files:
-  - `src/febio/export/index.ts`
-  - `src/febio/mesh/index.ts`
-  - `tests/febio-front-end.test.mjs`
-- Expected output:
-  - nodes / elements / ElementSet / Surface / SurfacePair を XML へ出す方針が明確になる。
-  - nucleus / cytoplasm material の `E`, `nu`, `eta` を XML に明示反映する。
-  - FEBio Studio / CLI で読み込み可能な `.feb` を目標にする。
-- Done condition:
-  - XML に必要な section が出る。
-  - material parameters がテンプレートデータだけでなく XML にも反映される。
-  - まだ完全実行できない場合は、未対応 section を明示する。
-
-### 3. native interface output の不足を provenance 付きで整理する
-
-- Target files:
-  - `src/febio/export/index.ts`
-  - `scripts/convert_febio_output.mjs`
-  - `src/febio/import/normalizeFebioResult.ts`
-  - `tests/febio-front-end.test.mjs`
-- Expected output:
-  - native traction / damage / aspiration length の payload path を明示する。
-  - 欠損している output は proxy fallback ではなく unavailable / planned として分離する。
-  - Stage S5 の sticky cohesive validation に入る前の output blocker を見える化する。
-- Done condition:
-  - output mapping と import result provenance が同じ source label を使う。
-  - S4 の残差が PROGRESS.md に記録される。
-
-## 関連ファイル
-
-- 研究問い: [docs/research/RESEARCH_QUESTION.md](docs/research/RESEARCH_QUESTION.md)
-- 仮定と近似: [docs/research/ASSUMPTIONS.md](docs/research/ASSUMPTIONS.md)
-- 条件表: [docs/research/CONDITION_MATRIX.md](docs/research/CONDITION_MATRIX.md)
-- 用語と指標: [docs/research/TERMS_AND_METRICS.md](docs/research/TERMS_AND_METRICS.md)
-- repo 構造: [docs/CODEBASE_STRUCTURE.md](docs/CODEBASE_STRUCTURE.md)
-- 優先順位とロードマップ: [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md)
-- 判断理由: [docs/DECISIONS.md](docs/DECISIONS.md)
-- 履歴: [docs/history/2026-04-progress-history.md](docs/history/2026-04-progress-history.md)
-- 2026-04-24 update: Priority 2 Stage 6 completed. `simulation.js` no longer owns the active classification / detachment path; both the browser runtime and the FEBio converter sandbox now route those helpers through the canonical public API when available.
-- Next focus after Stage 6: simulation condition advancement.
-- Prioritize solver-active mesh, FEBio XML completeness, pressure-driven suction, aspiration length output, native interface output, and unit-system clarification.
-- Sticky cohesive validation comes after mesh / load / output are physically established.
-- Stage S3 pressure suction note: [docs/febio/PRESSURE_SUCTION_STAGE_S3.md](docs/febio/PRESSURE_SUCTION_STAGE_S3.md)
-- Stage S5 sticky cohesive note: [docs/febio/STICKY_COHESIVE_STAGE_S5.md](docs/febio/STICKY_COHESIVE_STAGE_S5.md)
-- Stage S6 true cohesive decision note: [docs/febio/TRUE_COHESIVE_STAGE_S6.md](docs/febio/TRUE_COHESIVE_STAGE_S6.md)
-
-## Next Actions After S4
-
-### 1. Stage S5 sticky cohesive solver validation
-
-- Target files: `src/febio/export/index.ts`, `src/febio/interfaces/nucleusCytoplasm.ts`, `scripts/export_febio_case.mjs`, `tests/febio-front-end.test.mjs`
-- Expected output: export bundle can be checked against FEBio CLI / Studio, and sticky approximation stability, augmentation behavior, interface geometry, and declared output availability are recorded.
-- Done condition: run residuals, output availability, and failure mode are recorded with provenance, making it clear whether to fix S5 residuals or move to S6.
-
-### 2. Real solver output coverage check
-
-- Target files: `scripts/convert_febio_output.mjs`, `src/febio/import/normalizeFebioResult.ts`, `docs/febio/FEBIO_OUTPUT_MAPPING.md`, `tests/febio-front-end.test.mjs`
-- Expected output: `aspiration.length`, `localNc`, `localCd`, contact pressure/gap, and plotfile contact traction are compared against actual solver payloads.
-- Done condition: native / proxy / unavailable labels match the actual solver output coverage.
-
-### 3. Stage S6 decision
-
-- Target files: `src/febio/interfaces/nucleusCytoplasm.ts`, `src/febio/export/index.ts`, `docs/febio/INTERFACE_MODEL.md`, `tests/febio-front-end.test.mjs`
-- Expected output: decide whether to keep sticky approximation or move to true cohesive / nonlinear spring failure.
-- Done condition: S6 minimal implementation direction is documented from S5 run evidence.
+- `PROGRESS.md` は日本語で書く。
+- 全体優先順位や stage 計画が変わったら [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md) を更新する。
+- 直近の作業対象、next action、done condition が変わったら、このファイルの `再開位置` と `次の3手（現在処理中タスクの3手）` を更新する。
+- 主ロードマップの current stage、stage status、After Current 候補、補助ロードマップの位置づけが変わる場合だけ、`ROADMAP.md` も同じ変更セットで更新する。
+- 新しく見つかった recurring blocker は `未解決問題 / Blockers` に追加する。
+- physics model、cohesive model、detachment logic、main flow、classification、export/import ownership、proxy/native dependency が変わったら、このファイルと関連 docs を同じ変更セットで更新する。
+- `implemented / partial / planned` の変更と、`implemented -> partial` の回帰は正直に記録する。

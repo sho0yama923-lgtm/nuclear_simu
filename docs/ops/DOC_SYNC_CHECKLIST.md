@@ -9,7 +9,13 @@
 - [../PROGRESS.md](../../PROGRESS.md): 現在状態、blocker、next action が変わったか。
 - [../CODEBASE_STRUCTURE.md](../CODEBASE_STRUCTURE.md): source-of-truth や repo 構造が変わったか。
 - [../VALIDATION_MATRIX.md](../VALIDATION_MATRIX.md): 最低検証が変わったか。
-- [ROADMAP.md](ROADMAP.md): 優先順位や段階計画が変わったか。
+- [ROADMAP.md](ROADMAP.md): 全体優先順位、主ロードマップの stage status / scope、補助ロードマップの位置づけが変わったか。
+
+## PROGRESS と ROADMAP の判定
+
+- 直近の作業対象、次に開くファイル、done condition、blocker が変わっただけなら `PROGRESS.md` を更新する。
+- 主ロードマップの current stage、completed/current/deferred、After Current 候補、補助ロードマップの位置づけが変わったら `ROADMAP.md` も更新する。
+- `ROADMAP.md` に今日の next action を置かない。`PROGRESS.md` に大きな stage 計画を重複させない。
 
 ## 研究条件が変わるとき
 

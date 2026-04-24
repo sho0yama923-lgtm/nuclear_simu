@@ -979,6 +979,7 @@ test("default FEBio flow does not use lightweight legacy source", async () => {
 test("docs and governance files exist and stay aligned", () => {
   const agentPath = path.resolve("AGENT.md");
   const progressPath = path.resolve("PROGRESS.md");
+  const roadmapPath = path.resolve("docs/ops/ROADMAP.md");
   const codebasePath = path.resolve("docs/CODEBASE_STRUCTURE.md");
   const febioMappingPath = path.resolve("docs/febio/FEBIO_OUTPUT_MAPPING.md");
   const skillPaths = [
@@ -990,12 +991,14 @@ test("docs and governance files exist and stay aligned", () => {
 
   assert.equal(fs.existsSync(agentPath), true);
   assert.equal(fs.existsSync(progressPath), true);
+  assert.equal(fs.existsSync(roadmapPath), true);
   assert.equal(fs.existsSync(codebasePath), true);
   assert.equal(fs.existsSync(febioMappingPath), true);
   skillPaths.forEach((skillPath) => assert.equal(fs.existsSync(skillPath), true));
 
   const agent = fs.readFileSync(agentPath, "utf8");
   const progress = fs.readFileSync(progressPath, "utf8");
+  const roadmap = fs.readFileSync(roadmapPath, "utf8");
   const codebase = fs.readFileSync(codebasePath, "utf8");
   const febioMapping = fs.readFileSync(febioMappingPath, "utf8");
   const legacyRuntime = fs.readFileSync(path.resolve("simulation.js"), "utf8");
@@ -1005,24 +1008,32 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(agent, /src\/febio\/interfaces\/nucleusCytoplasm\.ts/);
   assert.match(agent, /Code Exploration Constraints/);
   assert.match(agent, /Physics Model Priority/);
+  assert.match(agent, /docs\/ops\/ROADMAP\.md/);
 
-  assert.match(progress, /Priority 2 Stage 6 は完了済み/);
+  assert.match(progress, /Stage S6 completed/);
   assert.match(progress, /simulation condition advancement/);
-  assert.match(progress, /pressure-driven pipette suction/);
-  assert.match(progress, /aspiration length L\(t\) output/);
+  assert.match(progress, /solver-native load\/contact activation/);
+  assert.match(progress, /pressure\/contact load/);
   assert.match(progress, /## 次の3手/);
   assert.match(progress, /implemented-infrastructure \/ output-contract-complete/);
-  assert.match(progress, /Stage S1: Solver-active mesh completeness/);
   assert.match(progress, /um-s-kPa-nN|µm-s-kPa-nN/);
+
+  assert.match(roadmap, /Simulation Condition Advancement/);
+  assert.match(roadmap, /Stage S1: Solver-active mesh completeness/);
+  assert.match(roadmap, /Stage S7: Load\/contact activation validation/);
+  assert.match(roadmap, /After S7 Review Gates/);
+  assert.match(roadmap, /Compatibility Retirement/);
+  assert.match(roadmap, /直近で処理する3 priority/);
+  assert.match(roadmap, /このファイルには直近タスクの番号付きリストを置きません/);
 
   assert.match(codebase, /src\/model\/schema\.ts/);
   assert.match(codebase, /src\/febio\/export\/index\.ts/);
   assert.match(codebase, /generated\/dist\/browser\/main\.js/);
-  assert.match(progress, /solver-native load\/contact activation is incomplete/);
-  assert.match(progress, /Stage S6: True cohesive\/failure preparation \| completed-with-residual/);
-  assert.match(progress, /native interface traction\/damage output/);
-  assert.match(progress, /canonical public API/);
-  assert.match(progress, /Sticky cohesive validation comes after mesh \/ load \/ output are physically established/);
+  assert.match(progress, /solver-native load\/contact activation が未完了/);
+  assert.match(roadmap, /Stage S6: True cohesive\/failure preparation \| completed-with-residual/);
+  assert.match(roadmap, /native interface traction \/ damage output/);
+  assert.match(roadmap, /canonical public API/);
+  assert.match(progress, /load\/contact\/output 成立後に sticky cohesive solver validation/);
   assert.match(febioMapping, /native 接線成分の更新|Native Tangential Update/);
   assert.match(febioMapping, /rows that start directly with face values/);
   assert.match(legacyRuntime, /__NUCLEAR_SIMU_PUBLIC_API__/);

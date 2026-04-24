@@ -5,9 +5,10 @@
 ## 最短再開
 
 1. [../../PROGRESS.md](../../PROGRESS.md)
-2. [../CODEBASE_STRUCTURE.md](../CODEBASE_STRUCTURE.md)
-3. relevant `.skills/**/SKILL.md`
-4. 依頼で指定された編集対象
+2. [ROADMAP.md](ROADMAP.md): 全体優先順位、current stage、補助ロードマップの位置づけが曖昧なときだけ読む
+3. [../CODEBASE_STRUCTURE.md](../CODEBASE_STRUCTURE.md)
+4. relevant `.skills/**/SKILL.md`
+5. 依頼で指定された編集対象
 
 ## 物理モデルを触るとき
 

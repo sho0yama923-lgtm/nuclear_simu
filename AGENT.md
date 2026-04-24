@@ -137,6 +137,7 @@ Examples:
 - Route the feedback by layer:
   - global operating rules belong in `AGENT.md`
   - local procedures and bounded read-set rules belong in the relevant `SKILL.md` or `docs/ops/`
+  - durable priority order and roadmap stage plans belong in `docs/ops/ROADMAP.md`
   - current state recognition and implemented / partial / planned status belong in `PROGRESS.md`
 - If more than one layer is affected, update all affected layers together rather than only one of them.
 
@@ -165,13 +166,14 @@ When empirical tuning is used, evaluate not only correctness but also exploratio
 
 ## Physics Model Priority
 
-Priority is fixed as:
+The durable priority order and roadmap stages live in `docs/ops/ROADMAP.md`.
+`AGENT.md` must not duplicate the active priority list, because stale copies cause agents to pick the wrong next task.
 
-1. nucleus-cytoplasm cohesive stabilization
-2. `localNc` native output
-3. classification native migration
-4. explicit detachment judgment
-5. true cohesive introduction
+Use the layers this way:
+
+- `docs/ops/ROADMAP.md`: repo-wide priority order, main roadmap, auxiliary roadmap, stage status.
+- `PROGRESS.md`: current operating state, resume point, blockers, next concrete 3 tasks.
+- `AGENT.md`: stable rules for how agents read, edit, and synchronize the repo.
 
 Deferred for now:
 
@@ -181,18 +183,14 @@ Deferred for now:
 
 Operational rules:
 
+- Read `PROGRESS.md` for the immediate next action, then `docs/ops/ROADMAP.md` when the task may change the stage plan or broad priority order.
 - Do not make large extensions unrelated to higher-priority items.
 - If you touch a lower-priority item, state why it does not block the higher-priority path.
 - The rationale is recorded in `docs/DECISIONS.md`.
 
 ## Supporting Migration Priority
 
-The physics priority above stays fixed. In parallel, keep the compatibility runtime on a retirement path:
-
-1. decompose `simulation.js`
-2. migrate remaining ownership into canonical `src/` modules
-3. reduce `simulation.js` to a thin compatibility bridge
-4. retire compatibility-local schema, classification, and detachment logic once canonical callers are complete
+Supporting migration work is an auxiliary roadmap, not the second item in the physics priority list. Its current stage status and completion criteria live in `docs/ops/ROADMAP.md`.
 
 Operational rules:
 
@@ -218,6 +216,8 @@ Also:
 - always reflect `implemented / partial / planned` changes
 - record new approximations honestly
 - record regressions honestly, including `implemented -> partial`
+- update `docs/ops/ROADMAP.md` in the same change set only when broad priority order, main roadmap stage status/scope, or auxiliary roadmap position changes
+- do not put immediate next steps in `docs/ops/ROADMAP.md`; keep them in `PROGRESS.md`
 - write `PROGRESS.md` in Japanese unless a specific exception is requested
 - keep `README.md`, `docs/CODEBASE_STRUCTURE.md`, and `PROGRESS.md` aligned
 

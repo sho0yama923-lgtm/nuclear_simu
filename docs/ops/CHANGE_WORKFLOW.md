@@ -7,7 +7,7 @@
 3. relevant `.skills/**/SKILL.md` がある場合は先に読む。
 4. 最小 read set で対象を編集する。
 5. 変更種別に応じて [../VALIDATION_MATRIX.md](../VALIDATION_MATRIX.md) の最低検証を実行する。
-6. `PROGRESS.md`、`docs/DECISIONS.md`、research / FEBio docs の同期が必要か確認する。
+6. `PROGRESS.md`、`docs/ops/ROADMAP.md`、`docs/DECISIONS.md`、research / FEBio docs の同期が必要か確認する。
 7. 最後にリンク切れ、古い root path、生成物参照の混入を確認する。
 
 ## 文書だけの変更
@@ -23,3 +23,5 @@
 - compatibility layer は caller / bridge として扱う。
 - native / proxy / planned / legacy / debug を名前や provenance で明示する。
 - `implemented / partial / planned` が変わる場合は `PROGRESS.md` を同じ変更セットで更新する。
+- 主ロードマップの stage status / scope、全体優先順位、補助ロードマップの位置づけが変わる場合は `docs/ops/ROADMAP.md` も同じ変更セットで更新する。
+- 直近タスクだけが変わる場合は `PROGRESS.md` に留め、`ROADMAP.md` に next action を重複させない。

@@ -62,6 +62,8 @@ Compatibility は退役経路に置く。新しい長期責務は canonical `src
   - AI / Codex 向けの不変運用ルール。
 - [PROGRESS.md](../PROGRESS.md)
   - 現在状態と中断再開の単一ソース。
+- [docs/ops/ROADMAP.md](ops/ROADMAP.md)
+  - 全体優先順位、主ロードマップ、補助ロードマップ、stage 計画の単一ソース。直近の next action は置かない。
 - [TASK_REQUEST_TEMPLATE.md](../TASK_REQUEST_TEMPLATE.md)
   - 日常作業依頼のテンプレ。
 - [docs/DECISIONS.md](DECISIONS.md)
