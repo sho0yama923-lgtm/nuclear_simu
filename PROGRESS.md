@@ -5,19 +5,32 @@
 ## 現在の状況
 
 - 現在の目標: FEBio solver に渡す simulation condition を物理的に成立させ、核が細胞質から脱落する条件を solver-active に評価できる状態へ進める。
-- 現在の main path: UI 入力 -> canonical spec -> FEBio export -> FEBio CLI -> 正規化 import -> classification / detachment judgment -> 結果描画。
+- 当面の physics validation は UI parameter path ではなく FEBio-native spec / CLI backend path を主経路にする。
+- UI parameter -> canonical spec -> FEBio 変換は compatibility / preset generation 用に残すが、solver-native contact / pressure / force response が成立するまで物理検証の主経路にしない。
+- 最終的な UI は FEBio-native spec を編集する presentation layer として統合する。
+- UI parameter -> canonical spec -> FEBio 変換系は、FEBio-native spec / CLI backend path が安定するまでは compatibility / preset generation 用に維持する。
+- FEBio-native spec への移行が完了したら、旧 UI parameter conversion files は active path から外し、legacy 扱いにする。
+- legacy 化した変換系ファイルは physics source of truth として扱わず、必要な場合のみ preset migration / backwards compatibility 用に限定する。
+- 現在の main path はまだ UI 入力 -> canonical spec -> FEBio export -> FEBio CLI -> 正規化 import -> classification / detachment judgment -> 結果描画を含むが、S7 以降の solver validation は FEBio-native direct path へ切り替える。
 - FEBio export / convert scripts は `src/public-api.ts` の canonical API を直接 import する。legacy JS simulation files は FEBio script path では読まない。
-- 現在の最優先: solver-native load/contact activation を成立させること。S7 の XML wiring pass で pipette-nucleus / pipette-cell contact、step-local suction pressure、rigid motion load controller 参照を追加し、未参照 load controller 警告は解消した。
-- pressure/contact load は XML 上では active step から参照されるが、実 run の contact response はまだ 0 のまま。
-- 現在の blocker: `febio_exports/S7_active_wiring_run2/run/case_A_cli.log` では read success / normal termination するが、`No force acting on the system` は残る。さらに `cell_dish_interface` は contact pairs を見つけられておらず、face-data contact pressure は 0 のまま。sticky cohesive validation や true cohesive 移行判断は contact/pressure response 確認後に進める。
+- 現在の最優先: UI parameter conversion を solver validation から切り離し、FEBio-native parameter spec から直接 export / run / convert / diagnostics / Studio confirmation できる path を作ること。
+- 既存 S7 residual: pressure/contact load は XML 上では active step から参照されるが、実 run の contact response はまだ 0 のまま。
+- 現在の blocker: `febio_exports/S7_active_wiring_run2/run/case_A_cli.log` では read success / normal termination するが、`No force acting on the system` は残る。さらに `cell_dish_interface` は contact pairs を見つけられておらず、face-data contact pressure は 0 のまま。次はこの問題を UI parameter conversion から切り離して direct path で再検証する。
 - 全体ロードマップ: [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md)
+- FEBio-native spec 方針: [docs/febio/FEBIO_NATIVE_SPEC.md](docs/febio/FEBIO_NATIVE_SPEC.md)
 
 ## 再開位置
 
 - 最後に完了した節目: Stage S6 completed。canonical FEBio-native XML は FEBio 4.12 で `Reading file ...SUCCESS!` と `N O R M A L   T E R M I N A T I O N` に到達した。
-- 現在の未完了項目: contact geometry / pressure transfer residual。exported XML では active step 内の pressure load と rigid motion controller 参照、pipette contact pair が確認済み。run2 で未参照 controller は消えたが、system force warning、cell-dish tied contact no-pair warning、zero contact pressure が残る。
-- 次に開くファイル: `src/febio/mesh/index.ts`、`src/febio/export/index.ts`、`scripts/convert_febio_output.mjs`、`tests/febio-front-end.test.mjs`
-- 次ステップの完了条件: contact surfaces が solver の search tolerance 内で実際に接触ペアを形成し、face-data contact pressure または rigid/contact response が 0 でないことを確認する。残る場合は mesh geometry / contact type / pressure surface のどれが原因かを `未解決問題 / Blockers` に記録する。
+- 現在の未完了項目: UI parameter conversion を経由しない FEBio-native direct parameter path の確立。既存 run では active step 内の pressure load と rigid motion controller 参照、pipette contact pair が確認済みだが、system force warning、cell-dish tied contact no-pair warning、zero contact pressure が残る。
+- 次に開くファイル:
+  - `docs/febio/FEBIO_NATIVE_SPEC.md`
+  - `src/febio/export/index.ts`
+  - `src/febio/mesh/index.ts`
+  - `scripts/export_febio_direct_case.mjs` または新規 equivalent
+  - `scripts/convert_febio_output.mjs`
+  - `tests/febio-front-end.test.mjs`
+- 次ステップの完了条件: FEBio-native spec JSON から UI parameter -> canonical spec 変換を通らず `.feb` を生成でき、direct path で contact / pressure / force transfer を検証できる状態にする。残る場合は mesh geometry / contact type / pressure surface / parser のどれが原因かを `未解決問題 / Blockers` に記録する。
 
 ## 優先順位の見方
 
@@ -30,29 +43,57 @@
 
 ## 次の3手（現在処理中タスクの3手）
 
-### 1. contact geometry / tied pair residual を潰す
+### 1. FEBio-native parameter spec を定義する
 
-- Target files: `src/febio/mesh/index.ts`、`src/febio/export/index.ts`、`tests/febio-front-end.test.mjs`
-- Expected output: cell-dish tied contact と pipette contact surfaces が solver の contact search でペアを形成し、`No contact pairs found for tied interface "cell_dish_interface"` が消える。
-- Done condition: run log で tied/contact pair warning が消え、contact pressure/gap face data に 0 以外の応答が出る、または pressure surface / geometry が原因として切り分けられている。
+- Target files:
+  - `docs/febio/FEBIO_NATIVE_SPEC.md`
+  - `src/febio/spec/` または既存の `src/febio/export/`
+  - `tests/febio-front-end.test.mjs`
+- Expected output:
+  - UI convenience parameter ではなく、FEBio solver に必要な geometry / material / contact / load / boundary / output を直接表す spec を定義する。
+  - 最小 force-transfer debug case に必要な parameter を FEBio-native 名で列挙する。
+  - `unitSystem = um-nN-s` を前提に、length / force / pressure / material / contact parameter の意味を明記する。
+- Done condition:
+  - FEBio-native spec の必須 section が docs に定義されている。
+  - UI parameter 由来の alias / compatibility parameter と、FEBio-native source-of-truth parameter が区別されている。
 
-### 2. force transfer / contact response を import まで追う
+### 2. FEBio-native spec から直接 `.feb` を export する CLI 経路を作る
 
-- Target files: `scripts/convert_febio_output.mjs`、`src/febio/import/normalizeFebioResult.ts`、`tests/febio-front-end.test.mjs`
-- Expected output: S7 run / converted result で rigid body reaction、face pressure、contact fraction を列ずれなしに読み、provenance 付きで確認できる。
-- Done condition: nonzero response が normalized result に残る、または solver output 欠損が explicit provenance として記録されている。rigid body CSV の id/x/y/z/Fx/Fy/Fz 列解釈は修正済み。
+- Target files:
+  - `scripts/export_febio_direct_case.mjs`
+  - `src/febio/export/index.ts`
+  - `src/febio/mesh/index.ts`
+  - `tests/febio-front-end.test.mjs`
+- Expected output:
+  - UI parameter -> canonical spec 変換を通らず、FEBio-native spec JSON から直接 FEBio template / `.feb` XML を生成する。
+  - contact surface、surface pair、pressure load、boundary、output request を direct spec から明示的に出力する。
+  - Studio 確認依頼に `.feb` / log / result / output CSV path を出す。
+- Done condition:
+  - direct spec から `.feb` が生成できる。
+  - generated XML に material / contact / pressure / boundary / output が direct spec 由来で入る。
+  - 既存 UI parameter path に依存しない regression test がある。
 
-### 3. sticky cohesive validation の入口を再判定する
+### 3. direct path で force-transfer / contact response を検証する
 
-- Target files: `src/febio/interfaces/nucleusCytoplasm.ts`、`src/febio/export/index.ts`、`docs/febio/STICKY_COHESIVE_STAGE_S5.md`
-- Expected output: load/contact activation が成立した後に、sticky cohesive validation を進めるか、先に残差を潰すかを判断する。
-- Done condition: sticky cohesive validation の次の確認条件が docs と `再開位置` に反映されている。
+- Target files:
+  - `scripts/convert_febio_output.mjs`
+  - `src/febio/import/normalizeFebioResult.ts`
+  - `docs/ops/STUDIO_CONFIRMATION_GATES.md`
+  - `tests/febio-front-end.test.mjs`
+- Expected output:
+  - FEBio-native direct run で `No force acting on the system`、contact pair warning、contact pressure all-zero の原因を UI parameter 変換から切り離して検証する。
+  - force-transfer diagnostics に pressure load declared / step-active / contact pair declared / contact response nonzero / reaction nonzero を記録する。
+  - Studio 確認が必要な場合は、開く `.feb` path と照合する log / result / CSV path を提示する。
+- Done condition:
+  - direct path で nonzero displacement / contact pressure / reaction force が確認できる、または原因が geometry / contact type / pressure target / output parser のどれかに切り分けられている。
+  - 結果が `PROGRESS.md` の blocker / 再開位置に反映されている。
 
 ## 未解決問題 / Blockers
 
 | 問題 | 影響 | 暫定対応 | 意図する修正 | 優先度 |
 |---|---|---|---|---|
-| solver-native load/contact activation が未完了 | XML wiring は進み、active step pressure / rigid controller / pipette contact pair は出力される。run2 で未参照 controller は解消したが、`No force acting on the system` と cell-dish tied no-pair warning が残る | sticky cohesive は solver-primary のまま保持し、物理 validation は保留する | contact surfaces / pressure target geometry を直し、非ゼロ contact pressure または force transfer を確認する | critical |
+| UI parameter conversion が solver validation を複雑化している | UI convenience parameter -> canonical spec -> FEBio template -> XML の変換を毎回通すと、force-transfer 問題が UI mapping 由来か FEBio model 由来か切り分けにくい | UI parameter path は compatibility / preset generation 用に残し、physics validation は FEBio-native direct spec で行う | FEBio-native spec / CLI direct export path を作り、contact / pressure / force transfer を UI 変換から切り離して検証する。移行完了後、旧変換系ファイルは active path から外して legacy 扱いにする | critical |
+| solver-native load/contact activation が未完了 | XML wiring は進み、active step pressure / rigid controller / pipette contact pair は出力される。run2 で未参照 controller は解消したが、`No force acting on the system` と cell-dish tied no-pair warning が残る | sticky cohesive は solver-primary のまま保持し、物理 validation は保留する | direct path で contact surfaces / pressure target geometry を直し、非ゼロ contact pressure または force transfer を確認する | critical |
 | rigid body output parsing は列ずれしやすい | FEBio rigid body CSV は `id,x,y,z,Fx,Fy,Fz` の形で出るため、id 列を除いた後も z と Fx/Fz の index を誤ると force を誤読する | `scripts/convert_febio_output.mjs` で z=`values[2]`、Fx=`values[3]`、Fz=`values[5]` として修正済み | 今後 force validation test では face pressure と rigid reaction を分けて見る | medium |
 | native interface output は real-run validation が必要 | interface traction / damage の output contract はあるが、実 run payload での coverage がまだ確定していない | converter/import で native/proxy/unavailable provenance を明示する | active load/contact 成立後に declared output path を real solver output で検証する | high |
 | sticky cohesive は true traction-separation law ではない | mesh / load / output が未確立のまま validation すると物理解釈がぶれる | effective coupling proxy として扱い、validation scope を広げすぎない | load/contact/output 成立後に sticky approximation の安定性と interface geometry を実 FEBio run で検証する | high |
@@ -63,10 +104,11 @@
 
 | 項目 | 状態 | 現在の挙動 | 既知の制約 | 次の手 |
 |---|---|---|---|---|
-| Canonical parameter schema | implemented | source of truth は `src/model/schema.ts`。unit system は `um-s-kPa-nN` として `src/model/types.ts` に記録済み | calibration はまだ暫定値 | aspiration / output metrics の単位を同じ系で揃える |
-| Source-of-truth split | implemented | `src/` modules と `generated/dist/` build path は分離済み。FEBio export / convert scripts は `src/public-api.ts` を直接 import し、legacy JS simulation files を読まない | browser runtime には compatibility layer が残る | source-of-truth は `src/` と `PROGRESS.md` に固定する |
-| FEBio run bundle / bridge | implemented-infrastructure / output-contract-complete / native-read-restored / active-wiring-xml | export / import infrastructure は main path を保持し、FEBio-native mesh、material、boundary、contact、suction pressure、step-local pressure load、rigid controller 参照、logfile output、plotfile contact traction、derived `L(t)` metadata を出力する | S7 run2 は normal termination するが contact pressure は 0 で `No force acting on the system` が残る | physical aspiration validation を主張する前に active pressure/contact force transfer を確認する |
-| Refined mesh | completed-contract / simplified-geometry / pipette-contact-pairs | nucleus / cytoplasm / dish / pipette domains、required node sets、contact surfaces、surface-pair validation、pipette-nucleus / pipette-cell contact pair がある | geometry はまだ単純化されており、物理的 validation は未完了 | load/contact activation とあわせて numerical stability を見る |
+| FEBio-native spec path | planned / policy-adopted | solver に必要な geometry / material / contact / load / boundary / output を直接表す spec を source of truth にする方針 | まだ schema / CLI は未実装 | `docs/febio/FEBIO_NATIVE_SPEC.md` を起点に CLI/backend-first flow を実装する |
+| Canonical parameter schema | implemented / future-compatibility | source of truth は `src/model/schema.ts`。unit system は `um-s-kPa-nN` として `src/model/types.ts` に記録済み | 今後の solver validation では主経路にしない。FEBio-native 移行完了後は legacy / compatibility 扱いへ移す | compatibility / preset generation layer として残し、direct path へ変換する |
+| Source-of-truth split | implemented | `src/` modules と `generated/dist/` build path は分離済み。FEBio export / convert scripts は `src/public-api.ts` を直接 import し、legacy JS simulation files を読まない | browser runtime には compatibility layer が残る | source-of-truth は FEBio-native spec と `src/` に寄せ、旧 UI conversion は移行後 legacy にする |
+| FEBio run bundle / bridge | implemented-infrastructure / output-contract-complete / native-read-restored / active-wiring-xml | export / import infrastructure は main path を保持し、FEBio-native mesh、material、boundary、contact、suction pressure、step-local pressure load、rigid controller 参照、logfile output、plotfile contact traction、derived `L(t)` metadata を出力する | S7 run2 は normal termination するが contact pressure は 0 で `No force acting on the system` が残る。現状は UI/canonical path 由来の複雑性も残る | direct spec path で physical aspiration validation を再検証する |
+| Refined mesh | completed-contract / simplified-geometry / pipette-contact-pairs | nucleus / cytoplasm / dish / pipette domains、required node sets、contact surfaces、surface-pair validation、pipette-nucleus / pipette-cell contact pair がある | geometry はまだ単純化されており、物理的 validation は未完了 | direct path の load/contact activation とあわせて numerical stability を見る |
 | Nucleus-cytoplasm interface | partial | sticky cohesive approximation は `src/febio/interfaces/nucleusCytoplasm.ts` にあり、現時点では effective coupling proxy | true traction-separation law ではなく、solver-active output も validation 待ち | load/contact/output 成立後に sticky cohesive solver validation を進める |
 | Native interface traction / damage output | completed-contract / pending-real-run | export は face-data と plotfile contact traction path を宣言し、converter/import は native/proxy/unavailable provenance を保持する | real solver output coverage は未検証 | active load/contact 成立後に declared output path を検証する |
 | Classification | partial | canonical classifier は public API から利用可能 | real solver output が未成立だと cleanup の評価軸が弱い | real solver outputs に基づいて後で整理する。今は優先度を下げる |
