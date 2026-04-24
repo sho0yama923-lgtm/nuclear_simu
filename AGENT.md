@@ -7,7 +7,8 @@
 3. relevant `.skills/**/SKILL.md`
 4. `PROGRESS.md` when touching physics model, main flow, classification, export/import, or proxy/native dependencies
 5. `docs/ops/STUDIO_CONFIRMATION_GATES.md` when touching FEBio Studio-visible geometry, contact, pressure, load activation, or real-run force/response validation
-6. `TASK_REQUEST_TEMPLATE.md` when shaping a new bounded task request
+6. `docs/febio/FEBIO_NATIVE_SPEC.md` when touching FEBio solver parameters, direct FEBio input, UI parameter conversion, or FEBio-native CLI/backend validation
+7. `TASK_REQUEST_TEMPLATE.md` when shaping a new bounded task request
 
 ## Role
 
@@ -48,7 +49,8 @@ This file is the stable operating contract for Codex / AI agents in this reposit
 
 Source-of-truth map:
 
-- parameter schema: `src/model/schema.ts`
+- parameter schema: `src/model/schema.ts` for the current canonical / compatibility path
+- future FEBio solver parameter source of truth: `docs/febio/FEBIO_NATIVE_SPEC.md`, then implementation under the FEBio-native spec path once added
 - mesh generation: `src/febio/mesh/`
 - nucleus-cytoplasm interface: `src/febio/interfaces/nucleusCytoplasm.ts`
 - FEBio export: `src/febio/export/`
@@ -159,6 +161,27 @@ Rules:
 - While waiting for Studio confirmation, agents may still complete independent work that does not depend on the visual observation, such as tests, parser hardening, diagnostics, and documentation updates.
 - After receiving Studio observations, agents must record material findings in `PROGRESS.md` when they affect blockers, resume point, next actions, or implemented / partial / planned status.
 
+## FEBio-Native Spec First Rule
+
+Purpose:
+
+- keep solver validation independent from UI parameter conversion
+- make FEBio geometry / material / contact / load / boundary / output parameters the physics source of truth
+- integrate UI only after CLI/backend FEBio-native validation is stable
+
+Rules:
+
+- Read `docs/febio/FEBIO_NATIVE_SPEC.md` before touching FEBio solver parameters, direct FEBio input, UI parameter conversion, or FEBio-native CLI/backend validation.
+- When implementing FEBio solver behavior, define required solver parameters first in FEBio-native spec.
+- Do not introduce new physics parameters only in UI schema.
+- UI parameters are presentation aliases, preset inputs, or compatibility inputs; they are not the physics source of truth.
+- Physics validation must use the CLI/backend FEBio-native path until export, run, convert, diagnostics, and Studio confirmation are stable.
+- UI integration should happen after FEBio-native spec, CLI export/run, converter/import, diagnostics, and Studio confirmation gates are stable.
+- If legacy UI parameters are still supported, route them through an explicit compatibility/preset conversion layer into FEBio-native spec.
+- Once FEBio-native spec migration is complete, UI-parameter conversion files must be treated as legacy / compatibility code, not active physics source-of-truth.
+- Do not extend legacy conversion files with new solver behavior unless the task is explicitly compatibility migration.
+- New solver parameters must be added to FEBio-native spec first, then exposed to UI later.
+
 ## Skill Layering Rule
 
 Purpose:
@@ -260,3 +283,5 @@ Also:
 - ignoring an available task-specific skill and doing repo-wide exploration anyway
 - running empirical tuning as part of every normal implementation flow
 - guessing through Studio-visible geometry/contact/load correctness instead of using the Studio confirmation gate
+- adding new solver behavior only to UI parameter conversion files instead of defining it in FEBio-native spec first
+- treating legacy UI parameter conversion files as active physics source-of-truth after FEBio-native migration
