@@ -6,7 +6,8 @@
 2. `docs/CODEBASE_STRUCTURE.md`
 3. relevant `.skills/**/SKILL.md`
 4. `PROGRESS.md` when touching physics model, main flow, classification, export/import, or proxy/native dependencies
-5. `TASK_REQUEST_TEMPLATE.md` when shaping a new bounded task request
+5. `docs/ops/STUDIO_CONFIRMATION_GATES.md` when touching FEBio Studio-visible geometry, contact, pressure, load activation, or real-run force/response validation
+6. `TASK_REQUEST_TEMPLATE.md` when shaping a new bounded task request
 
 ## Role
 
@@ -141,6 +142,23 @@ Examples:
   - current state recognition and implemented / partial / planned status belong in `PROGRESS.md`
 - If more than one layer is affected, update all affected layers together rather than only one of them.
 
+## Studio Confirmation Gate Rule
+
+Purpose:
+
+- divide FEBio work between agent-owned code/debug tasks and user-owned FEBio Studio visual confirmation tasks
+- prevent agents from guessing through geometry, contact, load direction, or real-run response questions that are faster and safer to verify in Studio
+- keep Codex / agent work focused on code, XML, tests, parser, diagnostics, and docs rather than speculative visual validation
+
+Rules:
+
+- Read `docs/ops/STUDIO_CONFIRMATION_GATES.md` before touching FEBio Studio-visible geometry, contact surfaces, pressure/load activation, contact response, or real-run force transfer validation.
+- Agents may proceed independently on code-mechanical work: XML wiring, exporter tests, mesh existence validation, parser fixes, provenance, diagnostics, docs, and minimal force-transfer debug models.
+- Agents must not assume Studio-visible physical correctness from code inspection alone when the task depends on visual geometry, surface orientation, pressure arrow direction, actual contact formation, or post-run nonzero displacement / contact pressure / reaction force.
+- When Studio confirmation is needed, the agent must stop at a confirmation gate, provide the Studio confirmation request template from `docs/ops/STUDIO_CONFIRMATION_GATES.md`, and wait for the user's observation before claiming the issue is fixed or proceeding with physics validation.
+- While waiting for Studio confirmation, agents may still complete independent work that does not depend on the visual observation, such as tests, parser hardening, diagnostics, and documentation updates.
+- After receiving Studio observations, agents must record material findings in `PROGRESS.md` when they affect blockers, resume point, next actions, or implemented / partial / planned status.
+
 ## Skill Layering Rule
 
 Purpose:
@@ -241,3 +259,4 @@ Also:
 - repo-wide exploration that is unrelated to the requested change
 - ignoring an available task-specific skill and doing repo-wide exploration anyway
 - running empirical tuning as part of every normal implementation flow
+- guessing through Studio-visible geometry/contact/load correctness instead of using the Studio confirmation gate
