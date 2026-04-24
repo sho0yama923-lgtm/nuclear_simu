@@ -35,14 +35,20 @@
   - `tests/febio-front-end.test.mjs` または direct path 用の新規 test
 - 次ステップの完了条件: FEBio-native spec JSON から UI parameter -> canonical spec 変換を通らず `.feb` を生成でき、direct path で contact / pressure / force transfer を検証できる状態にする。残る場合は mesh geometry / contact type / pressure surface / parser / Studio確認待ち のどれが原因かを `未解決問題 / Blockers` に記録する。
 
+## ROADMAP.md との使い分け
+
+- 大方針、stage 計画、current stage、review gates、later / deferred、補助ロードマップの位置づけは [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md) に置く。
+- 実際の作業 milestone、細かい修正内容、target files、done condition、blocker、再開位置は `PROGRESS.md` に置く。
+- `PROGRESS.md` の milestone が進んだだけなら `ROADMAP.md` は更新しない。
+- `ROADMAP.md` の stage 方針が変わった場合は、`PROGRESS.md` の現在位置と次の milestone も同じ変更セットで合わせる。
+- このファイルには「次に何を開いて、何が終われば進んだと言えるか」を置く。`ROADMAP.md` には「その作業がどの大きな方針 / stage に属するか」を置く。
+
 ## 優先順位の見方
 
 - 全体優先順位: 研究・物理モデル全体の順序。頻繁には変えない。詳しくは [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md) に置く。
 - 主ロードマップ: 現在の大きな作業列。いまは simulation condition advancement。
 - 補助ロードマップ: 主ロードマップを支える移行作業。旧「第2優先ロードマップ」は compatibility retirement の補助ロードマップで、Stage 6 completed 済み。主ロードマップの次に自動で戻るものではない。
 - 次の bounded milestone: いまのセッションで進めるレビュー可能な成果単位。細かい bullet は作業ガイドであり、単独の停止点ではない。作業が進んで milestone / done condition / blocker が変わるたびにこのファイルで更新する。
-
-このファイルには「次に何を開いて、何が終われば進んだと言えるか」を置く。`ROADMAP.md` には「その作業がどの主ロードマップ / 補助ロードマップ / 全体優先順位に属するか」を置く。直近タスクだけが変わった場合、`ROADMAP.md` は更新しない。
 
 ## 作業粒度ルール
 
@@ -131,9 +137,11 @@ agent は次のいずれかに到達するまで進める。
 ## 更新ルール
 
 - `PROGRESS.md` は日本語で書く。
-- 全体優先順位や stage 計画が変わったら [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md) を更新する。
+- 大方針、stage 計画、current stage、review gates、later / deferred、補助ロードマップの位置づけは [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md) に置く。
+- 実際の作業 milestone、細かい修正内容、target files、done condition、blocker、再開位置は `PROGRESS.md` に置く。
 - 直近の作業対象、next action、done condition、bounded milestone、blocker が変わったら、このファイルの `再開位置` と `次の bounded milestone` を更新する。
-- 主ロードマップの current stage、stage status、After Current 候補、補助ロードマップの位置づけが変わる場合だけ、`ROADMAP.md` も同じ変更セットで更新する。
+- `PROGRESS.md` の milestone が進んだだけなら `ROADMAP.md` は更新しない。
+- `ROADMAP.md` の stage 方針が変わった場合は、`PROGRESS.md` の現在位置と次の milestone も同じ変更セットで合わせる。
 - 新しく見つかった recurring blocker は `未解決問題 / Blockers` に追加する。
 - physics model、cohesive model、detachment logic、main flow、classification、export/import ownership、proxy/native dependency が変わったら、このファイルと関連 docs を同じ変更セットで更新する。
 - `implemented / partial / planned` の変更と、`implemented -> partial` の回帰は正直に記録する。
