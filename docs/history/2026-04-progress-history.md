@@ -2,6 +2,39 @@
 
 `PROGRESS.md` から外した historical sections の退避先です。現在状態は [../../PROGRESS.md](../../PROGRESS.md) を参照してください。
 
+## 2026-04-24 方針転換メモ
+
+- Priority 2 Stage 6 を完了済みとして確定し、Stage 6 後の次焦点を sticky cohesive validation / bridge diagnostics から simulation condition advancement へ切り替えた。
+- 以後の最優先は solver-active mesh、complete FEBio XML、pressure-driven suction、aspiration length output、native interface output、unit-system clarification とする。
+- sticky cohesive validation は重要だが、実体 mesh・load・output が物理的に成立した後に進める。
+- compatibility cleanup / classification cleanup は Stage 6 完了済みの前提で深追いせず、real solver outputs が出た後に再評価する。
+
+## 2026-04-24 Stage S1 着手メモ
+
+- refined mesh baseline に nucleus / cytoplasm / dish / pipette の非空 element set を追加した。
+- `validateFebioMesh` は required domain / required surface / required surface pair の欠損を invalid として落とすようにした。
+- solver-active mesh completeness はまだ in progress 扱いで、次は XML 側に nodes / elements / ElementSet / Surface / SurfacePair を実体出力する。
+
+## 2026-04-24 Stage S2 着手メモ
+
+- `serializeFebioTemplateToXml` が refined mesh の nodes / elements / ElementSet / Surface / SurfacePair を XML に出すようになった。
+- nucleus / cytoplasm material の `E`, `nu`, `eta` も template data だけでなく XML に反映される。
+- Stage S2 は in progress 扱いで、次は boundary / contact / load serialization を完成させる。
+
+## 2026-04-24 Stage S2 完了メモ
+
+- XML に dish fixed boundary、pipette prescribed motion、cell-dish contact、proxy hold force / pressure metadata、load controllers を追加した。
+- `P_hold` はまだ pressure-driven suction ではなく、Stage S3 の pressure load curve へ移行するための placeholder として明示している。
+- 次の焦点は Stage S3: pressure-driven pipette suction と unit-system clarification。
+
+## 2026-04-24 Stage S3 completion memo
+
+- `P_hold` is now a solver-active suction pressure magnitude in kPa.
+- FEBio export writes `P_hold` as negative pressure on `pipette_contact_surface` with `suction_pressure_curve`.
+- Prescribed pipette motion remains separate positioning control.
+- Unit system is recorded as `um-s-kPa-nN` in `src/model/types.ts` and `docs/febio/PRESSURE_SUCTION_STAGE_S3.md`.
+- Next focus is Stage S4: aspiration length `L(t)` and native/interface output.
+
 ## 過去の再開位置
 
 - 最後に完了した節目: converter の face-data parser が descriptor-driven になり、leading entity id の有無だけでなく、extra metadata 列付き row と descriptor-driven field order も解釈できるようになった。加えて export metadata 側でも、標準 logfile `face_data` が現状 `contact gap;contact pressure` までで、tangential traction は optional external/plotfile-side extension であることを bundle から読めるようにした。

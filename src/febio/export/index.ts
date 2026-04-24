@@ -90,6 +90,87 @@ function buildDetachmentOutputContract() {
   };
 }
 
+function buildBoundarySpec(inputSpec, mesh) {
+  return {
+    fixed: [
+      {
+        name: "dish_fixed",
+        nodeSet: "dish_fixed_nodes",
+        dofs: ["x", "y", "z"],
+        nodeIds: structuredCloneSafe(mesh.nodeSets?.dish_fixed_nodes || []),
+      },
+    ],
+    prescribed: [
+      {
+        name: "pipette_lift_z",
+        nodeSet: "pipette_contact_nodes",
+        dof: "z",
+        value: inputSpec.operation.dz_lift,
+        loadController: 101,
+        mode: "relative",
+      },
+      {
+        name: "pipette_inward_x",
+        nodeSet: "pipette_contact_nodes",
+        dof: "x",
+        value: inputSpec.operation.dx_inward,
+        loadController: 102,
+        mode: "relative",
+      },
+      {
+        name: "pipette_tangent_y",
+        nodeSet: "pipette_contact_nodes",
+        dof: "y",
+        value: inputSpec.operation.ds_tangent,
+        loadController: 103,
+        mode: "relative",
+      },
+    ],
+    notes: [
+      "dish fixed boundary is solver-active in the XML baseline",
+      "pipette motion remains prescribed positioning and is separate from solver-active suction pressure",
+    ],
+  };
+}
+
+function buildLoadSpec(inputSpec) {
+  const suctionPressure = Math.abs(inputSpec.operation.P_hold || 0);
+  return {
+    nodal: [
+      {
+        name: "hold_force_proxy",
+        surface: "pipette_contact_surface",
+        value: inputSpec.operation.Fhold,
+        loadController: 201,
+        status: "proxy-load / not pressure-driven",
+      },
+    ],
+    pressure: [
+      {
+        name: "pipette_suction_pressure",
+        surface: "pipette_contact_surface",
+        value: -suctionPressure,
+        magnitude: suctionPressure,
+        loadController: 202,
+        status: "solver-active pressure-driven suction",
+        direction: "inward-negative-pressure",
+        unit: "kPa",
+      },
+    ],
+    controllers: [
+      { id: 101, name: "lift_ramp", points: [[0, 0], [1, 0], [2, 1], [5, 1]] },
+      { id: 102, name: "inward_ramp", points: [[0, 0], [3, 0], [4, 1], [5, 1]] },
+      { id: 103, name: "tangent_ramp", points: [[0, 0], [4, 0], [5, 1]] },
+      { id: 201, name: "hold_force_proxy_ramp", points: [[0, 0], [1, 1], [5, 1]] },
+      { id: 202, name: "suction_pressure_curve", unit: "kPa", points: [[0, 0], [1, 1], [2, 1], [5, 1]] },
+    ],
+    notes: [
+      "P_hold is serialized as a solver-active pressure magnitude on the pipette contact surface.",
+      "Fhold remains a hold-force proxy for continuity and is separate from suction pressure.",
+    ],
+  };
+}
+
 function buildFaceDataOutputSpec(name, file, surface, currentCoverage = {}) {
   return {
     name,
@@ -142,6 +223,121 @@ function serializeStickyPenaltyRampComments(stabilization = {}) {
   );
 }
 
+function serializeNumber(value) {
+  return Number(value || 0).toFixed(6);
+}
+
+function serializeMeshToXml(mesh = {}) {
+  const nodeLines = (mesh.nodes || []).map(
+    (node) => `      <node id="${node.id}">${serializeNumber(node.x)},${serializeNumber(node.y)},${serializeNumber(node.z)}</node>`,
+  );
+  const materialElementGroups = Object.entries(
+    (mesh.elements || []).reduce((groups, element) => {
+      const material = element.material || "unknown";
+      groups[material] = groups[material] || [];
+      groups[material].push(element);
+      return groups;
+    }, {}),
+  ).flatMap(([material, elements]) => [
+    `    <Elements type="${elements[0]?.type || "hex8"}" mat="${material}" name="${material}_elements">`,
+    ...elements.map((element) => `      <elem id="${element.id}">${(element.nodes || []).join(",")}</elem>`),
+    "    </Elements>",
+  ]);
+  const elementSetLines = Object.entries(mesh.elementSets || {}).flatMap(([name, ids]) => [
+    `    <ElementSet name="${name}">`,
+    `      <elem>${(ids || []).join(",")}</elem>`,
+    "    </ElementSet>",
+  ]);
+  const surfaceLines = Object.entries(mesh.surfaces || {}).flatMap(([name, facets]) => [
+    `    <Surface name="${name}">`,
+    ...(facets || []).map((facet) => `      <${facet.type || "quad4"} id="${facet.id}">${(facet.nodes || []).join(",")}</${facet.type || "quad4"}>`),
+    "    </Surface>",
+  ]);
+  const surfacePairLines = Object.values(mesh.surfacePairs || {}).flatMap((pair) => [
+    `    <SurfacePair name="${pair.name}">`,
+    `      <primary surface="${pair.primary}"/>`,
+    `      <secondary surface="${pair.secondary}"/>`,
+    "    </SurfacePair>",
+  ]);
+
+  return [
+    "  <Mesh>",
+    "    <Nodes name=\"mesh_nodes\">",
+    ...nodeLines,
+    "    </Nodes>",
+    ...materialElementGroups,
+    ...elementSetLines,
+    ...surfaceLines,
+    ...surfacePairLines,
+    "  </Mesh>",
+  ];
+}
+
+function serializeMaterialsToXml(materials = {}) {
+  return [
+    "  <Material>",
+    ...Object.values(materials).map((material) => [
+      `    <material id="${material.id}" name="${material.name}" type="${material.type}">`,
+      material.elastic ? `      <E>${serializeNumber(material.elastic.E)}</E>` : null,
+      material.elastic ? `      <nu>${serializeNumber(material.elastic.nu)}</nu>` : null,
+      material.viscous ? `      <g1>${serializeNumber(material.viscous.g1)}</g1>` : null,
+      material.viscous ? `      <t1>${serializeNumber(material.viscous.t1)}</t1>` : null,
+      material.viscous ? `      <eta>${serializeNumber(material.viscous.eta)}</eta>` : null,
+      material.tension != null ? `      <tension>${serializeNumber(material.tension)}</tension>` : null,
+      "    </material>",
+    ].filter(Boolean)).flat(),
+    "  </Material>",
+  ];
+}
+
+function serializeBoundaryToXml(boundary = {}) {
+  return [
+    "  <Boundary>",
+    ...(boundary.fixed || []).map(
+      (entry) => `    <fix name="${entry.name}" node_set="${entry.nodeSet}" bc="${(entry.dofs || []).join(",")}"/>`,
+    ),
+    ...(boundary.prescribed || []).map(
+      (entry) =>
+        `    <prescribe name="${entry.name}" node_set="${entry.nodeSet}" bc="${entry.dof}" lc="${entry.loadController}" type="${entry.mode}">${serializeNumber(entry.value)}</prescribe>`,
+    ),
+    "  </Boundary>",
+  ];
+}
+
+function serializeLoadsToXml(loads = {}) {
+  return [
+    "  <Loads>",
+    ...(loads.nodal || []).map(
+      (entry) =>
+        `    <nodal_load name="${entry.name}" surface="${entry.surface}" lc="${entry.loadController}" status="${entry.status}">${serializeNumber(entry.value)}</nodal_load>`,
+    ),
+    ...(loads.pressure || []).map(
+      (entry) =>
+        `    <surface_load name="${entry.name}" surface="${entry.surface}" type="pressure" lc="${entry.loadController}" status="${entry.status}" unit="${entry.unit || "kPa"}" direction="${entry.direction || "normal"}" magnitude="${serializeNumber(entry.magnitude ?? Math.abs(entry.value || 0))}">${serializeNumber(entry.value)}</surface_load>`,
+    ),
+    "  </Loads>",
+    "  <LoadData>",
+    ...(loads.controllers || []).map((entry) => [
+      `    <load_controller id="${entry.id}" name="${entry.name}" type="linear"${entry.unit ? ` unit="${entry.unit}"` : ""}>`,
+      ...(entry.points || []).map((point) => `      <point>${serializeNumber(point[0])},${serializeNumber(point[1])}</point>`),
+      "    </load_controller>",
+    ]).flat(),
+    "  </LoadData>",
+  ];
+}
+
+function serializeCellDishContactToXml(cellDish = {}) {
+  return [
+    `  <contact name="cell_dish_interface" type="${cellDish.type}" surface_pair="${cellDish.surfacePair?.name || "cell_dish_pair"}">`,
+    `    <normal_stiffness>${serializeNumber(cellDish.normalStiffness)}</normal_stiffness>`,
+    `    <tangential_stiffness>${serializeNumber(cellDish.tangentialStiffness)}</tangential_stiffness>`,
+    `    <critical_normal_stress>${serializeNumber(cellDish.criticalNormalStress)}</critical_normal_stress>`,
+    `    <critical_shear_stress>${serializeNumber(cellDish.criticalShearStress)}</critical_shear_stress>`,
+    `    <fracture_energy>${serializeNumber(cellDish.fractureEnergy)}</fracture_energy>`,
+    "  </contact>",
+  ];
+}
+
 function serializeCanonicalSpec(inputSpec) {
   return {
     caseName: inputSpec.caseName,
@@ -167,6 +363,8 @@ export function buildFebioTemplateData(inputSpec) {
   const membraneModel = buildMembraneModelSpec(inputSpec);
   const nucleusCytoplasm = buildNucleusCytoplasmInterfaceSpec(inputSpec, mesh);
   const cellDish = buildCellDishInterfaceSpec(inputSpec, mesh);
+  const boundary = buildBoundarySpec(inputSpec, mesh);
+  const loads = buildLoadSpec(inputSpec);
 
   return {
     status: {
@@ -183,6 +381,7 @@ export function buildFebioTemplateData(inputSpec) {
         "release-test step is disabled in the main flow until the hold/release law is stabilized",
         "main-flow inward manipulation is split into staged targets to reduce the first-step jacobian collapse risk",
         "discrete cohesive spring sidecar sets are exported for future solver-primary cohesive activation",
+        "P_hold is solver-active suction pressure; prescribed pipette motion remains positioning control",
       ],
     },
     parameterDigest: inputSpec.parameterDigest,
@@ -245,6 +444,8 @@ export function buildFebioTemplateData(inputSpec) {
       nucleusCytoplasm,
       cellDish,
     },
+    boundary,
+    loads,
     steps: [
       { id: 1, name: "approach" },
       { id: 2, name: "hold" },
@@ -375,6 +576,7 @@ export function buildFebioTemplateData(inputSpec) {
 export function serializeFebioTemplateToXml(templateData) {
   const nucleusCytoplasm = templateData.interfaces.nucleusCytoplasm;
   const stabilization = nucleusCytoplasm.stabilization || {};
+  const mesh = templateData.geometry?.mesh || {};
   const plotfileSurfaceTractionXml = (templateData.outputs?.plotfileSurfaceData || [])
     .map(
       (entry) =>
@@ -383,19 +585,13 @@ export function serializeFebioTemplateToXml(templateData) {
     .join("\n");
   return [
     '<febio_spec version="4.0">',
-    "  <Material>",
-    '    <material id="1" name="nucleus" type="viscoelastic">',
-    "      <g1>0.35</g1>",
-    "      <t1>1.2</t1>",
-    "    </material>",
-    "  </Material>",
-    "  <Mesh>",
-    '    <SurfacePair name="nucleus_cytoplasm_pair">',
-    "    </SurfacePair>",
-    "  </Mesh>",
+    ...serializeMaterialsToXml(templateData.materials),
+    ...serializeMeshToXml(mesh),
     "  <MeshData>",
     '    <face_data name="nucleus_cytoplasm_left_surface" file="febio_interface_nc_left.csv"/>',
     "  </MeshData>",
+    ...serializeBoundaryToXml(templateData.boundary),
+    ...serializeLoadsToXml(templateData.loads),
     "  <Step>",
     '    <step id="1" name="approach">',
     "    </step>",
@@ -421,6 +617,7 @@ export function serializeFebioTemplateToXml(templateData) {
     `    <!-- cohesive criticalNormalStress=${Number(templateData.interfaces.nucleusCytoplasm.criticalNormalStress).toFixed(6)} -->`,
     ...serializeStickyPenaltyRampComments(stabilization),
     "  </contact>",
+    ...serializeCellDishContactToXml(templateData.interfaces.cellDish),
     "  <!-- cohesive discrete sidecar (not solver-active yet)",
     '  <DiscreteSet name="nucleus_cytoplasm_left_springs">',
     "  </DiscreteSet>",

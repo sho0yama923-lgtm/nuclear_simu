@@ -80,8 +80,8 @@ export function buildFieldGroups() {
   ];
 
   const operation = [
-    ["Fhold", "hold force [internal]", 20],
-    ["P_hold", "hold pressure [internal]", 0.7],
+    ["Fhold", "hold force proxy [nN]", 20],
+    ["P_hold", "suction pressure magnitude [kPa]", 0.7],
     ["dz_lift", "lift z [um]", 8],
     ["dx_inward", "inward x [um]", 4],
     ["ds_tangent", "tangent y [um]", 7.5],

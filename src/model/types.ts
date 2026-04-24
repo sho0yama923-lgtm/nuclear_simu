@@ -17,15 +17,19 @@ export const MEMBRANE_REGIONS = ["top_neck", "side", "basal"];
 export const PINNED_OPERATION_KEYS = ["xp", "zp"];
 
 export const COORDINATE_SYSTEM_SPEC = {
+  unitSystem: "um-s-kPa-nN",
   sectionPlane: "x-z",
   topViewPlane: "x-y",
   verticalAxis: "z",
   tangentialAxis: "y",
   lengthUnit: "um",
+  timeUnit: "s",
   stressUnit: "kPa",
+  pressureUnit: "kPa",
+  forceUnit: "nN",
   viscosityUnit: "kPa*s",
   energyReleaseUnit: "N/m",
-  note: "Fhold and P_hold remain internal proxy units until the native hold law is upgraded.",
+  note: "Internal mechanics use um-s-kPa-nN; 1 kPa*um^2 maps to 1 nN. P_hold is a pressure magnitude in kPa for solver-active suction.",
 };
 
 export const CLASSIFICATION_THRESHOLDS = {

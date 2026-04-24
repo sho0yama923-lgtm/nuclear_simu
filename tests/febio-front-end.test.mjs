@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { loadApp } from "./load-app.mjs";
 import {
   attachExplicitDetachmentEvents,
@@ -12,6 +13,11 @@ import {
   inferFaceSnapshotValueOffset,
   resolveTangentialShearObservation,
 } from "../scripts/convert_febio_output.mjs";
+
+async function loadGeneratedModule(relativePath) {
+  const modulePath = path.resolve(process.cwd(), "generated", "dist", ...relativePath.split("/"));
+  return import(pathToFileURL(modulePath).href);
+}
 
 test("UI input maps into canonical spec", async () => {
   const app = await loadApp();
@@ -32,6 +38,12 @@ test("canonical spec maps into FEBio template data", async () => {
   assert.equal(febio.febioTemplateData.interfaces.cellDish.fractureEnergy, 1.5);
   assert.equal(febio.febioTemplateData.materials.nucleus.elastic.E, spec.material.En);
   assert.equal(febio.febioTemplateData.materials.nucleus.viscous.implemented, true);
+  assert.equal(febio.febioTemplateData.boundary.fixed[0].nodeSet, "dish_fixed_nodes");
+  assert.equal(febio.febioTemplateData.boundary.prescribed.find((entry) => entry.name === "pipette_lift_z").value, spec.operation.dz_lift);
+  assert.equal(febio.febioTemplateData.coordinateSystem.unitSystem, "um-s-kPa-nN");
+  assert.equal(febio.febioTemplateData.loads.pressure[0].magnitude, spec.operation.P_hold);
+  assert.equal(febio.febioTemplateData.loads.pressure[0].value, -spec.operation.P_hold);
+  assert.match(febio.febioTemplateData.loads.pressure[0].status, /solver-active pressure-driven suction/);
   assert.equal(febio.febioTemplateData.status.buildMode, "refined");
 });
 
@@ -175,13 +187,45 @@ test("template serializes to consistent FEBio XML", async () => {
   assert.match(xml, /<febio_spec version="4\.0">/);
   assert.match(xml, /<Material>/);
   assert.match(xml, /<Mesh>/);
+  assert.match(xml, /<Nodes name="mesh_nodes">/);
+  assert.match(xml, /<Elements type="hex8" mat="nucleus" name="nucleus_elements">/);
+  assert.match(xml, /<Elements type="hex8" mat="cytoplasm" name="cytoplasm_elements">/);
+  assert.match(xml, /<Elements type="hex8" mat="dish" name="dish_elements">/);
+  assert.match(xml, /<Elements type="hex8" mat="pipette" name="pipette_elements">/);
+  assert.match(xml, /<ElementSet name="nucleus">/);
+  assert.match(xml, /<ElementSet name="pipette">/);
+  assert.match(xml, /<Surface name="pipette_contact_surface">/);
   assert.match(xml, /<SurfacePair name="nucleus_cytoplasm_pair">/);
+  assert.match(xml, /<primary surface="cytoplasm_interface_surface"\/>/);
+  assert.match(xml, /<secondary surface="nucleus_interface_surface"\/>/);
+  assert.match(xml, /<SurfacePair name="cell_dish_pair">/);
+  assert.match(xml, /<secondary surface="dish_contact_surface"\/>/);
+  assert.match(xml, /<Boundary>/);
+  assert.match(xml, /<fix name="dish_fixed" node_set="dish_fixed_nodes" bc="x,y,z"\/>/);
+  assert.match(xml, /<prescribe name="pipette_lift_z" node_set="pipette_contact_nodes" bc="z" lc="101" type="relative">8\.000000<\/prescribe>/);
+  assert.match(xml, /<prescribe name="pipette_inward_x" node_set="pipette_contact_nodes" bc="x" lc="102" type="relative">4\.000000<\/prescribe>/);
+  assert.match(xml, /<prescribe name="pipette_tangent_y" node_set="pipette_contact_nodes" bc="y" lc="103" type="relative">7\.500000<\/prescribe>/);
+  assert.match(xml, /<Loads>/);
+  assert.match(xml, /<nodal_load name="hold_force_proxy" surface="pipette_contact_surface" lc="201" status="proxy-load \/ not pressure-driven">20\.000000<\/nodal_load>/);
+  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_contact_surface" type="pressure" lc="202" status="solver-active pressure-driven suction" unit="kPa" direction="inward-negative-pressure" magnitude="0\.700000">-0\.700000<\/surface_load>/);
+  assert.match(xml, /<LoadData>/);
+  assert.match(xml, /<load_controller id="101" name="lift_ramp" type="linear">/);
+  assert.match(xml, /<load_controller id="202" name="suction_pressure_curve" type="linear" unit="kPa">/);
   assert.match(xml, /<step id="1" name="approach">/);
   assert.match(xml, /type="viscoelastic"/);
+  assert.match(xml, /<E>20\.000000<\/E>/);
+  assert.match(xml, /<nu>0\.340000<\/nu>/);
+  assert.match(xml, /<eta>4\.200000<\/eta>/);
+  assert.match(xml, /<E>7\.500000<\/E>/);
+  assert.match(xml, /<nu>0\.410000<\/nu>/);
+  assert.match(xml, /<eta>5\.600000<\/eta>/);
   assert.match(xml, /<g1>/);
   assert.match(xml, /<t1>/);
   assert.match(xml, /<var type="contact traction" surface="nucleus_interface_left_surface"\/>/);
   assert.match(xml, /<contact name="nucleus_cytoplasm_interface" type="sticky" surface_pair="nucleus_cytoplasm_pair">/);
+  assert.match(xml, /<contact name="cell_dish_interface" type="tied-elastic" surface_pair="cell_dish_pair">/);
+  assert.match(xml, /<normal_stiffness>1\.550000<\/normal_stiffness>/);
+  assert.match(xml, /<fracture_energy>0\.350000<\/fracture_energy>/);
   assert.match(xml, /solver-primary cohesive approximation/);
   assert.match(xml, /<penalty>/);
   assert.match(xml, /<search_tol>/);
@@ -284,9 +328,51 @@ test("refined mesh validation report is produced", async () => {
   const app = await loadApp();
   const spec = app.buildFebioInputSpec("A", app.DEFAULTS, app.buildSimulationInput("A", app.DEFAULTS));
   const report = spec.febioTemplateData.geometry.meshValidation;
+  assert.equal(report.valid, true);
   assert.equal(typeof report.valid, "boolean");
   assert.ok(Array.isArray(report.invalidElements));
   assert.ok(Array.isArray(report.aspectRatioWarnings));
+  assert.equal(report.requiredDomains.nucleus, "present");
+  assert.equal(report.requiredDomains.cytoplasm, "present");
+  assert.equal(report.requiredDomains.dish, "present");
+  assert.equal(report.requiredDomains.pipette, "present");
+  assert.equal(report.requiredSurfaces.pipette_contact_surface, true);
+  assert.equal(report.requiredSurfacePairs.nucleus_cytoplasm_pair.primary, true);
+  assert.equal(report.requiredSurfacePairs.cell_dish_pair.secondary, true);
+});
+
+test("mesh validation rejects missing solver-active domains and required surface pairs", async () => {
+  const app = await loadApp();
+  const { validateFebioMesh } = await loadGeneratedModule("febio/mesh/index.js");
+  const spec = app.buildFebioInputSpec("A", app.DEFAULTS, app.buildSimulationInput("A", app.DEFAULTS));
+  const mesh = spec.febioTemplateData.geometry.mesh;
+  const report = validateFebioMesh({
+    ...mesh,
+    elementSets: {
+      ...mesh.elementSets,
+      nucleus: [],
+      pipette: [],
+    },
+    surfaces: {
+      ...mesh.surfaces,
+      dish_contact_surface: [],
+      pipette_contact_surface: [],
+    },
+    surfacePairs: {
+      ...mesh.surfacePairs,
+      cell_dish_pair: {
+        ...mesh.surfacePairs.cell_dish_pair,
+        secondary: "cell_dish_surface",
+      },
+    },
+  });
+
+  assert.equal(report.valid, false);
+  assert.match(report.invalidElements.join("\n"), /nucleus element set must be non-empty/);
+  assert.match(report.invalidElements.join("\n"), /pipette element set must be non-empty/);
+  assert.match(report.invalidElements.join("\n"), /dish_contact_surface surface must be present and non-empty/);
+  assert.match(report.invalidElements.join("\n"), /pipette_contact_surface surface must be present and non-empty/);
+  assert.match(report.invalidElements.join("\n"), /cell_dish_pair secondary surface must be dish_contact_surface/);
 });
 
 test("display helpers prefer physical FEBio results", async () => {
@@ -871,21 +957,22 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(agent, /Code Exploration Constraints/);
   assert.match(agent, /Physics Model Priority/);
 
-  assert.match(progress, /現在の最優先: nucleus-cytoplasm cohesive/);
-  assert.match(progress, /`localNc` \/ `localCd`/);
-  assert.match(progress, /classification/);
-  assert.match(progress, /explicit detachment event/);
+  assert.match(progress, /Priority 2 Stage 6 は完了済み/);
+  assert.match(progress, /simulation condition advancement/);
+  assert.match(progress, /pressure-driven pipette suction/);
+  assert.match(progress, /aspiration length L\(t\) output/);
   assert.match(progress, /## 次の3手/);
-  assert.match(progress, /native\/proxy|native-first|proxy fallback/);
+  assert.match(progress, /implemented-infrastructure \/ partial-physics/);
+  assert.match(progress, /Stage S1: Solver-active mesh completeness/);
+  assert.match(progress, /um-s-kPa-nN|µm-s-kPa-nN/);
 
   assert.match(codebase, /src\/model\/schema\.ts/);
   assert.match(codebase, /src\/febio\/export\/index\.ts/);
   assert.match(codebase, /generated\/dist\/browser\/main\.js/);
-  assert.match(progress, /regional metric|native tangential traction|plotfile `contact traction`/);
-  assert.match(progress, /soft-start stabilization/);
-  assert.match(progress, /stabilization validation/);
-  assert.match(progress, /canonical public API ownership|canonical public API bridge/);
-  assert.match(progress, /explicit detachment event/);
+  assert.match(progress, /solver-active mesh completeness is not yet proven/);
+  assert.match(progress, /native interface traction\/damage output/);
+  assert.match(progress, /canonical public API/);
+  assert.match(progress, /Sticky cohesive validation comes after mesh \/ load \/ output are physically established/);
   assert.match(febioMapping, /native 接線成分の更新|Native Tangential Update/);
   assert.match(febioMapping, /rows that start directly with face values/);
   assert.match(legacyRuntime, /__NUCLEAR_SIMU_PUBLIC_API__/);
