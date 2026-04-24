@@ -11,6 +11,9 @@
 - UI parameter -> canonical spec -> FEBio 変換系は、FEBio-native spec / CLI backend path が安定するまでは compatibility / preset generation 用に維持する。
 - FEBio-native spec への移行が完了したら、旧 UI parameter conversion files は active path から外し、legacy 扱いにする。
 - legacy 化した変換系ファイルは physics source of truth として扱わず、必要な場合のみ preset migration / backwards compatibility 用に限定する。
+- FEBio-native spec / CLI backend path が安定した後、旧 UI parameter path / canonical conversion / browser bridge を説明する docs は active guidance から外し、legacy / compatibility docs として扱う。
+- 移行後に legacy / compatibility docs へ後退させる予定のファイルは `docs/febio/PARAMETER_MAPPING.md`、`docs/febio/FEBIO_UI_BRIDGE.md`、`docs/febio/FEBIO_FRONTEND_ARCHITECTURE.md`、`docs/febio/FEBIO_HANDOFF.md`、`docs/febio/BRIDGE_CONTRACT.md`。
+- これらの docs は移行完了までは旧経路の照合・互換維持に使うが、新しい FEBio solver parameter や direct validation の source of truth にはしない。
 - 現在の main path はまだ UI 入力 -> canonical spec -> FEBio export -> FEBio CLI -> 正規化 import -> classification / detachment judgment -> 結果描画を含むが、S7 以降の solver validation は FEBio-native direct path へ切り替える。
 - FEBio export / convert scripts は `src/public-api.ts` の canonical API を直接 import する。legacy JS simulation files は FEBio script path では読まない。
 - 現在の最優先: UI parameter conversion を solver validation から切り離し、FEBio-native parameter spec から直接 export / run / convert / diagnostics / Studio confirmation できる path を作ること。
@@ -93,6 +96,7 @@
 | 問題 | 影響 | 暫定対応 | 意図する修正 | 優先度 |
 |---|---|---|---|---|
 | UI parameter conversion が solver validation を複雑化している | UI convenience parameter -> canonical spec -> FEBio template -> XML の変換を毎回通すと、force-transfer 問題が UI mapping 由来か FEBio model 由来か切り分けにくい | UI parameter path は compatibility / preset generation 用に残し、physics validation は FEBio-native direct spec で行う | FEBio-native spec / CLI direct export path を作り、contact / pressure / force transfer を UI 変換から切り離して検証する。移行完了後、旧変換系ファイルは active path から外して legacy 扱いにする | critical |
+| 旧 UI/canonical docs が active guidance と混在している | agent が旧 UI parameter mapping / browser bridge / handoff docs を current FEBio-native source of truth と誤認するリスクがある | 移行完了までは互換照合用として残すが、新しい solver parameter の根拠にはしない | FEBio-native spec / CLI backend path が安定したら、`PARAMETER_MAPPING.md`、`FEBIO_UI_BRIDGE.md`、`FEBIO_FRONTEND_ARCHITECTURE.md`、`FEBIO_HANDOFF.md`、`BRIDGE_CONTRACT.md` を legacy / compatibility docs へ後退させる | medium |
 | solver-native load/contact activation が未完了 | XML wiring は進み、active step pressure / rigid controller / pipette contact pair は出力される。run2 で未参照 controller は解消したが、`No force acting on the system` と cell-dish tied no-pair warning が残る | sticky cohesive は solver-primary のまま保持し、物理 validation は保留する | direct path で contact surfaces / pressure target geometry を直し、非ゼロ contact pressure または force transfer を確認する | critical |
 | rigid body output parsing は列ずれしやすい | FEBio rigid body CSV は `id,x,y,z,Fx,Fy,Fz` の形で出るため、id 列を除いた後も z と Fx/Fz の index を誤ると force を誤読する | `scripts/convert_febio_output.mjs` で z=`values[2]`、Fx=`values[3]`、Fz=`values[5]` として修正済み | 今後 force validation test では face pressure と rigid reaction を分けて見る | medium |
 | native interface output は real-run validation が必要 | interface traction / damage の output contract はあるが、実 run payload での coverage がまだ確定していない | converter/import で native/proxy/unavailable provenance を明示する | active load/contact 成立後に declared output path を real solver output で検証する | high |
