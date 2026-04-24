@@ -1,0 +1,163 @@
+# Studio 確認ゲート
+
+## 目的
+
+この文書は、FEBio / FEBio Studio を使う作業で、agent が実装・デバッグ・確認をすべて推測で進めず、Studio で人間が確認した方がよい項目では確認待ちにするための運用ルールです。
+
+現在の主な対象は solver-native load/contact activation、contact geometry、pressure transfer、face-data / reaction output の検証です。
+
+## 基本方針
+
+agent はコード・XML・テスト・ログから機械的に確認できる項目を進める。
+
+ただし、以下のような Studio の可視確認が物理的判断に直結する項目では、agent は推測で修正を重ねず、確認依頼を出してユーザーの観察結果を待つ。
+
+- 接触面が実際に向かい合っているか
+- pipette / nucleus / cytoplasm / dish の位置関係が妥当か
+- pressure load の矢印方向が期待どおりか
+- run 後に displacement、contact pressure、reaction force が非ゼロに見えるか
+- contact pair warning が幾何由来か、設定由来か
+
+## agent が自力で進めてよい項目
+
+### XML / export wiring
+
+agent は次を自力で確認・修正してよい。
+
+- active step 内で load / boundary / rigid controller が参照されているか
+- load controller id が未参照になっていないか
+- Surface / SurfacePair / contact 名が一致しているか
+- required ElementSet / Surface / NodeSet が XML に出ているか
+- output request が XML に出ているか
+- generated XML の snapshot / regex test を追加すること
+
+### mesh / surface の機械的 validation
+
+agent は次を自力で実装・修正してよい。
+
+- required domain が空でないこと
+- required surface が空でないこと
+- surface facet が存在する node id を参照していること
+- SurfacePair が required surface を参照していること
+- surface centroid distance / bounding box distance / area ratio の診断値を出すこと
+- 明らかに離れた paired surfaces を warning / error にすること
+
+ただし、surface normal の物理的な向きや Studio 上での見た目の妥当性は、必要に応じて Studio 確認ゲートに回す。
+
+### converter / import / provenance
+
+agent は次を自力で確認・修正してよい。
+
+- CSV / log / result の header-based parsing
+- rigid body output の列ずれ修正
+- face pressure、contact gap、reaction force、displacement の読み取り
+- output が missing なのか、存在するが all-zero なのかの区別
+- native / proxy / unavailable provenance の明示
+- diagnostics JSON の追加
+
+### 最小再現ケース
+
+agent は full model とは別に、最小 force-transfer debug model を追加してよい。
+
+例:
+
+- deformable block
+- rigid plate or pipette
+- one contact pair
+- one pressure or prescribed displacement
+- one reaction / contact pressure output
+
+目的は、full model の geometry 問題か、FEBio XML / load / contact syntax 問題かを切り分けること。
+
+## Studio 確認を待つべき項目
+
+以下は agent が推測で進めず、ユーザーに FEBio Studio での確認を依頼する。
+
+### 幾何の見た目
+
+- pipette が nucleus / cytoplasm に接触しているか
+- pipette が離れているか、めり込みすぎているか
+- cell と dish が接しているか、浮いているか、めり込んでいるか
+- nucleus が cytoplasm 内にあるか
+- nucleus-cytoplasm interface surface が物理的に近いか
+
+### contact surface の対応
+
+- cell-dish の primary / secondary surface が向かい合っているか
+- pipette-nucleus / pipette-cell contact surface が正しい相手を向いているか
+- surface normal が明らかに逆向きでないか
+- contact search tolerance 内に見えるか
+
+### load / boundary の可視確認
+
+- suction pressure の矢印が表示されるか
+- pressure がどの surface にかかっているか
+- pressure の向きが吸引方向か、逆向きに押していないか
+- rigid / deformable のどちらに load が作用しているように見えるか
+- dish fixed boundary が意図どおりか
+
+### run 後の物理応答
+
+- displacement が全体で 0 か
+- pipette だけが動いているか、cell / nucleus も動いているか
+- contact pressure contour が非ゼロか
+- contact gap が変化しているか
+- reaction force が出ているか
+- Studio 上の warning が log と一致するか
+
+## Studio 確認依頼テンプレ
+
+agent は Studio 確認が必要な場合、次の形式で依頼する。
+
+```text
+Studio確認依頼:
+
+対象run / feb:
+- path:
+- case:
+
+見てほしい項目:
+1. pipette と cell/nucleus は接触しているか、離れているか、めり込んでいるか
+2. cell と dish は接触しているか、離れているか、めり込んでいるか
+3. contact surface の primary / secondary は向かい合っているか
+4. pressure load の矢印はどの surface に出て、どちら向きか
+5. run 後 displacement / contact pressure / reaction force は非ゼロか
+
+報告フォーマット:
+- pipette-cell/nucleus:
+- cell-dish:
+- contact surface の向き:
+- pressure load 矢印:
+- run後 displacement:
+- run後 contact pressure:
+- run後 reaction force:
+- warning/log:
+```
+
+## 判断ルール
+
+- Studio 確認対象を agent が推測で「正しい」とみなして先へ進めない。
+- Studio 確認が必要な場合、agent は確認依頼を出し、ユーザーの観察結果を待つ。
+- ただし、確認待ちの間でも、agent は独立して進められる XML test、parser test、diagnostics 整備、docs 更新を行ってよい。
+- Studio 観察結果を受け取ったら、agent はその結果を `PROGRESS.md` の blocker / 再開位置 / 次の3手に反映する。
+- 観察結果がモデルの `implemented / partial / planned` 状態を変える場合は、関連 docs も同じ変更セットで更新する。
+
+## 現在の優先適用範囲
+
+このルールは特に次に適用する。
+
+- `No force acting on the system`
+- `No contact pairs found for tied interface`
+- face-data contact pressure が all-zero
+- pressure load は XML 上 active だが反力が出ない
+- contact / pressure / force transfer の原因切り分け
+
+## 関連ファイル
+
+- `AGENT.md`
+- `PROGRESS.md`
+- `docs/ops/ROADMAP.md`
+- `src/febio/mesh/index.ts`
+- `src/febio/export/index.ts`
+- `scripts/convert_febio_output.mjs`
+- `tests/febio-front-end.test.mjs`
