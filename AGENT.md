@@ -140,9 +140,27 @@ Examples:
 - Route the feedback by layer:
   - global operating rules belong in `AGENT.md`
   - local procedures and bounded read-set rules belong in the relevant `SKILL.md` or `docs/ops/`
-  - durable priority order and roadmap stage plans belong in `docs/ops/ROADMAP.md`
-  - current state recognition and implemented / partial / planned status belong in `PROGRESS.md`
+  - durable broad policy, roadmap stage plans, and long-term priority belong in `docs/ops/ROADMAP.md`
+  - current state recognition, next bounded milestone, fine-grained implementation notes, done conditions, and blockers belong in `PROGRESS.md`
 - If more than one layer is affected, update all affected layers together rather than only one of them.
+
+## ROADMAP / PROGRESS Responsibility Rule
+
+Purpose:
+
+- keep long-term direction separate from current execution details
+- prevent `docs/ops/ROADMAP.md` from becoming a volatile task checklist
+- prevent `PROGRESS.md` from becoming a broad strategy document without executable milestones
+
+Rules:
+
+- `docs/ops/ROADMAP.md` owns broad policy, roadmap stage structure, current stage purpose, review gates, later/deferred work, and auxiliary roadmap positioning.
+- `PROGRESS.md` owns current operating state, next bounded milestone, target files, fine-grained implementation notes, done conditions, blockers, and resume position.
+- Fine-grained implementation bullets belong in `PROGRESS.md`, not `docs/ops/ROADMAP.md`.
+- Broad priority changes, current stage changes, stage completion, stage scope changes, later/deferred changes, or auxiliary roadmap changes belong in `docs/ops/ROADMAP.md`.
+- If a change only updates the current milestone, target files, done condition, blocker, or resume position, update `PROGRESS.md` only.
+- If a change alters the broad stage plan or direction, update both `docs/ops/ROADMAP.md` and `PROGRESS.md` in the same change set.
+- Agents should read `docs/ops/ROADMAP.md` to understand why the current work matters, then use `PROGRESS.md` to decide what to do next.
 
 ## Bounded Milestone Execution Rule
 
@@ -233,13 +251,13 @@ When empirical tuning is used, evaluate not only correctness but also exploratio
 
 ## Physics Model Priority
 
-The durable priority order and roadmap stages live in `docs/ops/ROADMAP.md`.
+The durable broad policy, roadmap stage structure, and long-term priority live in `docs/ops/ROADMAP.md`.
 `AGENT.md` must not duplicate the active priority list, because stale copies cause agents to pick the wrong next task.
 
 Use the layers this way:
 
-- `docs/ops/ROADMAP.md`: repo-wide priority order, main roadmap, auxiliary roadmap, stage status.
-- `PROGRESS.md`: current operating state, resume point, blockers, next concrete 3 tasks.
+- `docs/ops/ROADMAP.md`: broad direction, roadmap stages, current stage purpose, review gates, later/deferred work, auxiliary roadmap positioning.
+- `PROGRESS.md`: current operating state, next bounded milestone, target files, fine-grained implementation notes, done conditions, blockers, resume position.
 - `AGENT.md`: stable rules for how agents read, edit, and synchronize the repo.
 
 Deferred for now:
@@ -250,7 +268,7 @@ Deferred for now:
 
 Operational rules:
 
-- Read `PROGRESS.md` for the immediate next action, then `docs/ops/ROADMAP.md` when the task may change the stage plan or broad priority order.
+- Read `PROGRESS.md` for the immediate bounded milestone, then `docs/ops/ROADMAP.md` when the task may change the stage plan or broad priority order.
 - Do not make large extensions unrelated to higher-priority items.
 - If you touch a lower-priority item, state why it does not block the higher-priority path.
 - The rationale is recorded in `docs/DECISIONS.md`.
@@ -277,14 +295,15 @@ Update `PROGRESS.md` in the same change set when changing:
 - export/import main path
 - proxy/native dependency structure
 - `simulation.js` ownership or compatibility-bridge scope
+- current bounded milestone, target files, done condition, blocker, or resume position
 
 Also:
 
 - always reflect `implemented / partial / planned` changes
 - record new approximations honestly
 - record regressions honestly, including `implemented -> partial`
-- update `docs/ops/ROADMAP.md` in the same change set only when broad priority order, main roadmap stage status/scope, or auxiliary roadmap position changes
-- do not put immediate next steps in `docs/ops/ROADMAP.md`; keep them in `PROGRESS.md`
+- update `docs/ops/ROADMAP.md` in the same change set only when broad priority order, main roadmap stage status/scope, later/deferred items, or auxiliary roadmap position changes
+- do not put immediate implementation checklists in `docs/ops/ROADMAP.md`; keep them in `PROGRESS.md`
 - write `PROGRESS.md` in Japanese unless a specific exception is requested
 - keep `README.md`, `docs/CODEBASE_STRUCTURE.md`, and `PROGRESS.md` aligned
 
@@ -315,3 +334,5 @@ Also:
 - treating policy-driven work as permission for an unbounded migration
 - mixing independent milestones in one pass without an explicit request
 - leaving the repository in a state where the next reviewer cannot run, inspect, or evaluate the change
+- putting fine-grained implementation checklists in `docs/ops/ROADMAP.md` instead of `PROGRESS.md`
+- putting broad roadmap stage policy only in `PROGRESS.md` without updating `docs/ops/ROADMAP.md` when the broad direction changes
