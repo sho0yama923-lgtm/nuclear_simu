@@ -144,6 +144,52 @@ Examples:
   - current state recognition and implemented / partial / planned status belong in `PROGRESS.md`
 - If more than one layer is affected, update all affected layers together rather than only one of them.
 
+## Bounded Milestone Execution Rule
+
+Purpose:
+
+- prevent agents from stopping after very small partial edits when the user asks to proceed according to the current policy
+- make each implementation pass reach a useful review boundary
+- avoid both extremes: tiny one-file changes and uncontrolled repo-wide rewrites
+
+Rules:
+
+- When the user asks to "proceed according to the policy", "進めて", or equivalent, the agent should complete one bounded milestone, not only the smallest possible edit.
+- A bounded milestone should normally include:
+  - the main implementation change
+  - directly required tests or diagnostics
+  - required docs / PROGRESS updates
+  - a clear done condition or remaining blocker
+- The agent should choose the next bounded milestone from `PROGRESS.md` and `docs/ops/ROADMAP.md`.
+- The agent should not stop after only creating a placeholder, only editing docs, or only adding one helper if the milestone requires adjacent implementation/tests to be coherent.
+- If the milestone touches code, the agent should run or update the most relevant test when feasible.
+- If full validation requires FEBio Studio, the agent should stop at the Studio confirmation gate and provide the required file paths and observation checklist.
+- If a blocker prevents completing the milestone, the agent should record:
+  - what was completed
+  - what blocked completion
+  - exact files touched
+  - next concrete step
+  - whether `PROGRESS.md` needs an update
+- Keep the milestone bounded:
+  - prefer 3-8 files per implementation pass
+  - avoid broad repo-wide refactors unless explicitly requested
+  - avoid mixing unrelated milestones
+- Do not split a coherent change into many tiny commits solely because each file can be edited independently.
+
+Examples:
+
+- Good milestone:
+  - add FEBio-native spec type skeleton
+  - add direct export CLI skeleton
+  - add one regression test proving it does not call `buildSimulationInput`
+  - update `PROGRESS.md`
+- Too small:
+  - only create an empty `src/febio/spec/index.ts`
+  - only add a TODO
+  - only update one doc while leaving the next direct implementation step untouched
+- Too broad:
+  - rewrite UI, export, import, classification, and docs in one pass
+
 ## Studio Confirmation Gate Rule
 
 Purpose:
@@ -285,3 +331,6 @@ Also:
 - guessing through Studio-visible geometry/contact/load correctness instead of using the Studio confirmation gate
 - adding new solver behavior only to UI parameter conversion files instead of defining it in FEBio-native spec first
 - treating legacy UI parameter conversion files as active physics source-of-truth after FEBio-native migration
+- stopping after a trivial partial edit when a bounded milestone is clearly available
+- creating placeholder docs or stubs without the adjacent implementation/test work needed for a useful review boundary
+- splitting one coherent milestone into many tiny changes without a reason
