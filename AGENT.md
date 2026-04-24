@@ -148,47 +148,27 @@ Examples:
 
 Purpose:
 
-- prevent agents from stopping after very small partial edits when the user asks to proceed according to the current policy
-- make each implementation pass reach a useful review boundary
-- avoid both extremes: tiny one-file changes and uncontrolled repo-wide rewrites
+- make policy-driven work advance to a useful review boundary
+- prevent agents from stopping at trivial partial edits
+- prevent agents from expanding into uncontrolled repo-wide rewrites
 
 Rules:
 
-- When the user asks to "proceed according to the policy", "進めて", or equivalent, the agent should complete one bounded milestone, not only the smallest possible edit.
-- A bounded milestone should normally include:
-  - the main implementation change
-  - directly required tests or diagnostics
-  - required docs / PROGRESS updates
-  - a clear done condition or remaining blocker
-- The agent should choose the next bounded milestone from `PROGRESS.md` and `docs/ops/ROADMAP.md`.
-- The agent should not stop after only creating a placeholder, only editing docs, or only adding one helper if the milestone requires adjacent implementation/tests to be coherent.
-- If the milestone touches code, the agent should run or update the most relevant test when feasible.
-- If full validation requires FEBio Studio, the agent should stop at the Studio confirmation gate and provide the required file paths and observation checklist.
-- If a blocker prevents completing the milestone, the agent should record:
-  - what was completed
-  - what blocked completion
-  - exact files touched
-  - next concrete step
-  - whether `PROGRESS.md` needs an update
-- Keep the milestone bounded:
-  - prefer 3-8 files per implementation pass
-  - avoid broad repo-wide refactors unless explicitly requested
-  - avoid mixing unrelated milestones
-- Do not split a coherent change into many tiny commits solely because each file can be edited independently.
-
-Examples:
-
-- Good milestone:
-  - add FEBio-native spec type skeleton
-  - add direct export CLI skeleton
-  - add one regression test proving it does not call `buildSimulationInput`
-  - update `PROGRESS.md`
-- Too small:
-  - only create an empty `src/febio/spec/index.ts`
-  - only add a TODO
-  - only update one doc while leaving the next direct implementation step untouched
-- Too broad:
-  - rewrite UI, export, import, classification, and docs in one pass
+- When the user asks to "proceed according to the policy", "方針通りに進めて", "進めて", or equivalent, the agent should complete one bounded milestone.
+- A bounded milestone is the smallest coherent unit that leaves the repository in a useful reviewable state.
+- A bounded milestone is larger than a placeholder, TODO, isolated helper, or doc-only note when implementation work is clearly implied.
+- A bounded milestone is smaller than a broad migration, final cleanup, UI integration, or deletion of old paths unless explicitly requested.
+- The agent should infer the milestone from `PROGRESS.md` and `docs/ops/ROADMAP.md`, not from chat history.
+- The milestone should normally include all directly adjacent work needed for coherence:
+  - implementation
+  - tests or diagnostics
+  - generated / inspection instructions when applicable
+  - docs / `PROGRESS.md` updates when status changes
+- The agent should stop at the first natural review boundary where the user can inspect, test, run, or decide the next step.
+- If the next step requires human confirmation, external software, FEBio Studio inspection, or unavailable runtime execution, stop there and provide the exact confirmation request.
+- Do not split one coherent milestone into many tiny changes just because each file can be edited independently.
+- Do not combine multiple independent milestones just because they are all part of the same long-term direction.
+- Prefer a change size that is large enough to be useful and small enough to review.
 
 ## Studio Confirmation Gate Rule
 
@@ -331,6 +311,7 @@ Also:
 - guessing through Studio-visible geometry/contact/load correctness instead of using the Studio confirmation gate
 - adding new solver behavior only to UI parameter conversion files instead of defining it in FEBio-native spec first
 - treating legacy UI parameter conversion files as active physics source-of-truth after FEBio-native migration
-- stopping after a trivial partial edit when a bounded milestone is clearly available
-- creating placeholder docs or stubs without the adjacent implementation/test work needed for a useful review boundary
-- splitting one coherent milestone into many tiny changes without a reason
+- stopping after a trivial partial edit when a coherent reviewable milestone is available
+- treating policy-driven work as permission for an unbounded migration
+- mixing independent milestones in one pass without an explicit request
+- leaving the repository in a state where the next reviewer cannot run, inspect, or evaluate the change
