@@ -1782,7 +1782,7 @@ function updateMembraneRegion(regionState, stress, threshold, dt, time) {
   return { phi, damage: regionState.damage };
 }
 
-function findEarliestLocalFailure(result) {
+function findEarliestLocalFailureFallback(result) {
   const candidates = [];
   Object.entries(result.localNc).forEach(([region, state]) => {
     if (state.firstFailureTime !== null) {
@@ -1825,7 +1825,7 @@ function findEarliestLocalFailure(result) {
   return { site: candidates[0].site, mode: candidates[0].mode };
 }
 
-function determineDominantMechanism(result) {
+function determineDominantMechanismFallback(result) {
   if (
     ["missed_target", "insufficient_hold", "early_slip", "no_capture_general"].includes(
       result.classification,
@@ -1856,12 +1856,29 @@ function getCanonicalClassificationApi() {
   if (
     typeof api.applyRunClassification !== "function" ||
     typeof api.classifyRun !== "function" ||
+    typeof api.findEarliestLocalFailure !== "function" ||
     typeof api.determineDominantMechanism !== "function" ||
     typeof api.assessDetachment !== "function"
   ) {
     return null;
   }
   return api;
+}
+
+function findEarliestLocalFailure(result) {
+  const canonicalApi = getCanonicalClassificationApi();
+  if (canonicalApi) {
+    return canonicalApi.findEarliestLocalFailure(result);
+  }
+  return findEarliestLocalFailureFallback(result);
+}
+
+function determineDominantMechanism(result) {
+  const canonicalApi = getCanonicalClassificationApi();
+  if (canonicalApi) {
+    return canonicalApi.determineDominantMechanism(result);
+  }
+  return determineDominantMechanismFallback(result);
 }
 
 function buildDetachmentMetrics(localNc, displacements) {
@@ -1892,7 +1909,7 @@ function assessDetachmentExplicit(snapshot) {
     nativePreferred: false,
     geometryRatio,
     relativeDisplacement,
-    mode: "proxy-fallback-explicit",
+    mode: "compatibility-emergency-fallback",
   };
 }
 
@@ -1925,11 +1942,11 @@ function applyClassification(result) {
   result.dominantMechanism = determineDominantMechanism(result);
   result.classification = classifyRun(result);
   result.dominantMechanism = determineDominantMechanism(result);
-  result.classificationSource = "legacy-compatibility-fallback";
+  result.classificationSource = "compatibility-emergency-fallback";
   return result;
 }
 
-function classifyRun(result) {
+function classifyRunFallback(result) {
   const ncStart = result.events.ncDamageStart?.time ?? Infinity;
   const cdStart = result.events.cdDamageStart?.time ?? Infinity;
   const tipSlipTime = result.events.tipSlip?.time ?? Infinity;
@@ -1970,6 +1987,14 @@ function classifyRun(result) {
     return "insufficient_hold";
   }
   return "no_capture_general";
+}
+
+function classifyRun(result) {
+  const canonicalApi = getCanonicalClassificationApi();
+  if (canonicalApi) {
+    return canonicalApi.classifyRun(result);
+  }
+  return classifyRunFallback(result);
 }
 
 // -----------------------------------------------------------------------------

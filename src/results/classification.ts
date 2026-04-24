@@ -25,6 +25,49 @@ function maxNcDamage(result) {
   );
 }
 
+export function findEarliestLocalFailure(result) {
+  const candidates = [];
+  Object.entries(result?.localNc || {}).forEach(([region, state]) => {
+    if (state?.firstFailureTime != null) {
+      candidates.push({
+        time: state.firstFailureTime,
+        site: `nc:${region}`,
+        mode: state.firstFailureMode || "shear",
+      });
+    }
+  });
+  Object.entries(result?.localCd || {}).forEach(([region, state]) => {
+    if (state?.firstFailureTime != null) {
+      candidates.push({
+        time: state.firstFailureTime,
+        site: `cd:${region}`,
+        mode: state.firstFailureMode || "shear",
+      });
+    }
+  });
+  Object.entries(result?.membraneRegions || {}).forEach(([region, state]) => {
+    if (state?.firstFailureTime != null) {
+      candidates.push({
+        time: state.firstFailureTime,
+        site: `membrane:${region}`,
+        mode: "membrane",
+      });
+    }
+  });
+  if (result?.events?.tipSlip) {
+    candidates.push({
+      time: result.events.tipSlip.time,
+      site: "pipette:hold",
+      mode: "slip",
+    });
+  }
+  if (!candidates.length) {
+    return { site: "none", mode: "none" };
+  }
+  candidates.sort((left, right) => left.time - right.time);
+  return { site: candidates[0].site, mode: candidates[0].mode };
+}
+
 export function assessDetachment(result) {
   const nativePreferred = hasNativeNcSignal(result);
   const nativeDamage = maxNcDamage(result);
@@ -58,11 +101,16 @@ export function assessDetachment(result) {
 }
 
 export function determineDominantMechanism(result) {
-  if (result?.firstFailureSite?.startsWith("membrane:")) {
+  const firstFailureSite =
+    result?.firstFailureSite && result.firstFailureSite !== "none"
+      ? result.firstFailureSite
+      : findEarliestLocalFailure(result).site;
+
+  if (firstFailureSite?.startsWith("membrane:")) {
     return "membrane_rupture";
   }
   if (
-    result?.firstFailureSite?.startsWith("cd:") ||
+    firstFailureSite?.startsWith("cd:") ||
     (result?.damage?.cd || 0) > (result?.damage?.nc || 0) * 0.65
   ) {
     return "dish_detachment";
@@ -74,6 +122,13 @@ export function determineDominantMechanism(result) {
 }
 
 export function applyRunClassification(result, classificationSource = null) {
+  const earliestFailure = findEarliestLocalFailure(result);
+  if (!result.firstFailureSite || result.firstFailureSite === "none") {
+    result.firstFailureSite = earliestFailure.site;
+  }
+  if (!result.firstFailureMode || result.firstFailureMode === "none") {
+    result.firstFailureMode = earliestFailure.mode;
+  }
   result.dominantMechanism = determineDominantMechanism(result);
   result.classification = classifyRun(result);
   result.dominantMechanism = determineDominantMechanism(result);

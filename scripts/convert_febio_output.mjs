@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 function parseArgs(argv) {
   const args = {
@@ -66,11 +66,20 @@ function createElementStub() {
   };
 }
 
-function loadSimulationModule(projectRoot) {
+async function loadCanonicalPublicApi(projectRoot) {
+  const publicApiPath = path.join(projectRoot, "generated", "dist", "public-api.js");
+  if (!fs.existsSync(publicApiPath)) {
+    return null;
+  }
+  return import(pathToFileURL(publicApiPath).href);
+}
+
+async function loadSimulationModule(projectRoot) {
   const source = [
     fs.readFileSync(path.join(projectRoot, "simulation.js"), "utf8"),
     fs.readFileSync(path.join(projectRoot, "js", "simulation-febio.js"), "utf8"),
   ].join("\n");
+  const canonicalPublicApi = await loadCanonicalPublicApi(projectRoot);
   const documentStub = {
     querySelector() {
       return createElementStub();
@@ -103,6 +112,7 @@ function loadSimulationModule(projectRoot) {
     cancelAnimationFrame() {},
     performance: { now() { return 0; } },
     FileReader: function FileReader() {},
+    __NUCLEAR_SIMU_PUBLIC_API__: canonicalPublicApi,
   };
 
   vm.createContext(sandbox);
@@ -1490,11 +1500,11 @@ function buildResultFromLogs(sandbox, payload, runDir) {
   return sandbox.normalizeSimulationResult(result, inputSpec);
 }
 
-function runCli(argv = process.argv.slice(2)) {
+async function runCli(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   const scriptDir = path.dirname(fileURLToPath(import.meta.url));
   const projectRoot = path.resolve(scriptDir, "..");
-  const sandbox = loadSimulationModule(projectRoot);
+  const sandbox = await loadSimulationModule(projectRoot);
   const runDir = path.resolve(args.runDir);
   const inputPayload = JSON.parse(fs.readFileSync(path.resolve(args.inputJson), "utf8"));
   const normalizedResult = buildResultFromLogs(sandbox, inputPayload, runDir);
@@ -1530,7 +1540,10 @@ const isDirectRun =
   process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isDirectRun) {
-  runCli();
+  runCli().catch((error) => {
+    console.error(error instanceof Error ? error.stack || error.message : String(error));
+    process.exitCode = 1;
+  });
 }
 
 export {

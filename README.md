@@ -44,3 +44,4 @@
 - canonical logic は `src/` を編集します。
 - `generated/` と `tmp/` は生成物・一時出力です。
 - 物理モデル、detachment、classification、export/import の意味を変える変更では [PROGRESS.md](PROGRESS.md) と関連 docs を同じ変更セットで更新します。
+- 2026-04-24 note: Stage 6 is complete. `simulation.js` no longer owns the active classification / detachment path; browser compatibility and the FEBio converter both reuse the canonical public API for those decisions.

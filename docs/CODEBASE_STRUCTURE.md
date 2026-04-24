@@ -97,3 +97,4 @@ Compatibility は退役経路に置く。新しい長期責務は canonical `src
 - skill や AGENT rule が対象ファイルを示している場合、repo-wide exploration は避ける。
 - public `index.ts` がある場合、internal file への deep import は避ける。
 - `generated/` と `tmp/` は durable source ではない。
+- 2026-04-24 note: `simulation.js` classification / detachment helpers are now thin canonical public API callers in the active browser path, and `scripts/convert_febio_output.mjs` injects that same public API into its compatibility sandbox so the converter no longer owns a separate active classification branch.

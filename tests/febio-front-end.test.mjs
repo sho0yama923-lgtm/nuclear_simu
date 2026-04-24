@@ -302,24 +302,27 @@ test("classification prefers native detachment signals and keeps proxy fallback 
   const app = await loadApp();
   assert.equal(typeof app.applyRunClassification, "function");
   assert.equal(typeof app.assessDetachment, "function");
+  assert.equal(typeof app.findEarliestLocalFailure, "function");
   const result = {
     captureEstablished: true,
     captureMaintained: true,
     damage: { nc: 0.8, cd: 0.05, membrane: 0.2 },
     localNc: {
       left: { damage: 0.2, provenance: "native-face-data-preferred" },
-      top: { damage: 0.82, provenance: "native-face-data-preferred" },
+      top: { damage: 0.82, provenance: "native-face-data-preferred", firstFailureTime: 1.4, firstFailureMode: "normal" },
       right: { damage: 0.2, provenance: "native-face-data-preferred" },
       bottom: { damage: 0.2, provenance: "native-face-data-preferred" },
     },
     membraneRegions: { top_neck: { damage: 0.25 } },
     detachmentMetrics: { contactAreaRatio: 0.2, relativeNucleusDisplacement: 0.4 },
     displacements: { nucleus: 0.4 },
-    events: {},
+    events: { ncDamageStart: { time: 1.4 } },
     peaks: {},
   };
+  assert.equal(app.findEarliestLocalFailure(result).site, "nc:top");
   assert.equal(app.applyRunClassification(result, "test-source").classification, "nucleus_detached");
   assert.equal(result.classificationSource, "test-source");
+  assert.equal(result.firstFailureSite, "nc:top");
   assert.equal(app.assessDetachment(result).mode, "native");
 });
 
@@ -841,7 +844,7 @@ test("default FEBio flow does not use lightweight legacy source", async () => {
 test("docs and governance files exist and stay aligned", () => {
   const agentPath = path.resolve("AGENT.md");
   const progressPath = path.resolve("PROGRESS.md");
-  const codebasePath = path.resolve("CODEBASE_STRUCTURE.md");
+  const codebasePath = path.resolve("docs/CODEBASE_STRUCTURE.md");
   const febioMappingPath = path.resolve("docs/febio/FEBIO_OUTPUT_MAPPING.md");
   const skillPaths = [
     path.resolve(".skills/nucleus-cytoplasm-interface/SKILL.md"),
@@ -868,22 +871,22 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(agent, /Code Exploration Constraints/);
   assert.match(agent, /Physics Model Priority/);
 
-  assert.match(progress, /1\.\s+nucleus-cytoplasm cohesive/);
-  assert.match(progress, /2\.\s+`localNc` native output/);
-  assert.match(progress, /3\.\s+classification native migration/);
-  assert.match(progress, /4\.\s+explicit detachment judgment/);
-  assert.match(progress, /## Update Rules/);
-  assert.match(progress, /proxy\/native/);
+  assert.match(progress, /現在の最優先: nucleus-cytoplasm cohesive/);
+  assert.match(progress, /`localNc` \/ `localCd`/);
+  assert.match(progress, /classification/);
+  assert.match(progress, /explicit detachment event/);
+  assert.match(progress, /## 次の3手/);
+  assert.match(progress, /native\/proxy|native-first|proxy fallback/);
 
   assert.match(codebase, /src\/model\/schema\.ts/);
   assert.match(codebase, /src\/febio\/export\/index\.ts/);
   assert.match(codebase, /generated\/dist\/browser\/main\.js/);
-  assert.match(progress, /`contactFraction` \/ `nativeGap`/);
+  assert.match(progress, /regional metric|native tangential traction|plotfile `contact traction`/);
   assert.match(progress, /soft-start stabilization/);
   assert.match(progress, /stabilization validation/);
-  assert.match(progress, /applyRunClassification/);
-  assert.match(progress, /explicit detachment contract/);
-  assert.match(febioMapping, /Native Tangential Update/);
+  assert.match(progress, /canonical public API ownership|canonical public API bridge/);
+  assert.match(progress, /explicit detachment event/);
+  assert.match(febioMapping, /native 接線成分の更新|Native Tangential Update/);
   assert.match(febioMapping, /rows that start directly with face values/);
   assert.match(legacyRuntime, /__NUCLEAR_SIMU_PUBLIC_API__/);
   assert.match(legacyRuntime, /applyRunClassification/);

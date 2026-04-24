@@ -73,3 +73,5 @@
 - 優先順位とロードマップ: [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md)
 - 判断理由: [docs/DECISIONS.md](docs/DECISIONS.md)
 - 履歴: [docs/history/2026-04-progress-history.md](docs/history/2026-04-progress-history.md)
+- 2026-04-24 update: Priority 2 Stage 6 completed. `simulation.js` no longer owns the active classification / detachment path; both the browser runtime and the FEBio converter sandbox now route those helpers through the canonical public API when available.
+- Next focus after Stage 6: return to sticky cohesive validation and bridge diagnostics rather than compatibility retirement.
