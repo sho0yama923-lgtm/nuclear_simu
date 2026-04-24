@@ -90,6 +90,34 @@ function buildDetachmentOutputContract() {
   };
 }
 
+function buildAspirationOutputContract(inputSpec, mesh) {
+  const mouthPlaneX = mesh.bounds?.pipetteRight ?? inputSpec.geometry.xp;
+  return {
+    name: "pipette_aspiration_length",
+    metric: "L(t)",
+    unit: "um",
+    status: "native-or-postprocessed-contract",
+    preferredSource: "native-node-displacement",
+    payloadPath: "aspiration.length",
+    historyPath: "history[].aspirationLength",
+    peakPath: "peaks.peakAspirationLength",
+    reference: {
+      surface: "pipette_contact_surface",
+      nodeSet: "pipette_contact_nodes",
+      mouthPlaneX,
+      inwardAxis: "-x",
+      sectionPlane: "x-z",
+    },
+    definition:
+      "Clamp to >=0 the projected distance from the pipette mouth plane to the most inward aspirated nucleus/cytoplasm node.",
+    mapsTo: ["history[].aspirationLength", "aspiration.length", "peaks.peakAspirationLength"],
+    notes: [
+      "This is the pressure-L(t) comparison metric for micropipette aspiration.",
+      "Until FEBio xplt extraction is available, the converter may compute L(t) from declared node displacement logs and records provenance explicitly.",
+    ],
+  };
+}
+
 function buildBoundarySpec(inputSpec, mesh) {
   return {
     fixed: [
@@ -216,6 +244,68 @@ function buildPlotfileSurfaceTractionSpec(name, surface, interfaceGroup, region,
   };
 }
 
+function buildInterfaceRegions() {
+  return {
+    localNc: {
+      left: { nucleusNodeSet: "nc_left_nucleus_nodes", cytoplasmNodeSet: "nc_left_cytoplasm_nodes" },
+      right: { nucleusNodeSet: "nc_right_nucleus_nodes", cytoplasmNodeSet: "nc_right_cytoplasm_nodes" },
+      top: { nucleusNodeSet: "nc_top_nucleus_nodes", cytoplasmNodeSet: "nc_top_cytoplasm_nodes" },
+      bottom: { nucleusNodeSet: "nc_bottom_nucleus_nodes", cytoplasmNodeSet: "nc_bottom_cytoplasm_nodes" },
+    },
+    localCd: {
+      left: { cellNodeSet: "cd_left_cell_nodes" },
+      center: { cellNodeSet: "cd_center_cell_nodes" },
+      right: { cellNodeSet: "cd_right_cell_nodes" },
+    },
+  };
+}
+
+function buildNodeDataOutputSpec(name, file, nodeSet, mapsTo) {
+  return {
+    name,
+    file,
+    nodeSet,
+    data: "ux;uy;uz",
+    mapsTo,
+    preferredSource: "native-node-displacement",
+  };
+}
+
+function buildRigidBodyOutputSpec() {
+  return {
+    name: "pipette_rigid_body",
+    file: "febio_rigid_pipette.csv",
+    data: "x;y;z;Fx;Fy;Fz",
+    item: "pipette",
+    mapsTo: ["history[].pipette", "history[].pipetteCenter", "history[].holdForce", "peaks.peakHoldForce"],
+  };
+}
+
+function buildCanonicalLogOutputs(outputs) {
+  return {
+    nodeData: [
+      buildNodeDataOutputSpec("nucleus_nodes", "febio_nucleus_nodes.csv", "nucleus", [
+        "history[].nucleus",
+        "displacements.nucleus",
+        "aspiration.length",
+      ]),
+      buildNodeDataOutputSpec("cytoplasm_nodes", "febio_cytoplasm_nodes.csv", "cytoplasm", [
+        "history[].cell",
+        "displacements.cell",
+        "aspiration.length",
+      ]),
+      buildNodeDataOutputSpec("pipette_contact_nodes", "febio_pipette_contact_nodes.csv", "pipette_contact_nodes", [
+        "history[].pipette",
+        "aspiration.reference",
+      ]),
+    ],
+    rigidBodyData: [buildRigidBodyOutputSpec()],
+    faceData: structuredCloneSafe(outputs.faceData || []),
+    plotfileSurfaceData: structuredCloneSafe(outputs.plotfileSurfaceData || []),
+    aspiration: structuredCloneSafe(outputs.aspiration || null),
+  };
+}
+
 function serializeStickyPenaltyRampComments(stabilization = {}) {
   return (stabilization.ramp || []).map(
     (entry) =>
@@ -227,27 +317,54 @@ function serializeNumber(value) {
   return Number(value || 0).toFixed(6);
 }
 
+function escapeXml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function nodeIdsForElementSet(mesh = {}, setName) {
+  const elementIds = new Set(mesh.elementSets?.[setName] || []);
+  const ids = new Set();
+  (mesh.elements || []).forEach((element) => {
+    if (elementIds.has(element.id)) {
+      (element.nodes || []).forEach((id) => ids.add(id));
+    }
+  });
+  return [...ids].sort((a, b) => a - b);
+}
+
+function resolveNodeIds(mesh = {}, setName) {
+  return mesh.nodeSets?.[setName] || nodeIdsForElementSet(mesh, setName);
+}
+
+function computeElementCenter(mesh = {}, setName) {
+  const ids = resolveNodeIds(mesh, setName);
+  const nodes = (mesh.nodes || []).filter((node) => ids.includes(node.id));
+  if (!nodes.length) return [0, 0, 0];
+  const totals = nodes.reduce(
+    (acc, node) => [acc[0] + Number(node.x || 0), acc[1] + Number(node.y || 0), acc[2] + Number(node.z || 0)],
+    [0, 0, 0],
+  );
+  return totals.map((value) => value / nodes.length);
+}
+
 function serializeMeshToXml(mesh = {}) {
   const nodeLines = (mesh.nodes || []).map(
     (node) => `      <node id="${node.id}">${serializeNumber(node.x)},${serializeNumber(node.y)},${serializeNumber(node.z)}</node>`,
   );
-  const materialElementGroups = Object.entries(
-    (mesh.elements || []).reduce((groups, element) => {
-      const material = element.material || "unknown";
-      groups[material] = groups[material] || [];
-      groups[material].push(element);
-      return groups;
-    }, {}),
-  ).flatMap(([material, elements]) => [
-    `    <Elements type="${elements[0]?.type || "hex8"}" mat="${material}" name="${material}_elements">`,
+  const materialElementGroups = Object.entries(mesh.elementSets || {}).flatMap(([material, ids]) => {
+    const idSet = new Set(ids || []);
+    const elements = (mesh.elements || []).filter((element) => idSet.has(element.id));
+    return [
+    `    <Elements type="${elements[0]?.type || "hex8"}" name="${material}">`,
     ...elements.map((element) => `      <elem id="${element.id}">${(element.nodes || []).join(",")}</elem>`),
     "    </Elements>",
-  ]);
-  const elementSetLines = Object.entries(mesh.elementSets || {}).flatMap(([name, ids]) => [
-    `    <ElementSet name="${name}">`,
-    `      <elem>${(ids || []).join(",")}</elem>`,
-    "    </ElementSet>",
-  ]);
+    ];
+  });
   const surfaceLines = Object.entries(mesh.surfaces || {}).flatMap(([name, facets]) => [
     `    <Surface name="${name}">`,
     ...(facets || []).map((facet) => `      <${facet.type || "quad4"} id="${facet.id}">${(facet.nodes || []).join(",")}</${facet.type || "quad4"}>`),
@@ -255,19 +372,31 @@ function serializeMeshToXml(mesh = {}) {
   ]);
   const surfacePairLines = Object.values(mesh.surfacePairs || {}).flatMap((pair) => [
     `    <SurfacePair name="${pair.name}">`,
-    `      <primary surface="${pair.primary}"/>`,
-    `      <secondary surface="${pair.secondary}"/>`,
+    `      <primary>${pair.primary}</primary>`,
+    `      <secondary>${pair.secondary}</secondary>`,
     "    </SurfacePair>",
   ]);
+  const nodeSetLines = {
+    ...Object.fromEntries(
+      Object.keys(mesh.elementSets || {}).map((name) => [`${name}_nodes`, nodeIdsForElementSet(mesh, name)]),
+    ),
+    ...(mesh.nodeSets || {}),
+    all_nodes_set: (mesh.nodes || []).map((node) => node.id),
+    deformable_nodes_set: (mesh.nodes || [])
+      .filter((node) => !resolveNodeIds(mesh, "pipette").includes(node.id))
+      .map((node) => node.id),
+  };
 
   return [
     "  <Mesh>",
-    "    <Nodes name=\"mesh_nodes\">",
+    "    <Nodes name=\"all_nodes\">",
     ...nodeLines,
     "    </Nodes>",
     ...materialElementGroups,
-    ...elementSetLines,
     ...surfaceLines,
+    ...Object.entries(nodeSetLines).flatMap(([name, ids]) => [
+      `    <NodeSet name="${name}">${(ids || []).join(",")}</NodeSet>`,
+    ]),
     ...surfacePairLines,
     "  </Mesh>",
   ];
@@ -276,13 +405,21 @@ function serializeMeshToXml(mesh = {}) {
 function serializeMaterialsToXml(materials = {}) {
   return [
     "  <Material>",
-    ...Object.values(materials).map((material) => [
+    ...Object.values(materials).filter((material) => material.domain).map((material) => [
       `    <material id="${material.id}" name="${material.name}" type="${material.type}">`,
-      material.elastic ? `      <E>${serializeNumber(material.elastic.E)}</E>` : null,
-      material.elastic ? `      <nu>${serializeNumber(material.elastic.nu)}</nu>` : null,
+      material.type === "viscoelastic" && material.elastic
+        ? `      <elastic type="neo-Hookean">`
+        : null,
+      material.elastic ? `        <E>${serializeNumber(material.elastic.E)}</E>` : null,
+      material.elastic ? `        <v>${serializeNumber(material.elastic.v ?? material.elastic.nu)}</v>` : null,
+      material.type === "viscoelastic" && material.elastic
+        ? `      </elastic>`
+        : null,
       material.viscous ? `      <g1>${serializeNumber(material.viscous.g1)}</g1>` : null,
       material.viscous ? `      <t1>${serializeNumber(material.viscous.t1)}</t1>` : null,
-      material.viscous ? `      <eta>${serializeNumber(material.viscous.eta)}</eta>` : null,
+      material.viscous ? `      <!-- viscosity eta=${serializeNumber(material.viscous.eta)} -->` : null,
+      material.density != null ? `      <density>${serializeNumber(material.density)}</density>` : null,
+      material.centerOfMass ? `      <center_of_mass>${material.centerOfMass.map(serializeNumber).join(",")}</center_of_mass>` : null,
       material.tension != null ? `      <tension>${serializeNumber(material.tension)}</tension>` : null,
       "    </material>",
     ].filter(Boolean)).flat(),
@@ -290,51 +427,91 @@ function serializeMaterialsToXml(materials = {}) {
   ];
 }
 
+function serializeMeshDomainsToXml(materials = {}) {
+  return [
+    "  <MeshDomains>",
+    ...Object.values(materials)
+      .filter((material) => material.domain)
+      .map((material) => `    <SolidDomain name="${escapeXml(material.domain)}" mat="${escapeXml(material.name)}" />`),
+    "  </MeshDomains>",
+  ];
+}
+
 function serializeBoundaryToXml(boundary = {}) {
   return [
     "  <Boundary>",
-    ...(boundary.fixed || []).map(
-      (entry) => `    <fix name="${entry.name}" node_set="${entry.nodeSet}" bc="${(entry.dofs || []).join(",")}"/>`,
-    ),
-    ...(boundary.prescribed || []).map(
-      (entry) =>
-        `    <prescribe name="${entry.name}" node_set="${entry.nodeSet}" bc="${entry.dof}" lc="${entry.loadController}" type="${entry.mode}">${serializeNumber(entry.value)}</prescribe>`,
-    ),
+    ...(boundary.fixed || []).flatMap((entry) => [
+      `    <bc name="${entry.name}" node_set="${entry.nodeSet}" type="zero displacement">`,
+      ...(entry.dofs || []).map((dof) => `      <${dof}_dof>1</${dof}_dof>`),
+      "    </bc>",
+    ]),
+    "    <bc name=\"section_plane_lock\" node_set=\"deformable_nodes_set\" type=\"zero displacement\">",
+    "      <y_dof>1</y_dof>",
+    "    </bc>",
     "  </Boundary>",
   ];
 }
 
 function serializeLoadsToXml(loads = {}) {
+  const controllerIdMap = new Map((loads.controllers || []).map((entry, index) => [entry.id, index + 1]));
   return [
     "  <Loads>",
     ...(loads.nodal || []).map(
       (entry) =>
-        `    <nodal_load name="${entry.name}" surface="${entry.surface}" lc="${entry.loadController}" status="${entry.status}">${serializeNumber(entry.value)}</nodal_load>`,
+        `    <!-- nodal_load ${entry.name} surface=${entry.surface} lc=${entry.loadController} status=${entry.status} value=${serializeNumber(entry.value)} -->`,
     ),
-    ...(loads.pressure || []).map(
-      (entry) =>
-        `    <surface_load name="${entry.name}" surface="${entry.surface}" type="pressure" lc="${entry.loadController}" status="${entry.status}" unit="${entry.unit || "kPa"}" direction="${entry.direction || "normal"}" magnitude="${serializeNumber(entry.magnitude ?? Math.abs(entry.value || 0))}">${serializeNumber(entry.value)}</surface_load>`,
-    ),
+    ...(loads.pressure || []).flatMap((entry) => [
+      `    <surface_load name="${entry.name}" surface="${entry.surface}" type="pressure">`,
+      `      <pressure lc="${controllerIdMap.get(entry.loadController) || entry.loadController}">${serializeNumber(entry.value)}</pressure>`,
+      `      <!-- status=${entry.status} unit=${entry.unit || "kPa"} direction=${entry.direction || "normal"} magnitude=${serializeNumber(entry.magnitude ?? Math.abs(entry.value || 0))} -->`,
+      "    </surface_load>",
+    ]),
     "  </Loads>",
     "  <LoadData>",
-    ...(loads.controllers || []).map((entry) => [
-      `    <load_controller id="${entry.id}" name="${entry.name}" type="linear"${entry.unit ? ` unit="${entry.unit}"` : ""}>`,
-      ...(entry.points || []).map((point) => `      <point>${serializeNumber(point[0])},${serializeNumber(point[1])}</point>`),
+    ...(loads.controllers || []).map((entry, index) => [
+      `    <load_controller id="${index + 1}" name="${entry.name}" type="loadcurve">`,
+      "      <interpolate>LINEAR</interpolate>",
+      "      <extend>CONSTANT</extend>",
+      "      <points>",
+      ...(entry.points || []).map((point) => `        <point>${serializeNumber(point[0])}, ${serializeNumber(point[1])}</point>`),
+      "      </points>",
       "    </load_controller>",
     ]).flat(),
     "  </LoadData>",
   ];
 }
 
+function serializeLogfileToXml(outputs = {}, mesh = {}) {
+  return [
+    "    <logfile>",
+    ...(outputs.nodeData || []).map(
+      (entry) => {
+        const itemIds = resolveNodeIds(mesh, entry.nodeSet);
+        return `      <node_data name="${entry.name}" file="${entry.file}" data="${entry.data || "ux;uy;uz"}" delim=",">${itemIds.join(",")}</node_data>`;
+      },
+    ),
+    ...(outputs.rigidBodyData || []).map(
+      (entry) => `      <rigid_body_data name="${entry.name}" file="${entry.file}" data="${entry.data || "x;y;z;Fx;Fy;Fz"}" delim=",">4</rigid_body_data>`,
+    ),
+    ...(outputs.faceData || []).map(
+      (entry) =>
+        `      <face_data name="${entry.name}" file="${entry.file}" data="${entry.logfileData || "contact gap;contact pressure"}" delim="," surface="${entry.surface}" />`,
+    ),
+    outputs.aspiration
+      ? `      <!-- derived_data name="${outputs.aspiration.name}" metric="${outputs.aspiration.metric}" unit="${outputs.aspiration.unit}" payload="${outputs.aspiration.payloadPath}" source="${outputs.aspiration.preferredSource}" -->`
+      : null,
+    "    </logfile>",
+  ].filter(Boolean);
+}
+
 function serializeCellDishContactToXml(cellDish = {}) {
   return [
-    `  <contact name="cell_dish_interface" type="${cellDish.type}" surface_pair="${cellDish.surfacePair?.name || "cell_dish_pair"}">`,
-    `    <normal_stiffness>${serializeNumber(cellDish.normalStiffness)}</normal_stiffness>`,
-    `    <tangential_stiffness>${serializeNumber(cellDish.tangentialStiffness)}</tangential_stiffness>`,
-    `    <critical_normal_stress>${serializeNumber(cellDish.criticalNormalStress)}</critical_normal_stress>`,
-    `    <critical_shear_stress>${serializeNumber(cellDish.criticalShearStress)}</critical_shear_stress>`,
-    `    <fracture_energy>${serializeNumber(cellDish.fractureEnergy)}</fracture_energy>`,
-    "  </contact>",
+    `    <contact name="cell_dish_interface" type="${cellDish.type}" surface_pair="${cellDish.surfacePair?.name || "cell_dish_pair"}">`,
+    `      <penalty>${serializeNumber(cellDish.normalStiffness)}</penalty>`,
+    "      <tolerance>0.050000</tolerance>",
+    `      <!-- cohesive-ready normalStiffness=${serializeNumber(cellDish.normalStiffness)} tangentialStiffness=${serializeNumber(cellDish.tangentialStiffness)} -->`,
+    `      <!-- cohesive-ready criticalNormalStress=${serializeNumber(cellDish.criticalNormalStress)} criticalShearStress=${serializeNumber(cellDish.criticalShearStress)} fractureEnergy=${serializeNumber(cellDish.fractureEnergy)} -->`,
+    "    </contact>",
   ];
 }
 
@@ -365,6 +542,119 @@ export function buildFebioTemplateData(inputSpec) {
   const cellDish = buildCellDishInterfaceSpec(inputSpec, mesh);
   const boundary = buildBoundarySpec(inputSpec, mesh);
   const loads = buildLoadSpec(inputSpec);
+  const outputs = {
+    faceData: [
+      buildFaceDataOutputSpec(
+        "nucleus_cytoplasm_interface_surface",
+        "febio_interface_nucleus_cytoplasm.csv",
+        "nucleus_interface_surface",
+      ),
+      buildFaceDataOutputSpec(
+        "nucleus_cytoplasm_left_surface",
+        "febio_interface_nc_left.csv",
+        "nucleus_interface_left_surface",
+      ),
+      buildFaceDataOutputSpec(
+        "nucleus_cytoplasm_right_surface",
+        "febio_interface_nc_right.csv",
+        "nucleus_interface_right_surface",
+      ),
+      buildFaceDataOutputSpec(
+        "nucleus_cytoplasm_top_surface",
+        "febio_interface_nc_top.csv",
+        "nucleus_interface_top_surface",
+      ),
+      buildFaceDataOutputSpec(
+        "nucleus_cytoplasm_bottom_surface",
+        "febio_interface_nc_bottom.csv",
+        "nucleus_interface_bottom_surface",
+      ),
+      buildFaceDataOutputSpec(
+        "cell_dish_interface_surface",
+        "febio_interface_cell_dish.csv",
+        "cell_dish_surface",
+      ),
+      buildFaceDataOutputSpec(
+        "cell_dish_left_surface",
+        "febio_interface_cd_left.csv",
+        "cell_dish_left_surface",
+      ),
+      buildFaceDataOutputSpec(
+        "cell_dish_center_surface",
+        "febio_interface_cd_center.csv",
+        "cell_dish_center_surface",
+      ),
+      buildFaceDataOutputSpec(
+        "cell_dish_right_surface",
+        "febio_interface_cd_right.csv",
+        "cell_dish_right_surface",
+      ),
+      buildFaceDataOutputSpec(
+        "pipette_contact_surface",
+        "febio_pipette_contact.csv",
+        "pipette_contact_surface",
+        {
+          normal: "native-face-data-preferred",
+          damage: "proxy-fallback-explicit",
+          shear: "not-used",
+        },
+      ),
+    ],
+    plotfileSurfaceData: [
+      buildPlotfileSurfaceTractionSpec(
+        "nucleus_cytoplasm_left_surface",
+        "nucleus_interface_left_surface",
+        "localNc",
+        "left",
+        { normal: "x", tangential: "z" },
+      ),
+      buildPlotfileSurfaceTractionSpec(
+        "nucleus_cytoplasm_right_surface",
+        "nucleus_interface_right_surface",
+        "localNc",
+        "right",
+        { normal: "x", tangential: "z" },
+      ),
+      buildPlotfileSurfaceTractionSpec(
+        "nucleus_cytoplasm_top_surface",
+        "nucleus_interface_top_surface",
+        "localNc",
+        "top",
+        { normal: "z", tangential: "x" },
+      ),
+      buildPlotfileSurfaceTractionSpec(
+        "nucleus_cytoplasm_bottom_surface",
+        "nucleus_interface_bottom_surface",
+        "localNc",
+        "bottom",
+        { normal: "z", tangential: "x" },
+      ),
+      buildPlotfileSurfaceTractionSpec(
+        "cell_dish_left_surface",
+        "cell_dish_left_surface",
+        "localCd",
+        "left",
+        { normal: "z", tangential: "x" },
+      ),
+      buildPlotfileSurfaceTractionSpec(
+        "cell_dish_center_surface",
+        "cell_dish_center_surface",
+        "localCd",
+        "center",
+        { normal: "z", tangential: "x" },
+      ),
+      buildPlotfileSurfaceTractionSpec(
+        "cell_dish_right_surface",
+        "cell_dish_right_surface",
+        "localCd",
+        "right",
+        { normal: "z", tangential: "x" },
+      ),
+    ],
+    detachment: buildDetachmentOutputContract(),
+    aspiration: buildAspirationOutputContract(inputSpec, mesh),
+  };
+  const logOutputs = buildCanonicalLogOutputs(outputs);
 
   return {
     status: {
@@ -382,6 +672,7 @@ export function buildFebioTemplateData(inputSpec) {
         "main-flow inward manipulation is split into staged targets to reduce the first-step jacobian collapse risk",
         "discrete cohesive spring sidecar sets are exported for future solver-primary cohesive activation",
         "P_hold is solver-active suction pressure; prescribed pipette motion remains positioning control",
+        "aspiration length L(t) is declared as a native-or-postprocessed output contract",
       ],
     },
     parameterDigest: inputSpec.parameterDigest,
@@ -432,8 +723,24 @@ export function buildFebioTemplateData(inputSpec) {
           { eta: inputSpec.material.etac },
         ),
       },
-      membrane: {
+      dish: {
         id: 3,
+        name: "dish",
+        type: "neo-Hookean",
+        domain: "dish",
+        elastic: { E: 250, v: 0.3 },
+      },
+      pipette: {
+        id: 4,
+        name: "pipette_rigid",
+        type: "rigid body",
+        domain: "pipette",
+        density: 1,
+        centerOfMass: computeElementCenter(mesh, "pipette"),
+        elastic: { E: 600, v: 0.25 },
+      },
+      membrane: {
+        id: 5,
         name: "membrane",
         type: membraneModel.type,
         status: membraneModel.status,
@@ -444,6 +751,7 @@ export function buildFebioTemplateData(inputSpec) {
       nucleusCytoplasm,
       cellDish,
     },
+    interfaceRegions: buildInterfaceRegions(),
     boundary,
     loads,
     steps: [
@@ -453,117 +761,8 @@ export function buildFebioTemplateData(inputSpec) {
       { id: 4, name: "manipulation-1" },
       { id: 5, name: "manipulation-2" },
     ],
-    outputs: {
-      faceData: [
-        buildFaceDataOutputSpec(
-          "nucleus_cytoplasm_interface_surface",
-          "febio_interface_nucleus_cytoplasm.csv",
-          "nucleus_interface_surface",
-        ),
-        buildFaceDataOutputSpec(
-          "nucleus_cytoplasm_left_surface",
-          "febio_interface_nc_left.csv",
-          "nucleus_interface_left_surface",
-        ),
-        buildFaceDataOutputSpec(
-          "nucleus_cytoplasm_right_surface",
-          "febio_interface_nc_right.csv",
-          "nucleus_interface_right_surface",
-        ),
-        buildFaceDataOutputSpec(
-          "nucleus_cytoplasm_top_surface",
-          "febio_interface_nc_top.csv",
-          "nucleus_interface_top_surface",
-        ),
-        buildFaceDataOutputSpec(
-          "nucleus_cytoplasm_bottom_surface",
-          "febio_interface_nc_bottom.csv",
-          "nucleus_interface_bottom_surface",
-        ),
-        buildFaceDataOutputSpec(
-          "cell_dish_interface_surface",
-          "febio_interface_cell_dish.csv",
-          "cell_dish_surface",
-        ),
-        buildFaceDataOutputSpec(
-          "cell_dish_left_surface",
-          "febio_interface_cd_left.csv",
-          "cell_dish_left_surface",
-        ),
-        buildFaceDataOutputSpec(
-          "cell_dish_center_surface",
-          "febio_interface_cd_center.csv",
-          "cell_dish_center_surface",
-        ),
-        buildFaceDataOutputSpec(
-          "cell_dish_right_surface",
-          "febio_interface_cd_right.csv",
-          "cell_dish_right_surface",
-        ),
-        buildFaceDataOutputSpec(
-          "pipette_contact_surface",
-          "febio_pipette_contact.csv",
-          "pipette_contact_surface",
-          {
-            normal: "native-face-data-preferred",
-            damage: "proxy-fallback-explicit",
-            shear: "not-used",
-          },
-        ),
-      ],
-      plotfileSurfaceData: [
-        buildPlotfileSurfaceTractionSpec(
-          "nucleus_cytoplasm_left_surface",
-          "nucleus_interface_left_surface",
-          "localNc",
-          "left",
-          { normal: "x", tangential: "z" },
-        ),
-        buildPlotfileSurfaceTractionSpec(
-          "nucleus_cytoplasm_right_surface",
-          "nucleus_interface_right_surface",
-          "localNc",
-          "right",
-          { normal: "x", tangential: "z" },
-        ),
-        buildPlotfileSurfaceTractionSpec(
-          "nucleus_cytoplasm_top_surface",
-          "nucleus_interface_top_surface",
-          "localNc",
-          "top",
-          { normal: "z", tangential: "x" },
-        ),
-        buildPlotfileSurfaceTractionSpec(
-          "nucleus_cytoplasm_bottom_surface",
-          "nucleus_interface_bottom_surface",
-          "localNc",
-          "bottom",
-          { normal: "z", tangential: "x" },
-        ),
-        buildPlotfileSurfaceTractionSpec(
-          "cell_dish_left_surface",
-          "cell_dish_left_surface",
-          "localCd",
-          "left",
-          { normal: "z", tangential: "x" },
-        ),
-        buildPlotfileSurfaceTractionSpec(
-          "cell_dish_center_surface",
-          "cell_dish_center_surface",
-          "localCd",
-          "center",
-          { normal: "z", tangential: "x" },
-        ),
-        buildPlotfileSurfaceTractionSpec(
-          "cell_dish_right_surface",
-          "cell_dish_right_surface",
-          "localCd",
-          "right",
-          { normal: "z", tangential: "x" },
-        ),
-      ],
-      detachment: buildDetachmentOutputContract(),
-    },
+    outputs,
+    logOutputs,
     discreteCohesive: {
       nucleusCytoplasm: {
         type: "discrete-cohesive-springs",
@@ -577,52 +776,105 @@ export function serializeFebioTemplateToXml(templateData) {
   const nucleusCytoplasm = templateData.interfaces.nucleusCytoplasm;
   const stabilization = nucleusCytoplasm.stabilization || {};
   const mesh = templateData.geometry?.mesh || {};
+  const logfileOutputs = templateData.logOutputs || {};
   const plotfileSurfaceTractionXml = (templateData.outputs?.plotfileSurfaceData || [])
     .map(
       (entry) =>
         `      <var type="${entry.variable}" surface="${entry.surface}"/>`,
     )
     .join("\n");
+  const stepMotion = new Map([
+    ["approach", { x: 0, z: -0.35, steps: 60 }],
+    ["hold", { x: 0, z: 0, steps: 40 }],
+    ["lift", { x: 0, z: templateData.boundary?.prescribed?.find((entry) => entry.name === "pipette_lift_z")?.value || 0, steps: 60 }],
+    ["manipulation-1", { x: -((templateData.boundary?.prescribed?.find((entry) => entry.name === "pipette_inward_x")?.value || 0) * 0.45), z: 0, steps: 90 }],
+    ["manipulation-2", { x: -((templateData.boundary?.prescribed?.find((entry) => entry.name === "pipette_inward_x")?.value || 0) * 0.55), z: 0, steps: 100 }],
+  ]);
+  const stepXml = (templateData.steps || []).flatMap((step, index) => {
+    const motion = stepMotion.get(step.name) || { x: 0, z: 0, steps: 25 };
+    const stepSize = motion.steps ? 1 / motion.steps : 0.04;
+    return [
+      `    <step id="${step.id || index + 1}" name="${escapeXml(step.name)}">`,
+      "    <Control>",
+      "      <analysis>static</analysis>",
+      `      <time_steps>${Number(motion.steps || 25).toFixed(0)}</time_steps>`,
+      `      <step_size>${serializeNumber(stepSize)}</step_size>`,
+      "      <plot_level>PLOT_MAJOR_ITRS</plot_level>",
+      "      <output_level>OUTPUT_MAJOR_ITRS</output_level>",
+      "      <solver>",
+      "        <symmetric_stiffness>0</symmetric_stiffness>",
+      "      </solver>",
+      "    </Control>",
+      "    <Rigid>",
+      "      <rigid_bc type=\"rigid_displacement\">",
+      "        <rb>pipette_rigid</rb>",
+      "        <dof>x</dof>",
+      `        <value>${serializeNumber(motion.x)}</value>`,
+      "        <relative>1</relative>",
+      "      </rigid_bc>",
+      "      <rigid_bc type=\"rigid_displacement\">",
+      "        <rb>pipette_rigid</rb>",
+      "        <dof>z</dof>",
+      `        <value>${serializeNumber(motion.z)}</value>`,
+      "        <relative>1</relative>",
+      "      </rigid_bc>",
+      "    </Rigid>",
+      "    </step>",
+    ];
+  });
   return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
     '<febio_spec version="4.0">',
+    '  <Module type="solid" />',
     ...serializeMaterialsToXml(templateData.materials),
     ...serializeMeshToXml(mesh),
-    "  <MeshData>",
-    '    <face_data name="nucleus_cytoplasm_left_surface" file="febio_interface_nc_left.csv"/>',
-    "  </MeshData>",
+    ...serializeMeshDomainsToXml(templateData.materials),
     ...serializeBoundaryToXml(templateData.boundary),
+    "  <Contact>",
+    '    <contact name="nucleus_cytoplasm_interface" type="sticky" surface_pair="nucleus_cytoplasm_pair">',
+    "      <!-- solver-primary cohesive approximation -->",
+    `      <penalty>${Number(nucleusCytoplasm.penalty.Kn).toFixed(6)}</penalty>`,
+    `      <tolerance>${Number(nucleusCytoplasm.tolerance || stabilization.searchTolerance || 0).toFixed(6)}</tolerance>`,
+    `      <search_tolerance>${Number(stabilization.searchTolerance || nucleusCytoplasm.tolerance || 0).toFixed(6)}</search_tolerance>`,
+    `      <laugon>${stabilization.augmentation?.enabled ? 1 : 0}</laugon>`,
+    `      <minaug>${Number(stabilization.augmentation?.minPasses || 0).toFixed(0)}</minaug>`,
+    `      <maxaug>${Number(stabilization.augmentation?.maxPasses || 0).toFixed(0)}</maxaug>`,
+    `      <max_traction>${Number(nucleusCytoplasm.cohesiveApproximation.maxTraction || nucleusCytoplasm.criticalNormalStress || 0).toFixed(6)}</max_traction>`,
+    `      <snap_tol>${Number(nucleusCytoplasm.cohesiveApproximation.snapTolerance).toFixed(6)}</snap_tol>`,
+    `      <!-- cohesive criticalNormalStress=${Number(templateData.interfaces.nucleusCytoplasm.criticalNormalStress).toFixed(6)} -->`,
+    ...serializeStickyPenaltyRampComments(stabilization).map((line) => line.replace("    <!--", "      <!--")),
+    "    </contact>",
+    ...serializeCellDishContactToXml(templateData.interfaces.cellDish),
+    "  </Contact>",
+    "  <Rigid>",
+    "    <rigid_bc type=\"rigid_fixed\">",
+    "      <rb>pipette_rigid</rb>",
+    "      <Ry_dof>1</Ry_dof>",
+    "      <Ru_dof>1</Ru_dof>",
+    "      <Rv_dof>1</Rv_dof>",
+    "      <Rw_dof>1</Rw_dof>",
+    "    </rigid_bc>",
+    "  </Rigid>",
     ...serializeLoadsToXml(templateData.loads),
     "  <Step>",
-    '    <step id="1" name="approach">',
-    "    </step>",
+    ...stepXml,
     "  </Step>",
     "  <Output>",
+    ...serializeLogfileToXml(logfileOutputs, mesh),
     '    <plotfile type="febio">',
-    '      <var type="displacement"/>',
-    '      <var type="stress"/>',
+    '      <var type="displacement" />',
+    '      <var type="stress" />',
+    '      <var type="contact force" />',
+    '      <var type="reaction forces" />',
     ...(plotfileSurfaceTractionXml ? [plotfileSurfaceTractionXml] : []),
     "    </plotfile>",
     "  </Output>",
-    '  <contact name="nucleus_cytoplasm_interface" type="sticky" surface_pair="nucleus_cytoplasm_pair">',
-    "    <!-- solver-primary cohesive approximation -->",
-    `    <penalty>${Number(nucleusCytoplasm.penalty.Kn).toFixed(6)}</penalty>`,
-    "    <auto_penalty>0</auto_penalty>",
-    `    <search_tol>${Number(stabilization.searchTolerance || nucleusCytoplasm.tolerance || 0).toFixed(6)}</search_tol>`,
-    `    <symmetric_stiffness>${stabilization.symmetricStiffness ? 1 : 0}</symmetric_stiffness>`,
-    `    <laugon>${stabilization.augmentation?.enabled ? 1 : 0}</laugon>`,
-    `    <minaug>${Number(stabilization.augmentation?.minPasses || 0).toFixed(0)}</minaug>`,
-    `    <maxaug>${Number(stabilization.augmentation?.maxPasses || 0).toFixed(0)}</maxaug>`,
-    `    <fric_coeff>${Number(nucleusCytoplasm.cohesiveApproximation.frictionProxy).toFixed(6)}</fric_coeff>`,
-    `    <snap_tol>${Number(nucleusCytoplasm.cohesiveApproximation.snapTolerance).toFixed(6)}</snap_tol>`,
-    `    <!-- cohesive criticalNormalStress=${Number(templateData.interfaces.nucleusCytoplasm.criticalNormalStress).toFixed(6)} -->`,
-    ...serializeStickyPenaltyRampComments(stabilization),
-    "  </contact>",
-    ...serializeCellDishContactToXml(templateData.interfaces.cellDish),
     "  <!-- cohesive discrete sidecar (not solver-active yet)",
     '  <DiscreteSet name="nucleus_cytoplasm_left_springs">',
     "  </DiscreteSet>",
     "  discrete_material nucleus_cytoplasm_left_springs_material type=nonlinear spring",
     "  load_controller 300 points=",
+    "  -->",
     "</febio_spec>",
   ].join("\n");
 }

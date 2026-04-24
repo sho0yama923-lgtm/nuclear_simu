@@ -48,12 +48,12 @@
 
 | Stage | Status | Scope |
 |---|---|---|
-| Stage S1: Solver-active mesh completeness | in progress | nucleus / cytoplasm / dish / pipette を実体メッシュとして出力し、nucleus element set が空でないことを保証する |
+| Stage S1: Solver-active mesh completeness | completed | nucleus / cytoplasm / dish / pipette domains, required node sets, required surfaces, and surface pairs are emitted and validated |
 | Stage S2: Complete FEBio XML serialization | completed | nodes / elements / ElementSet / Surface / SurfacePair / material / boundary / contact / load を solver input として完全に出力する |
 | Stage S3: Pressure-driven pipette suction | completed | `P_hold` / `ΔP(t)` を pressure load curve として実装し、prescribed motion と suction を区別する |
-| Stage S4: Aspiration and interface output | next | aspiration length `L(t)`、displacement、contact pressure、interface traction / damage を native または明示的な後処理で取得する |
-| Stage S5: Sticky cohesive solver validation | planned | 実 FEBio run で sticky approximation の安定性、interface geometry、native outputs を検証する |
-| Stage S6: True cohesive/failure preparation | planned | sticky approximation の検証後、true cohesive または nonlinear spring failure への移行方針を固める |
+| Stage S4: Aspiration and interface output | completed | aspiration length `L(t)`, displacement logs, contact pressure/gap face logs, plotfile contact traction bridge, and provenance paths are declared in export/XML/converter/import |
+| Stage S5: Sticky cohesive solver validation | completed-with-residual | existing FEBio-native sticky run reaches normal termination; canonical readability residual was carried into S6 |
+| Stage S6: True cohesive/failure preparation | completed-with-residual | canonical FEBio-native read success and normal termination restored; true cohesive/failure deferred until load/contact activation is validated |
 
 ## 更新ルール
 

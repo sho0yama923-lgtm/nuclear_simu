@@ -572,6 +572,7 @@ function normalizeHistoryEntries(history, inputSpec) {
       ...MEMBRANE_REGIONS.map((region) => normalized.membraneRegions?.[region]?.damage || 0),
       0,
     );
+    normalized.aspirationLength ??= 0;
     normalized.detachmentMetrics = normalizeDetachmentMetrics(normalized);
     return normalized;
   });
@@ -587,6 +588,16 @@ export function normalizeFebioResult(rawResult, inputSpec) {
   result.events ??= {};
   result.history = normalizeHistoryEntries(result.history, inputSpec);
   result.peaks ??= {};
+  result.peaks.peakAspirationLength ??= Math.max(
+    0,
+    ...result.history.map((entry) => Number(entry.aspirationLength || 0)),
+  );
+  result.aspiration ??= {
+    length: result.history.length ? Number(result.history[result.history.length - 1].aspirationLength || 0) : 0,
+    peakLength: result.peaks.peakAspirationLength,
+    unit: inputSpec.coordinates?.lengthUnit || "um",
+    source: "unavailable",
+  };
   result.damage ??= {};
   result.localNc = mergeLocalState(NC_REGIONS, result.localNc, nativeLocalNc);
   result.localCd = mergeLocalState(CD_REGIONS, result.localCd, nativeLocalCd);
@@ -663,6 +674,11 @@ export function importFebioResult(febioResultJson, inputSpec) {
       payload.resultProvenance?.interfaceObservation ||
       payload.interfaceObservation ||
       normalized.interfaceObservation ||
+      null,
+    aspiration:
+      payload.resultProvenance?.aspiration ||
+      payload.aspiration ||
+      normalized.aspiration ||
       null,
   };
 

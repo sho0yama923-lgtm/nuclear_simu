@@ -201,6 +201,13 @@
 - `src/febio/export/index.ts` and the compatibility export metadata now explicitly declare that the standard logfile `face_data` descriptor is still `contact gap;contact pressure`, and they also declare the standard plotfile `contact traction` bridge payload path (`plotfileSurfaceData.localNc.*` / `plotfileSurfaceData.localCd.*`) that the converter can prefer before proxy fallback.
 - Converted result JSON now carries that coverage in both `outputMapping` and `resultProvenance.interfaceObservation`, so saved converted payloads show both the declared coverage and the actual native/proxy source picked per region.
 
+## Stage S4 aspiration output contract
+
+- Export metadata now declares `outputs.aspiration` / `logOutputs.aspiration` for pipette aspiration length `L(t)`.
+- XML output now includes node displacement logs, rigid pipette logs, face logs, and a derived `pipette_aspiration_length` entry.
+- Converter output mapping now carries `aspiration.length`, `history[].aspirationLength`, and `peaks.peakAspirationLength`.
+- Import provenance preserves aspiration mapping/source metadata so pressure-`L(t)` comparisons can distinguish native, postprocessed, proxy, and unavailable paths.
+
 これにより、変換済み JSON だけ見ても
 
 - どの `.csv` が

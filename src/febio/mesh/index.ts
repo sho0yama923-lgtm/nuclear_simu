@@ -9,6 +9,21 @@
  */
 
 const REQUIRED_ELEMENT_SETS = ["nucleus", "cytoplasm", "dish", "pipette"];
+const REQUIRED_NODE_SETS = [
+  "dish_fixed_nodes",
+  "pipette_contact_nodes",
+  "nc_left_nucleus_nodes",
+  "nc_right_nucleus_nodes",
+  "nc_top_nucleus_nodes",
+  "nc_bottom_nucleus_nodes",
+  "nc_left_cytoplasm_nodes",
+  "nc_right_cytoplasm_nodes",
+  "nc_top_cytoplasm_nodes",
+  "nc_bottom_cytoplasm_nodes",
+  "cd_left_cell_nodes",
+  "cd_center_cell_nodes",
+  "cd_right_cell_nodes",
+];
 const REQUIRED_SURFACES = [
   "nucleus_interface_surface",
   "nucleus_interface_left_surface",
@@ -177,6 +192,7 @@ export function validateFebioMesh(mesh) {
   const surfaces = mesh.surfaces || {};
   const surfacePairs = mesh.surfacePairs || {};
   const requiredDomains = {};
+  const requiredNodeSets = {};
   const requiredSurfaces = {};
   const requiredSurfacePairs = {};
 
@@ -202,6 +218,20 @@ export function validateFebioMesh(mesh) {
     const missingElement = ids.find((elementId) => !elementIds.has(elementId));
     if (missingElement != null) {
       invalidElements.push(`${setName} element set references missing element ${missingElement}`);
+    }
+  });
+
+  REQUIRED_NODE_SETS.forEach((setName) => {
+    const ids = mesh.nodeSets?.[setName];
+    const hasEntries = Array.isArray(ids) && ids.length > 0;
+    requiredNodeSets[setName] = hasEntries ? "present" : "missing";
+    if (!hasEntries) {
+      invalidElements.push(`${setName} node set must be non-empty`);
+      return;
+    }
+    const missingNode = ids.find((nodeId) => !nodeIds.has(nodeId));
+    if (missingNode != null) {
+      invalidElements.push(`${setName} node set references missing node ${missingNode}`);
     }
   });
 
@@ -250,6 +280,7 @@ export function validateFebioMesh(mesh) {
     invalidElements,
     aspectRatioWarnings,
     requiredDomains,
+    requiredNodeSets,
     requiredSurfaces,
     requiredSurfacePairs,
   };

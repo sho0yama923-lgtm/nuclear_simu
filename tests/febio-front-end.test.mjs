@@ -44,6 +44,11 @@ test("canonical spec maps into FEBio template data", async () => {
   assert.equal(febio.febioTemplateData.loads.pressure[0].magnitude, spec.operation.P_hold);
   assert.equal(febio.febioTemplateData.loads.pressure[0].value, -spec.operation.P_hold);
   assert.match(febio.febioTemplateData.loads.pressure[0].status, /solver-active pressure-driven suction/);
+  assert.equal(febio.febioTemplateData.interfaceRegions.localNc.left.nucleusNodeSet, "nc_left_nucleus_nodes");
+  assert.equal(febio.febioTemplateData.outputs.aspiration.metric, "L(t)");
+  assert.equal(febio.febioTemplateData.outputs.aspiration.unit, "um");
+  assert.equal(febio.febioTemplateData.outputs.aspiration.payloadPath, "aspiration.length");
+  assert.equal(febio.febioTemplateData.logOutputs.aspiration.metric, "L(t)");
   assert.equal(febio.febioTemplateData.status.buildMode, "refined");
 });
 
@@ -67,6 +72,9 @@ test("canonical FEBio export declares current face-data coverage and optional tr
   assert.equal(ncLeftPlotBridge.variable, "contact traction");
   assert.equal(ncLeftPlotBridge.payloadPath, "plotfileSurfaceData.localNc.left");
   assert.equal(ncLeftPlotBridge.preferredSource, "native-plotfile-contact-traction");
+  assert.equal(spec.febioTemplateData.logOutputs.nodeData.find((entry) => entry.name === "nucleus_nodes").nodeSet, "nucleus");
+  assert.equal(spec.febioTemplateData.logOutputs.rigidBodyData[0].name, "pipette_rigid_body");
+  assert.equal(spec.febioTemplateData.outputs.aspiration.historyPath, "history[].aspirationLength");
 });
 
 test("converter output mapping carries standard face-data coverage and optional traction extensions", () => {
@@ -80,6 +88,16 @@ test("converter output mapping carries standard face-data coverage and optional 
       },
     },
     outputs: {
+      aspiration: {
+        metric: "L(t)",
+        unit: "um",
+        preferredSource: "native-node-displacement",
+        payloadPath: "aspiration.length",
+        historyPath: "history[].aspirationLength",
+        peakPath: "peaks.peakAspirationLength",
+        definition: "test aspiration definition",
+        mapsTo: ["history[].aspirationLength", "aspiration.length", "peaks.peakAspirationLength"],
+      },
       faceData: [
         {
           name: "nucleus_cytoplasm_left_surface",
@@ -135,6 +153,9 @@ test("converter output mapping carries standard face-data coverage and optional 
   assert.equal(mapping.localNc.left.standardTangentialBridge.preferredSource, "native-plotfile-contact-traction");
   assert.equal(mapping.localCd.left.currentCoverage.damage, "native-face-data-preferred");
   assert.equal(mapping.localCd.left.standardTangentialBridge.surface, "cell_dish_left_surface");
+  assert.equal(mapping.aspiration.metric, "L(t)");
+  assert.equal(mapping.aspiration.historyPath, "history[].aspirationLength");
+  assert.equal(mapping.aspiration.peakPath, "peaks.peakAspirationLength");
 });
 
 test("converter output mapping also reads coverage metadata from compatibility log outputs", () => {
@@ -148,6 +169,12 @@ test("converter output mapping also reads coverage metadata from compatibility l
       },
     },
     logOutputs: {
+      aspiration: {
+        metric: "L(t)",
+        unit: "um",
+        preferredSource: "native-node-displacement",
+        payloadPath: "aspiration.length",
+      },
       faceData: [
         {
           name: "nucleus_cytoplasm_top_surface",
@@ -178,61 +205,76 @@ test("converter output mapping also reads coverage metadata from compatibility l
   assert.equal(mapping.localNc.top.currentCoverage.shear, "bridge-native-preferred");
   assert.equal(mapping.localNc.top.standardTangentialBridge.surface, "nucleus_interface_top_surface");
   assert.equal(mapping.localCd.center.standardTangentialBridge, null);
+  assert.equal(mapping.aspiration.source, "native-node-displacement");
 });
 
 test("template serializes to consistent FEBio XML", async () => {
   const app = await loadApp();
   const spec = app.buildFebioInputSpec("A", app.DEFAULTS, app.buildSimulationInput("A", app.DEFAULTS));
   const xml = app.serializeFebioTemplateToXml(spec.febioTemplateData);
+  assert.match(xml, /<\?xml version="1\.0" encoding="UTF-8"\?>/);
   assert.match(xml, /<febio_spec version="4\.0">/);
+  assert.match(xml, /<Module type="solid" \/>/);
   assert.match(xml, /<Material>/);
   assert.match(xml, /<Mesh>/);
-  assert.match(xml, /<Nodes name="mesh_nodes">/);
-  assert.match(xml, /<Elements type="hex8" mat="nucleus" name="nucleus_elements">/);
-  assert.match(xml, /<Elements type="hex8" mat="cytoplasm" name="cytoplasm_elements">/);
-  assert.match(xml, /<Elements type="hex8" mat="dish" name="dish_elements">/);
-  assert.match(xml, /<Elements type="hex8" mat="pipette" name="pipette_elements">/);
-  assert.match(xml, /<ElementSet name="nucleus">/);
-  assert.match(xml, /<ElementSet name="pipette">/);
+  assert.match(xml, /<Nodes name="all_nodes">/);
+  assert.match(xml, /<Elements type="hex8" name="nucleus">/);
+  assert.match(xml, /<Elements type="hex8" name="cytoplasm">/);
+  assert.match(xml, /<Elements type="hex8" name="dish">/);
+  assert.match(xml, /<Elements type="hex8" name="pipette">/);
   assert.match(xml, /<Surface name="pipette_contact_surface">/);
   assert.match(xml, /<SurfacePair name="nucleus_cytoplasm_pair">/);
-  assert.match(xml, /<primary surface="cytoplasm_interface_surface"\/>/);
-  assert.match(xml, /<secondary surface="nucleus_interface_surface"\/>/);
+  assert.match(xml, /<primary>cytoplasm_interface_surface<\/primary>/);
+  assert.match(xml, /<secondary>nucleus_interface_surface<\/secondary>/);
   assert.match(xml, /<SurfacePair name="cell_dish_pair">/);
-  assert.match(xml, /<secondary surface="dish_contact_surface"\/>/);
+  assert.match(xml, /<secondary>dish_contact_surface<\/secondary>/);
+  assert.match(xml, /<MeshDomains>/);
+  assert.match(xml, /<SolidDomain name="nucleus" mat="nucleus" \/>/);
+  assert.match(xml, /<SolidDomain name="pipette" mat="pipette_rigid" \/>/);
   assert.match(xml, /<Boundary>/);
-  assert.match(xml, /<fix name="dish_fixed" node_set="dish_fixed_nodes" bc="x,y,z"\/>/);
-  assert.match(xml, /<prescribe name="pipette_lift_z" node_set="pipette_contact_nodes" bc="z" lc="101" type="relative">8\.000000<\/prescribe>/);
-  assert.match(xml, /<prescribe name="pipette_inward_x" node_set="pipette_contact_nodes" bc="x" lc="102" type="relative">4\.000000<\/prescribe>/);
-  assert.match(xml, /<prescribe name="pipette_tangent_y" node_set="pipette_contact_nodes" bc="y" lc="103" type="relative">7\.500000<\/prescribe>/);
+  assert.match(xml, /<bc name="dish_fixed" node_set="dish_fixed_nodes" type="zero displacement">/);
+  assert.match(xml, /<z_dof>1<\/z_dof>/);
+  assert.match(xml, /<Rigid>/);
+  assert.match(xml, /<rb>pipette_rigid<\/rb>/);
+  assert.match(xml, /<value>8\.000000<\/value>/);
+  assert.match(xml, /<value>-1\.800000<\/value>/);
+  assert.match(xml, /<value>-2\.200000<\/value>/);
   assert.match(xml, /<Loads>/);
-  assert.match(xml, /<nodal_load name="hold_force_proxy" surface="pipette_contact_surface" lc="201" status="proxy-load \/ not pressure-driven">20\.000000<\/nodal_load>/);
-  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_contact_surface" type="pressure" lc="202" status="solver-active pressure-driven suction" unit="kPa" direction="inward-negative-pressure" magnitude="0\.700000">-0\.700000<\/surface_load>/);
+  assert.match(xml, /nodal_load hold_force_proxy surface=pipette_contact_surface lc=201 status=proxy-load \/ not pressure-driven value=20\.000000/);
+  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_contact_surface" type="pressure">/);
+  assert.match(xml, /<pressure lc="5">-0\.700000<\/pressure>/);
   assert.match(xml, /<LoadData>/);
-  assert.match(xml, /<load_controller id="101" name="lift_ramp" type="linear">/);
-  assert.match(xml, /<load_controller id="202" name="suction_pressure_curve" type="linear" unit="kPa">/);
+  assert.match(xml, /<load_controller id="1" name="lift_ramp" type="loadcurve">/);
+  assert.match(xml, /<load_controller id="5" name="suction_pressure_curve" type="loadcurve">/);
+  assert.match(xml, /<logfile>/);
+  assert.match(xml, /<node_data name="nucleus_nodes" file="febio_nucleus_nodes\.csv" data="ux;uy;uz" delim=",">/);
+  assert.match(xml, /<rigid_body_data name="pipette_rigid_body" file="febio_rigid_pipette\.csv" data="x;y;z;Fx;Fy;Fz" delim=",">4<\/rigid_body_data>/);
+  assert.match(xml, /derived_data name="pipette_aspiration_length" metric="L\(t\)" unit="um" payload="aspiration\.length" source="native-node-displacement"/);
   assert.match(xml, /<step id="1" name="approach">/);
+  assert.match(xml, /<Control>/);
   assert.match(xml, /type="viscoelastic"/);
+  assert.match(xml, /<elastic type="neo-Hookean">/);
   assert.match(xml, /<E>20\.000000<\/E>/);
-  assert.match(xml, /<nu>0\.340000<\/nu>/);
-  assert.match(xml, /<eta>4\.200000<\/eta>/);
+  assert.match(xml, /<v>0\.340000<\/v>/);
+  assert.match(xml, /viscosity eta=4\.200000/);
   assert.match(xml, /<E>7\.500000<\/E>/);
-  assert.match(xml, /<nu>0\.410000<\/nu>/);
-  assert.match(xml, /<eta>5\.600000<\/eta>/);
+  assert.match(xml, /<v>0\.410000<\/v>/);
+  assert.match(xml, /viscosity eta=5\.600000/);
   assert.match(xml, /<g1>/);
   assert.match(xml, /<t1>/);
   assert.match(xml, /<var type="contact traction" surface="nucleus_interface_left_surface"\/>/);
+  assert.match(xml, /<Contact>/);
   assert.match(xml, /<contact name="nucleus_cytoplasm_interface" type="sticky" surface_pair="nucleus_cytoplasm_pair">/);
   assert.match(xml, /<contact name="cell_dish_interface" type="tied-elastic" surface_pair="cell_dish_pair">/);
-  assert.match(xml, /<normal_stiffness>1\.550000<\/normal_stiffness>/);
-  assert.match(xml, /<fracture_energy>0\.350000<\/fracture_energy>/);
+  assert.match(xml, /<penalty>1\.550000<\/penalty>/);
+  assert.match(xml, /fractureEnergy=0\.350000/);
   assert.match(xml, /solver-primary cohesive approximation/);
   assert.match(xml, /<penalty>/);
-  assert.match(xml, /<search_tol>/);
+  assert.match(xml, /<search_tolerance>/);
   assert.match(xml, /<maxaug>12<\/maxaug>/);
   assert.match(xml, /ramp approach: normalPenalty=/);
   assert.match(xml, /cohesive criticalNormalStress=/);
-  assert.match(xml, /<face_data name="nucleus_cytoplasm_left_surface" file="febio_interface_nc_left\.csv"\/>/);
+  assert.match(xml, /<face_data name="nucleus_cytoplasm_left_surface" file="febio_interface_nc_left\.csv" data="contact gap;contact pressure" delim="," surface="nucleus_interface_left_surface" \/>/);
   assert.match(xml, /<DiscreteSet name="nucleus_cytoplasm_left_springs">/);
   assert.match(xml, /cohesive discrete sidecar \(not solver-active yet\)/);
   assert.match(xml, /discrete_material nucleus_cytoplasm_left_springs_material type=nonlinear spring/);
@@ -336,6 +378,8 @@ test("refined mesh validation report is produced", async () => {
   assert.equal(report.requiredDomains.cytoplasm, "present");
   assert.equal(report.requiredDomains.dish, "present");
   assert.equal(report.requiredDomains.pipette, "present");
+  assert.equal(report.requiredNodeSets.dish_fixed_nodes, "present");
+  assert.equal(report.requiredNodeSets.pipette_contact_nodes, "present");
   assert.equal(report.requiredSurfaces.pipette_contact_surface, true);
   assert.equal(report.requiredSurfacePairs.nucleus_cytoplasm_pair.primary, true);
   assert.equal(report.requiredSurfacePairs.cell_dish_pair.secondary, true);
@@ -358,6 +402,10 @@ test("mesh validation rejects missing solver-active domains and required surface
       dish_contact_surface: [],
       pipette_contact_surface: [],
     },
+    nodeSets: {
+      ...mesh.nodeSets,
+      pipette_contact_nodes: [],
+    },
     surfacePairs: {
       ...mesh.surfacePairs,
       cell_dish_pair: {
@@ -370,6 +418,7 @@ test("mesh validation rejects missing solver-active domains and required surface
   assert.equal(report.valid, false);
   assert.match(report.invalidElements.join("\n"), /nucleus element set must be non-empty/);
   assert.match(report.invalidElements.join("\n"), /pipette element set must be non-empty/);
+  assert.match(report.invalidElements.join("\n"), /pipette_contact_nodes node set must be non-empty/);
   assert.match(report.invalidElements.join("\n"), /dish_contact_surface surface must be present and non-empty/);
   assert.match(report.invalidElements.join("\n"), /pipette_contact_surface surface must be present and non-empty/);
   assert.match(report.invalidElements.join("\n"), /cell_dish_pair secondary surface must be dish_contact_surface/);
@@ -962,14 +1011,15 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(progress, /pressure-driven pipette suction/);
   assert.match(progress, /aspiration length L\(t\) output/);
   assert.match(progress, /## 次の3手/);
-  assert.match(progress, /implemented-infrastructure \/ partial-physics/);
+  assert.match(progress, /implemented-infrastructure \/ output-contract-complete/);
   assert.match(progress, /Stage S1: Solver-active mesh completeness/);
   assert.match(progress, /um-s-kPa-nN|µm-s-kPa-nN/);
 
   assert.match(codebase, /src\/model\/schema\.ts/);
   assert.match(codebase, /src\/febio\/export\/index\.ts/);
   assert.match(codebase, /generated\/dist\/browser\/main\.js/);
-  assert.match(progress, /solver-active mesh completeness is not yet proven/);
+  assert.match(progress, /solver-native load\/contact activation is incomplete/);
+  assert.match(progress, /Stage S6: True cohesive\/failure preparation \| completed-with-residual/);
   assert.match(progress, /native interface traction\/damage output/);
   assert.match(progress, /canonical public API/);
   assert.match(progress, /Sticky cohesive validation comes after mesh \/ load \/ output are physically established/);

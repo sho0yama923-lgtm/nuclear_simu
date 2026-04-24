@@ -403,10 +403,23 @@ function buildSnapshotsByName(runDir, logOutputs) {
   return lookup;
 }
 
+function getLogOutputSpecs(templateData) {
+  const outputs = templateData.outputs || {};
+  const logOutputs = templateData.logOutputs || {};
+  return {
+    nodeData: logOutputs.nodeData || outputs.nodeData || [],
+    rigidBodyData: logOutputs.rigidBodyData || outputs.rigidBodyData || [],
+    faceData: logOutputs.faceData || outputs.faceData || [],
+    plotfileSurfaceData: logOutputs.plotfileSurfaceData || outputs.plotfileSurfaceData || [],
+    aspiration: logOutputs.aspiration || outputs.aspiration || null,
+  };
+}
+
 function buildOutputMappingSummary(templateData) {
-  const faceDataSource = templateData.outputs?.faceData || templateData.logOutputs?.faceData || [];
-  const plotfileSurfaceSource =
-    templateData.outputs?.plotfileSurfaceData || templateData.logOutputs?.plotfileSurfaceData || [];
+  const logOutputSpecs = getLogOutputSpecs(templateData);
+  const faceDataSource = logOutputSpecs.faceData;
+  const plotfileSurfaceSource = logOutputSpecs.plotfileSurfaceData;
+  const interfaceRegions = templateData.interfaceRegions || { localNc: {}, localCd: {} };
   const faceDataSpecs = Object.fromEntries(
     faceDataSource.map((entry) => [entry.name, entry]),
   );
@@ -440,8 +453,33 @@ function buildOutputMappingSummary(templateData) {
         ],
       },
     },
+    aspiration: logOutputSpecs.aspiration
+      ? {
+          metric: logOutputSpecs.aspiration.metric || "L(t)",
+          unit: logOutputSpecs.aspiration.unit || "um",
+          source: logOutputSpecs.aspiration.preferredSource || "native-node-displacement",
+          payloadPath: logOutputSpecs.aspiration.payloadPath || "aspiration.length",
+          historyPath: logOutputSpecs.aspiration.historyPath || "history[].aspirationLength",
+          peakPath: logOutputSpecs.aspiration.peakPath || "peaks.peakAspirationLength",
+          definition: logOutputSpecs.aspiration.definition || null,
+          mapsTo: logOutputSpecs.aspiration.mapsTo || [
+            "history[].aspirationLength",
+            "aspiration.length",
+            "peaks.peakAspirationLength",
+          ],
+        }
+      : {
+          metric: "L(t)",
+          unit: "um",
+          source: "unavailable",
+          payloadPath: "aspiration.length",
+          historyPath: "history[].aspirationLength",
+          peakPath: "peaks.peakAspirationLength",
+          definition: null,
+          mapsTo: [],
+        },
     localNc: Object.fromEntries(
-      Object.entries(templateData.interfaceRegions.localNc).map(([region, mapping]) => [
+      Object.entries(interfaceRegions.localNc).map(([region, mapping]) => [
         region,
         (() => {
           const faceSpec = pickFaceSpec(`nucleus_cytoplasm_${region}_surface`);
@@ -482,7 +520,7 @@ function buildOutputMappingSummary(templateData) {
       ]),
     ),
     localCd: Object.fromEntries(
-      Object.entries(templateData.interfaceRegions.localCd).map(([region, mapping]) => [
+      Object.entries(interfaceRegions.localCd).map(([region, mapping]) => [
         region,
         (() => {
           const faceSpec = pickFaceSpec(`cell_dish_${region}_surface`);
@@ -669,6 +707,14 @@ function getPipetteTipOffsetZ(templateData, inputSpec) {
     Math.max(inputSpec.geometry.Hn * 0.8, inputSpec.geometry.rp * 3);
   const initialTipZ = centerOfMass[2] * 2 - pipetteTop;
   return centerOfMass[2] - initialTipZ;
+}
+
+function computeAspirationLength(nucleusValues, cellValues) {
+  const inwardDisplacements = [
+    -(Number(nucleusValues?.[0]) || 0),
+    -(Number(cellValues?.[0]) || 0),
+  ].filter((value) => Number.isFinite(value));
+  return Math.max(0, ...inwardDisplacements);
 }
 
 function computeRegionInterfaceState(region, leftSeries, rightSeries, params, crits) {
@@ -1246,6 +1292,7 @@ function buildHistoryFromSnapshots(
     const damageCd = Math.max(...Object.values(cdState).map((state) => state.damage), 0);
     const damageMembrane = Math.max(...Object.values(membraneRegions).map((state) => state.damage), 0);
     const membraneStress = Math.max(...Object.values(membraneRegions).map((state) => state.stress), 0);
+    const aspirationLength = computeAspirationLength(nucleusValues, cellValues);
     const detachmentMetrics = buildDetachmentMetricsFromLocalState(ncState, {
       nucleus: Math.hypot(nucleusValues[0] || 0, nucleusValues[1] || 0),
     });
@@ -1270,6 +1317,7 @@ function buildHistoryFromSnapshots(
       membraneStress,
       membraneStrain: membraneStress / Math.max(inputSpec.membrane.sig_m_crit || 1, 1e-6),
       detachmentMetrics,
+      aspirationLength,
       holdForce,
       tangentialOffset: 0,
     };
@@ -1302,7 +1350,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
   }
   const febioInputSpec = sandbox.buildFebioInputSpec(caseName, params, inputSpec);
   const templateData = febioInputSpec.febioTemplateData;
-  const logs = buildSnapshotsByName(runDir, templateData.logOutputs || {});
+  const logs = buildSnapshotsByName(runDir, getLogOutputSpecs(templateData));
   const outputMapping = buildOutputMappingSummary(templateData);
 
   const nucleusSeries = logs.nucleus_nodes || [];
@@ -1380,6 +1428,29 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     tangentNucleus: 0,
   };
   const detachmentMetrics = buildDetachmentMetricsFromLocalState(localNc, displacements);
+  const history = buildHistoryFromSnapshots(
+    sandbox,
+    inputSpec,
+    templateData,
+    nucleusSeries,
+    cellSeries,
+    rigidSeries,
+    localNcTimeline,
+    localCdTimeline,
+  );
+  const peakAspirationLength = history.reduce(
+    (maxValue, entry) => Math.max(maxValue, Number(entry.aspirationLength || 0)),
+    0,
+  );
+  const aspiration = {
+    length: history.length ? Number(history[history.length - 1].aspirationLength || 0) : 0,
+    peakLength: peakAspirationLength,
+    unit: outputMapping.aspiration.unit,
+    source: outputMapping.aspiration.source,
+    pressure: canonicalSpec?.operation?.P_hold ?? params.P_hold ?? null,
+    pressureUnit: canonicalSpec?.coordinates?.pressureUnit || "kPa",
+    mapping: outputMapping.aspiration,
+  };
   const interfaceObservationSummary = buildInterfaceObservationSummary(
     outputMapping,
     localNc,
@@ -1398,16 +1469,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     params: sandbox.structuredClone(params),
     parameterDigest: inputSpec.parameterDigest,
     schedule: inputSpec.schedule,
-    history: buildHistoryFromSnapshots(
-      sandbox,
-      inputSpec,
-      templateData,
-      nucleusSeries,
-      cellSeries,
-      rigidSeries,
-      localNcTimeline,
-      localCdTimeline,
-    ),
+    history,
     events: {},
     damage,
     peaks: {
@@ -1417,6 +1479,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
       peakCdShear: Math.max(...Object.values(localCd).map((state) => state.peakShear), 0),
       peakContactForce: maxContactForce,
       peakHoldForce: maxContactForce,
+      peakAspirationLength,
       peakMembraneStrain: Math.max(...Object.values(membraneRegions).map((state) => state.stress), 0),
       peakCytoplasmStress: Math.max(...Object.values(localCd).map((state) => state.peakNormal), 0),
       peakMomentProxy: maxContactForce * Math.abs(params.xp || 0),
@@ -1426,6 +1489,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     membraneRegions,
     displacements,
     detachmentMetrics,
+    aspiration,
     captureEstablished: maxContactForce > 0.05,
     captureMaintained: maxContactForce > 0.05,
     isPhysicalFebioResult: true,
@@ -1460,10 +1524,12 @@ function buildResultFromLogs(sandbox, payload, runDir) {
       dataSources: {
         localNc: localNcSourceSummary,
         localCd: localCdSourceSummary,
+        aspiration: aspiration.source,
         membrane: "proxy-from-localNc",
         detachment: detachmentMetrics.provenance,
       },
       interfaceObservation: interfaceObservationSummary,
+      aspiration,
     },
   };
 
