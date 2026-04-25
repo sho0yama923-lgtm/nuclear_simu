@@ -1,50 +1,42 @@
 # FEBio 実行手順
 
-FEBio 実行と確認の手順です。bridge の詳細は [FEBIO_UI_BRIDGE.md](FEBIO_UI_BRIDGE.md)、契約は [BRIDGE_CONTRACT.md](BRIDGE_CONTRACT.md) を参照してください。
+FEBio 実行と確認の手順です。現在の active export path は [FEBIO_PATH_OWNERSHIP.md](FEBIO_PATH_OWNERSHIP.md) を参照してください。退役済み bridge の詳細は [../../legacy/docs/febio/FEBIO_UI_BRIDGE.md](../../legacy/docs/febio/FEBIO_UI_BRIDGE.md)、契約は [../../legacy/docs/febio/BRIDGE_CONTRACT.md](../../legacy/docs/febio/BRIDGE_CONTRACT.md) に移動しています。
 
-## 推奨 UI 実行
+## 推奨 native-only export
 
-1. bridge を起動する。
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/start_febio_bridge.ps1 -OpenApp
+```bash
+node scripts/export_febio_native_case.mjs --case febio_cases/native/S7_baseline.native.json --out-dir febio_exports/S7_native_baseline
 ```
 
-2. [http://127.0.0.1:8765/](http://127.0.0.1:8765/) を開く。
-3. UI から `FEBio実行` を押す。
-4. physical result が表示されることを確認する。
+生成される主要 artifact:
 
-## FEBio 実行ファイルを指定する場合
+- `febio_exports/S7_native_baseline/S7_native_baseline.feb`
+- `febio_exports/S7_native_baseline/S7_native_baseline_effective_native_spec.json`
+- `febio_exports/S7_native_baseline/S7_native_baseline_native_model.json`
+- `febio_exports/S7_native_baseline/S7_native_baseline_manifest.json`
+- `febio_exports/S7_native_baseline/S7_native_baseline_README.txt`
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/start_febio_bridge.ps1 -FebioExe "C:\Program Files\FEBioStudio\bin\febio4.exe" -OpenApp
-```
+## FEBio CLI / Studio 確認
 
-## CLI 変換の基本
+manifest の `commands.febioCli` と `studioConfirmation` を確認対象にする。
 
-export / run / convert の中心は次です。
+実行補助として残すもの:
 
-- `scripts/export_febio_case.mjs`
 - `scripts/run_febio_case.ps1`
-- `scripts/convert_febio_output.mjs`
 
-結果 JSON は app result schema に寄せられ、UI では normalized physical result として読む。
+旧 UI bridge / canonical export / converter は legacy / compatibility 扱い。必要なときだけ `legacy/` と `docs/febio/FEBIO_PATH_OWNERSHIP.md` を確認する。
 
 ## 確認ポイント
 
 - `.feb` が生成されている。
 - FEBio CLI が `NORMAL TERMINATION` まで到達している。
-- `case_*_result.json` が生成されている。
-- `outputMapping` と `resultProvenance.interfaceObservation` が含まれている。
-- `localNc` / `localCd` の native / proxy provenance が消えていない。
-- classification が detachment 定義と矛盾していない。
+- effective native spec と native model JSON が保存されている。
+- manifest に expected log / xplt / CSV / result JSON path が含まれている。
 
 ## 失敗時に見るもの
 
-- bridge status / `/health`
-- `generated/febio_exports/ui_bridge/case_*/run/`
+- `febio_exports/S7_native_baseline/S7_native_baseline_manifest.json`
 - FEBio CLI log
-- converter の error
-- `parameterDigest` mismatch
+- Studio の surface orientation / pressure sign / contact pair 表示
 
 `generated/**` は調査用出力であり、恒久的な source-of-truth ではない。

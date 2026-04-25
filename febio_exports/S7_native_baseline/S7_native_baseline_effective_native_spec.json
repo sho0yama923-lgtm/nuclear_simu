@@ -1,0 +1,168 @@
+{
+  "caseName": "S7_native_baseline",
+  "unitSystem": "um-nN-s",
+  "geometry": {
+    "nucleus": {
+      "width": 28,
+      "height": 18,
+      "center": {
+        "x": 0,
+        "z": 17
+      }
+    },
+    "cytoplasm": {
+      "width": 52,
+      "height": 34
+    },
+    "pipette": {
+      "radius": 6.5,
+      "puncture": {
+        "x": 4.5,
+        "z": 8.5
+      },
+      "tip": {
+        "x": 14,
+        "z": 8.5
+      }
+    },
+    "meshMode": "s7-debug-local-nucleus"
+  },
+  "materials": {
+    "nucleus": {
+      "type": "viscoelastic",
+      "E": 20,
+      "nu": 0.34,
+      "eta": 4.2,
+      "alphaNonlinear": 0.12
+    },
+    "cytoplasm": {
+      "type": "viscoelastic",
+      "E": 7.5,
+      "nu": 0.41,
+      "eta": 5.6
+    },
+    "dish": {
+      "type": "neo-Hookean",
+      "E": 250,
+      "nu": 0.3
+    },
+    "pipette": {
+      "type": "rigid body",
+      "density": 1,
+      "E": 600,
+      "nu": 0.25
+    }
+  },
+  "contacts": {
+    "nucleusCytoplasm": {
+      "type": "sticky",
+      "normalStiffness": 1.35,
+      "tangentialStiffness": 1.05,
+      "criticalNormalStress": 0.78,
+      "criticalShearStress": 0.58,
+      "fractureEnergy": 0.28
+    },
+    "cellDish": {
+      "type": "tied-elastic",
+      "normalStiffness": 1.55,
+      "tangentialStiffness": 1.25,
+      "criticalNormalStress": 0.95,
+      "criticalShearStress": 0.65,
+      "fractureEnergy": 0.35
+    },
+    "pipetteNucleus": {
+      "type": "sticky",
+      "tolerance": 0.2,
+      "searchTolerance": 2.2,
+      "friction": 0.26,
+      "maxTraction": 1,
+      "snapTolerance": 0.18
+    },
+    "pipetteCell": {
+      "type": "sliding-elastic",
+      "tolerance": 0.2,
+      "searchTolerance": 2.64,
+      "friction": 0.091
+    }
+  },
+  "loads": {
+    "suctionPressure": {
+      "name": "pipette_suction_pressure",
+      "surface": "pipette_suction_surface",
+      "value": -0.7,
+      "unit": "kPa",
+      "loadController": 202,
+      "curve": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          5,
+          1
+        ]
+      ],
+      "magnitude": 0.7
+    },
+    "holdForceProxy": {
+      "value": 20,
+      "loadController": 201
+    }
+  },
+  "boundary": {
+    "fixedNodeSet": "dish_fixed_nodes",
+    "pipetteMotion": {
+      "liftZ": 8,
+      "inwardX": 4,
+      "tangentY": 7.5
+    }
+  },
+  "steps": [
+    {
+      "id": 1,
+      "name": "approach"
+    },
+    {
+      "id": 2,
+      "name": "hold"
+    },
+    {
+      "id": 3,
+      "name": "lift"
+    },
+    {
+      "id": 4,
+      "name": "manipulation-1"
+    },
+    {
+      "id": 5,
+      "name": "manipulation-2"
+    }
+  ],
+  "outputs": {
+    "displacement": true,
+    "reactionForce": true,
+    "contactPressure": true,
+    "contactGap": true,
+    "contactTraction": true,
+    "aspirationLength": true
+  },
+  "diagnostics": {
+    "targets": [
+      "pressure-load-declared",
+      "pressure-load-step-active",
+      "contact-pair-declared",
+      "contact-pressure-nonzero",
+      "reaction-force-nonzero",
+      "displacement-nonzero"
+    ]
+  }
+}

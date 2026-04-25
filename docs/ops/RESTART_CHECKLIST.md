@@ -21,7 +21,7 @@
 ## FEBio 実行経路を触るとき
 
 1. [../febio/RUNBOOK.md](../febio/RUNBOOK.md)
-2. [../febio/BRIDGE_CONTRACT.md](../febio/BRIDGE_CONTRACT.md)
+2. [../../legacy/docs/febio/BRIDGE_CONTRACT.md](../../legacy/docs/febio/BRIDGE_CONTRACT.md)
 3. [../febio/FEBIO_OUTPUT_MAPPING.md](../febio/FEBIO_OUTPUT_MAPPING.md)
 4. [../VALIDATION_MATRIX.md](../VALIDATION_MATRIX.md)
 

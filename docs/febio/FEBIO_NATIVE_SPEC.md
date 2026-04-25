@@ -249,11 +249,11 @@ S7-C 時点の実装入口:
   - 旧 canonical flow は `runCanonicalSimulation` として明示的に残す。
 - `scripts/export_febio_direct_case.mjs`
   - FEBio-native spec JSON から `.feb` / native spec JSON / manifest / README を生成する。
-  - 既定出力例: `febio_exports/S7_native_migration_check/S7_direct_force_transfer.feb`
+  - 既定出力例: `legacy/febio_exports/S7_native_migration_check/S7_direct_force_transfer.feb`
 - `scripts/convert_febio_output.mjs`
   - FEBio-native direct input の `nativeSpec` / `templateData` / `fdig_*` を保持して result JSON を生成する。
 
-`febio_exports/S7_native_migration_check/` の確認 run では FEBio 4.12 で read success / normal termination し、nucleus-side suction surface、rigid reaction、native digest preserving conversion が成立した。final contact pressure は `0.734967195035`、final rigid `Fx=12.6000069265`、converted aspiration length は `5.09470348295 um`。残る residual は `cell_dish_interface` の no-pair warning、後半 step の `No force acting on the system` warning、debug mesh の粗さ。
+`legacy/febio_exports/S7_native_migration_check/` の確認 run では FEBio 4.12 で read success / normal termination し、nucleus-side suction surface、rigid reaction、native digest preserving conversion が成立した。final contact pressure は `0.734967195035`、final rigid `Fx=12.6000069265`、converted aspiration length は `5.09470348295 um`。残る residual は `cell_dish_interface` の no-pair warning、後半 step の `No force acting on the system` warning、debug mesh の粗さ。
 
 ## Related files
 
@@ -261,7 +261,7 @@ S7-C 時点の実装入口:
 - `PROGRESS.md`
 - `docs/ops/ROADMAP.md`
 - `docs/ops/STUDIO_CONFIRMATION_GATES.md`
-- `docs/febio/PARAMETER_MAPPING.md`
+- `legacy/docs/febio/PARAMETER_MAPPING.md`
 - `src/febio/spec/`
 - `src/febio/export/`
 - `src/febio/mesh/`

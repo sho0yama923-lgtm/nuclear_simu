@@ -29,10 +29,10 @@
 
 - [../febio/FEBIO_MODELING_POLICY.md](../febio/FEBIO_MODELING_POLICY.md)
 - [../febio/INTERFACE_MODEL.md](../febio/INTERFACE_MODEL.md)
-- [../febio/BRIDGE_CONTRACT.md](../febio/BRIDGE_CONTRACT.md)
+- [../../legacy/docs/febio/BRIDGE_CONTRACT.md](../../legacy/docs/febio/BRIDGE_CONTRACT.md)
 - [../febio/RUNBOOK.md](../febio/RUNBOOK.md)
 - [../febio/FEBIO_OUTPUT_MAPPING.md](../febio/FEBIO_OUTPUT_MAPPING.md)
-- [../febio/PARAMETER_MAPPING.md](../febio/PARAMETER_MAPPING.md)
+- [../../legacy/docs/febio/PARAMETER_MAPPING.md](../../legacy/docs/febio/PARAMETER_MAPPING.md)
 
 ## 判断理由が増えるとき
 

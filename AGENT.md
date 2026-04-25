@@ -8,7 +8,8 @@
 4. `PROGRESS.md` when touching physics model, main flow, classification, export/import, or proxy/native dependencies
 5. `docs/ops/STUDIO_CONFIRMATION_GATES.md` when touching FEBio Studio-visible geometry, contact, pressure, load activation, or real-run force/response validation
 6. `docs/febio/FEBIO_NATIVE_SPEC.md` when touching FEBio solver parameters, direct FEBio input, UI parameter conversion, or FEBio-native CLI/backend validation
-7. `TASK_REQUEST_TEMPLATE.md` when shaping a new bounded task request
+7. `docs/febio/FEBIO_PATH_OWNERSHIP.md` before touching FEBio export paths, to confirm active vs legacy ownership
+8. `TASK_REQUEST_TEMPLATE.md` when shaping a new bounded task request
 
 ## Role
 
@@ -49,13 +50,14 @@ This file is the stable operating contract for Codex / AI agents in this reposit
 
 Source-of-truth map:
 
-- parameter schema: `src/model/schema.ts` for the current canonical / compatibility path
-- FEBio-native direct parameter path: `docs/febio/FEBIO_NATIVE_SPEC.md` for policy and `src/febio/spec/` for implementation
-- mesh generation: `src/febio/mesh/`
-- nucleus-cytoplasm interface: `src/febio/interfaces/nucleusCytoplasm.ts`
-- FEBio export: `src/febio/export/`
-- result normalization: `src/febio/import/normalizeFebioResult.ts`
-- classification: `src/results/classification.ts`
+- active FEBio export path: `docs/febio/FEBIO_PATH_OWNERSHIP.md`, `febio_cases/native/*.native.json`, `src/febio/native/`, and `scripts/export_febio_native_case.mjs`
+- legacy / compatibility parameter schema: `src/model/schema.ts`
+- legacy / compatibility FEBio-native direct parameter path: `src/febio/spec/`
+- legacy / compatibility shared mesh generation: `src/febio/mesh/`
+- legacy / compatibility nucleus-cytoplasm interface: `src/febio/interfaces/nucleusCytoplasm.ts`
+- legacy / compatibility FEBio template export: `src/febio/export/`
+- legacy / compatibility result normalization: `src/febio/import/normalizeFebioResult.ts`
+- legacy / compatibility classification: `src/results/classification.ts`
 
 Rules:
 
@@ -64,6 +66,22 @@ Rules:
 - Source-of-truth files must include a `SOURCE OF TRUTH` comment.
 - If the source of truth is a directory, provide a public entrypoint such as `index.ts` or `README`.
 - Keep the detailed source map in `docs/CODEBASE_STRUCTURE.md` aligned with this rule set.
+
+## FEBio Active Path Lock
+
+Purpose:
+
+- make the S7-D native-only exporter the only active FEBio output path
+- prevent future solver work from drifting back into canonical, public API, browser bridge, or old direct exporter code
+- preserve legacy paths only for explicit compatibility maintenance
+
+Rules:
+
+- For FEBio export work, read `docs/febio/FEBIO_PATH_OWNERSHIP.md` before editing.
+- New FEBio solver behavior, pressure/contact behavior, output declarations, manifests, or `.feb` serialization must go through `febio_cases/native/*.native.json`, `src/febio/native/`, and `scripts/export_febio_native_case.mjs`.
+- Treat all other FEBio-related paths as legacy / compatibility unless the user explicitly asks for a compatibility fix.
+- Do not edit legacy paths just to make the active native-only path easier to implement.
+- If a legacy edit is unavoidable, keep it minimal and record the exception in `PROGRESS.md`.
 
 ## File Responsibility Contract
 

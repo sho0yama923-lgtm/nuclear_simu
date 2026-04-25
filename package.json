@@ -5,6 +5,6 @@
   "scripts": {
     "build": "node scripts/build-dist.mjs",
     "check:src": "node --experimental-strip-types -e \"import('./src/public-api.ts')\"",
-    "test": "node scripts/build-dist.mjs && node --test --experimental-test-isolation=none tests/febio-front-end.test.mjs"
+    "test": "node scripts/build-dist.mjs && node --test --experimental-test-isolation=none tests/febio-front-end.test.mjs tests/febio-native-pipeline.test.mjs"
   }
 }

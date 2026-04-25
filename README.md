@@ -4,45 +4,49 @@
 
 ## 概要
 
-このリポジトリは、UI 入力から canonical spec を作り、FEBio 用 `.feb` を export し、FEBio CLI の結果を正規化して表示する流れを扱います。現在の main path は次です。
+このリポジトリの現在の main path は、FEBio-native case JSON から直接 FEBio `.feb` と handoff artifacts を生成する native-only 経路です。旧 UI / canonical / direct exporter / browser bridge は legacy / compatibility 扱いです。
 
-1. UI input
-2. canonical spec
-3. FEBio template / `.feb` XML
-4. FEBio CLI execution
-5. normalized result import
-6. physical result rendering
+1. `febio_cases/native/*.native.json`
+2. `src/febio/native/`
+3. `scripts/export_febio_native_case.mjs`
+4. `febio_exports/<case>/<case>.feb`
+5. FEBio CLI / Studio confirmation
+
+現在の主要ファイルは [ACTIVE_FILES.md](ACTIVE_FILES.md) にまとめています。退役済みの docs / historical exports は [legacy/](legacy/) にあります。
 
 ## 最初に読むもの
 
 1. [AGENT.md](AGENT.md)
-2. [docs/CODEBASE_STRUCTURE.md](docs/CODEBASE_STRUCTURE.md)
-3. relevant `.skills/**/SKILL.md`
-4. [PROGRESS.md](PROGRESS.md)
+2. [ACTIVE_FILES.md](ACTIVE_FILES.md)
+3. [docs/CODEBASE_STRUCTURE.md](docs/CODEBASE_STRUCTURE.md)
+4. [docs/febio/FEBIO_PATH_OWNERSHIP.md](docs/febio/FEBIO_PATH_OWNERSHIP.md)
+5. [PROGRESS.md](PROGRESS.md)
 
 ## 最低限のコマンド
 
 - build: `node scripts/build-dist.mjs`
-- source parse check: `node --experimental-strip-types -e "import('./src/public-api.ts')"`
-- tests: `node --test tests/*.test.mjs`
-- npm wrapper: `cmd /c npm.cmd test`
-- FEBio export: `node scripts/export_febio_case.mjs --case A --out-dir <dir>`
+- native-only tests: `node --test --experimental-test-isolation=none tests/febio-native-pipeline.test.mjs`
+- full current regression: `node --test --experimental-test-isolation=none tests/febio-front-end.test.mjs tests/febio-native-pipeline.test.mjs`
+- FEBio native export: `node scripts/export_febio_native_case.mjs --case febio_cases/native/S7_baseline.native.json --out-dir febio_exports/S7_native_baseline`
 
 ## ドキュメント入口
 
 - 現在状態と再開位置: [PROGRESS.md](PROGRESS.md)
+- 現在の主要ファイル: [ACTIVE_FILES.md](ACTIVE_FILES.md)
 - AI / Codex 向け運用原則: [AGENT.md](AGENT.md)
 - 日常作業の依頼テンプレ: [TASK_REQUEST_TEMPLATE.md](TASK_REQUEST_TEMPLATE.md)
 - repo 構造と source-of-truth: [docs/CODEBASE_STRUCTURE.md](docs/CODEBASE_STRUCTURE.md)
 - 検証方針: [docs/VALIDATION_MATRIX.md](docs/VALIDATION_MATRIX.md)
 - 設計判断: [docs/DECISIONS.md](docs/DECISIONS.md)
 - 研究条件: [docs/research/](docs/research/)
+- FEBio active path ownership: [docs/febio/FEBIO_PATH_OWNERSHIP.md](docs/febio/FEBIO_PATH_OWNERSHIP.md)
 - FEBio 実装仕様: [docs/febio/](docs/febio/)
+- 退役済み資料 / historical exports: [legacy/](legacy/)
 - 日常運用: [docs/ops/](docs/ops/)
 
 ## 大事な前提
 
-- canonical logic は `src/` を編集します。
+- 新しい FEBio solver-facing work は `febio_cases/native/`、`src/febio/native/`、`scripts/export_febio_native_case.mjs` だけを active path として扱います。
+- 旧 UI / canonical / public API / browser bridge / historical export artifacts は legacy / compatibility 扱いです。
 - `generated/` と `tmp/` は生成物・一時出力です。
-- 物理モデル、detachment、classification、export/import の意味を変える変更では [PROGRESS.md](PROGRESS.md) と関連 docs を同じ変更セットで更新します。
-- 2026-04-24 note: Stage 6 is complete. FEBio export / conversion scripts use `src/public-api.ts` directly and do not read legacy JS simulation files. Browser compatibility remains a UI bridge, not a source-of-truth for physics decisions.
+- 物理モデル、contact、pressure、export の意味を変える変更では [PROGRESS.md](PROGRESS.md) と関連 docs を同じ変更セットで更新します。

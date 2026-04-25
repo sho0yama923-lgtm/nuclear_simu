@@ -54,7 +54,7 @@
 
 - `Fhold`, `P_hold` は現在も solver 内部 proxy 的な使い方を含みます
 - UI に書かれている単位と、FEBio XML へそのまま 1:1 で物理換算されていない項目があります
-- 詳細は [../febio/PARAMETER_MAPPING.md](../febio/PARAMETER_MAPPING.md) を参照してください
+- 退役済み UI/canonical mapping の詳細は [../../legacy/docs/febio/PARAMETER_MAPPING.md](../../legacy/docs/febio/PARAMETER_MAPPING.md) を参照してください
 
 ## 3. 幾何モデル
 
@@ -439,9 +439,9 @@ status:
 ## 14. 関連文書
 
 - 進捗管理: [../../PROGRESS.md](../../PROGRESS.md)
-- パラメータ対応: [../febio/PARAMETER_MAPPING.md](../febio/PARAMETER_MAPPING.md)
+- パラメータ対応: [../../legacy/docs/febio/PARAMETER_MAPPING.md](../../legacy/docs/febio/PARAMETER_MAPPING.md)
 - 出力対応: [../febio/FEBIO_OUTPUT_MAPPING.md](../febio/FEBIO_OUTPUT_MAPPING.md)
-- 全体設計: [../febio/FEBIO_FRONTEND_ARCHITECTURE.md](../febio/FEBIO_FRONTEND_ARCHITECTURE.md)
+- 退役済み全体設計: [../../legacy/docs/febio/FEBIO_FRONTEND_ARCHITECTURE.md](../../legacy/docs/febio/FEBIO_FRONTEND_ARCHITECTURE.md)
 - repo 構造: [../CODEBASE_STRUCTURE.md](../CODEBASE_STRUCTURE.md)
 
 ## 15. 更新ルール

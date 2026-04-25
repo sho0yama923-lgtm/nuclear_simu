@@ -20,7 +20,9 @@
 ## コードを伴う変更
 
 - source-of-truth file を先に編集する。
+- FEBio export work では [../febio/FEBIO_PATH_OWNERSHIP.md](../febio/FEBIO_PATH_OWNERSHIP.md) を読み、active path 以外を legacy / compatibility freeze として扱う。
 - compatibility layer は caller / bridge として扱う。
+- legacy freeze 対象は、新しい solver behavior では触らない。互換修正として触る場合は理由を `PROGRESS.md` に残す。
 - native / proxy / planned / legacy / debug を名前や provenance で明示する。
 - `implemented / partial / planned` が変わる場合は `PROGRESS.md` を同じ変更セットで更新する。
 - 主ロードマップの stage status / scope、全体優先順位、補助ロードマップの位置づけが変わる場合は `docs/ops/ROADMAP.md` も同じ変更セットで更新する。

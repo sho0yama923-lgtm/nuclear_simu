@@ -1,5 +1,7 @@
 generated/
 tmp/
+.DS_Store
+**/.DS_Store
 
 *.xplt
 *.log

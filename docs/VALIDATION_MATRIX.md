@@ -57,7 +57,7 @@
 
 - `node --experimental-strip-types -e "import('./src/public-api.ts')"`
 - `node --test tests/*.test.mjs`
-- [febio/BRIDGE_CONTRACT.md](febio/BRIDGE_CONTRACT.md)、[febio/FEBIO_OUTPUT_MAPPING.md](febio/FEBIO_OUTPUT_MAPPING.md)、必要なら [research/CONDITION_MATRIX.md](research/CONDITION_MATRIX.md) の更新。
+- [../legacy/docs/febio/BRIDGE_CONTRACT.md](../legacy/docs/febio/BRIDGE_CONTRACT.md)、[febio/FEBIO_OUTPUT_MAPPING.md](febio/FEBIO_OUTPUT_MAPPING.md)、必要なら [research/CONDITION_MATRIX.md](research/CONDITION_MATRIX.md) の更新。
 - native / proxy provenance が消えていないこと。
 - FEBio script path が legacy JS simulation files を読んでいないこと。
 
