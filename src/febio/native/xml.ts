@@ -154,6 +154,37 @@ function serializeContactToXml(model) {
   const pn = model.contact.pipetteNucleus;
   const pc = model.contact.pipetteCell;
   const cd = model.interfaces.cellDish;
+  const cellDishContact =
+    cd?.solverActive === false
+      ? [
+          `    <!-- cell_dish_interface omitted: status=${escapeXml(cd.status)} reason=${escapeXml(cd.inactiveReason)} -->`
+        ]
+      : [
+          `    <contact name="cell_dish_interface" type="${cd.type}" surface_pair="${cd.surfacePair?.name || "cell_dish_pair"}">`,
+          `      <penalty>${serializeNumber(cd.normalStiffness)}</penalty>`,
+          "      <tolerance>0.050000</tolerance>",
+          `      <!-- cohesive-ready normalStiffness=${serializeNumber(cd.normalStiffness)} tangentialStiffness=${serializeNumber(cd.tangentialStiffness)} -->`,
+          `      <!-- cohesive-ready criticalNormalStress=${serializeNumber(cd.criticalNormalStress)} criticalShearStress=${serializeNumber(cd.criticalShearStress)} fractureEnergy=${serializeNumber(cd.fractureEnergy)} -->`,
+          "    </contact>"
+        ];
+  const pipetteNucleusContact =
+    pn?.solverActive === false
+      ? [
+          `    <!-- pipette_nucleus_contact omitted: status=${escapeXml(pn.status)} reason=${escapeXml(pn.inactiveReason)} -->`
+        ]
+      : [
+          `    <contact name="pipette_nucleus_contact" type="sticky" surface_pair="${pn.surfacePair?.name || ""}">`,
+          `      <penalty>${serializeNumber(pn.penalty)}</penalty>`,
+          "      <laugon>0</laugon>",
+          `      <tolerance>${serializeNumber(pn.tolerance)}</tolerance>`,
+          "      <minaug>0</minaug>",
+          "      <maxaug>10</maxaug>",
+          `      <search_tolerance>${serializeNumber(pn.searchTolerance)}</search_tolerance>`,
+          `      <max_traction>${serializeNumber(pn.maxTraction)}</max_traction>`,
+          `      <snap_tol>${serializeNumber(pn.snapTolerance)}</snap_tol>`,
+          `      <!-- solver-active pipette capture-hold contact status=${escapeXml(pn.status)} friction=${serializeNumber(pn.friction)} releaseTraction=${serializeNumber(pn.releaseCondition?.tractionLimit)} slipDistance=${serializeNumber(pn.releaseCondition?.slipDistance)} -->`,
+          "    </contact>"
+        ];
   return [
     "  <Contact>",
     "    <contact name=\"nucleus_cytoplasm_interface\" type=\"sticky\" surface_pair=\"nucleus_cytoplasm_pair\">",
@@ -169,23 +200,8 @@ function serializeContactToXml(model) {
     `      <!-- cohesive criticalNormalStress=${serializeNumber(nc.criticalNormalStress)} -->`,
     ...(stabilization.ramp || []).map((entry) => `      <!-- ramp ${entry.step}: normalPenalty=${serializeNumber(entry.normalPenalty)} tangentialPenalty=${serializeNumber(entry.tangentialPenalty)} frictionProxy=${serializeNumber(entry.frictionProxy)} -->`),
     "    </contact>",
-    `    <contact name="cell_dish_interface" type="${cd.type}" surface_pair="${cd.surfacePair?.name || "cell_dish_pair"}">`,
-    `      <penalty>${serializeNumber(cd.normalStiffness)}</penalty>`,
-    "      <tolerance>0.050000</tolerance>",
-    `      <!-- cohesive-ready normalStiffness=${serializeNumber(cd.normalStiffness)} tangentialStiffness=${serializeNumber(cd.tangentialStiffness)} -->`,
-    `      <!-- cohesive-ready criticalNormalStress=${serializeNumber(cd.criticalNormalStress)} criticalShearStress=${serializeNumber(cd.criticalShearStress)} fractureEnergy=${serializeNumber(cd.fractureEnergy)} -->`,
-    "    </contact>",
-    `    <contact name="pipette_nucleus_contact" type="sticky" surface_pair="${pn.surfacePair?.name || ""}">`,
-    `      <penalty>${serializeNumber(pn.penalty)}</penalty>`,
-    "      <laugon>0</laugon>",
-    `      <tolerance>${serializeNumber(pn.tolerance)}</tolerance>`,
-    "      <minaug>0</minaug>",
-    "      <maxaug>10</maxaug>",
-    `      <search_tolerance>${serializeNumber(pn.searchTolerance)}</search_tolerance>`,
-    `      <max_traction>${serializeNumber(pn.maxTraction)}</max_traction>`,
-    `      <snap_tol>${serializeNumber(pn.snapTolerance)}</snap_tol>`,
-    `      <!-- solver-active pipette capture-hold contact status=${escapeXml(pn.status)} friction=${serializeNumber(pn.friction)} releaseTraction=${serializeNumber(pn.releaseCondition?.tractionLimit)} slipDistance=${serializeNumber(pn.releaseCondition?.slipDistance)} -->`,
-    "    </contact>",
+    ...cellDishContact,
+    ...pipetteNucleusContact,
     `    <contact name="pipette_cell_contact" type="${pc.type}" surface_pair="${pc.surfacePair?.name || ""}">`,
     `      <penalty>${serializeNumber(pc.penalty)}</penalty>`,
     `      <auto_penalty>${pc.autoPenalty ? 1 : 0}</auto_penalty>`,
@@ -221,10 +237,10 @@ export function serializeNativeModelToFebioXml(model) {
   const inward = model.boundary?.prescribed?.find((entry) => entry.name === "pipette_inward_x")?.value || 0;
   const stepMotion = new Map([
     ["approach", { x: 0, z: -0.35, steps: 60 }],
-    ["hold", { x: 0, z: 0, steps: 40 }],
+    ["hold", { x: 0, z: 0, steps: 1 }],
     ["lift", { x: 0, z: lift, steps: 60, zController: 101 }],
     ["manipulation-1", { x: -(inward * 0.45), z: 0, steps: 90, xController: 102 }],
-    ["manipulation-2", { x: -(inward * 0.55), z: 0, steps: 100, xController: 102 }]
+    ["manipulation-2", { x: -(inward * 0.55), z: 0, steps: 1, xController: 102 }]
   ]);
   const stepXml = (model.steps || []).flatMap((step, index) => {
     const motion = stepMotion.get(step.name) || { x: 0, z: 0, steps: 25 };

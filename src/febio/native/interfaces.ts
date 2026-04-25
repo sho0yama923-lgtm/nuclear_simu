@@ -45,7 +45,7 @@ export function buildNativeInterfaces(spec, mesh) {
   const frictionProxy = clamp(0.12 + (pipetteNucleus.friction || 0) * 0.25, 0.12, 0.28);
   const nucleusCytoplasm = {
     type: nc.type,
-    status: "partial-true-cohesive / sticky-active",
+    status: "partial-true-cohesive / sticky-active / non-augmented",
     mode: "solver-primary cohesive-approximation",
     surfacePair: mesh.surfacePairs.nucleus_cytoplasm_pair,
     normalStiffness: nc.normalStiffness,
@@ -58,7 +58,7 @@ export function buildNativeInterfaces(spec, mesh) {
     stabilization: {
       searchTolerance: 0.08,
       symmetricStiffness: false,
-      augmentation: { enabled: true, minPasses: 0, maxPasses: 12 },
+      augmentation: { enabled: false, minPasses: 0, maxPasses: 0 },
       ramp: buildPenaltyRamp(normalPenalty, tangentialPenalty, frictionProxy)
     },
     cohesiveApproximation: {
@@ -84,8 +84,10 @@ export function buildNativeInterfaces(spec, mesh) {
     nucleusCytoplasm,
     cellDish: {
       type: cellDishSpec.type,
-      status: "partial-cohesive-ready / tied-elastic-active",
-      mode: "solver-primary tied-contact",
+      status: "diagnostic-only / disabled until refined cell-dish mesh",
+      solverActive: false,
+      mode: "surface-output-only",
+      inactiveReason: "Correct opposed cell-dish winding activates the contact but the current coarse debug mesh produces a negative jacobian during lift; keep surfaces and diagnostics, omit solver contact.",
       surfacePair: mesh.surfacePairs.cell_dish_pair,
       normalStiffness: cellDishSpec.normalStiffness,
       tangentialStiffness: cellDishSpec.tangentialStiffness,

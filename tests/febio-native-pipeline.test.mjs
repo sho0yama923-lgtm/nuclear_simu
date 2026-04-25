@@ -24,7 +24,19 @@ test("native-only case builds FEBio model and XML without compatibility entrypoi
   assert.equal(model.effectiveNativeSpec.caseName, "S7_native_baseline");
   assert.ok(model.parameterDigest.startsWith("fdig_"));
   assert.equal(model.geometry.meshValidation.valid, true);
+  assert.equal(model.geometry.meshValidation.coordinateConvention.axes.x.positive, "from cell center toward the pipette/barrel side");
+  assert.equal(model.geometry.meshValidation.surfaceNormalDiagnostics.entries.pipette_suction_surface.actual, "-x");
+  assert.equal(model.geometry.meshValidation.pressureDiagnostics.suctionSurface, "pipette_suction_surface");
+  assert.equal(model.geometry.meshValidation.pressureDiagnostics.surfaceOwnership, "deformable-side capture surface");
+  assert.equal(model.geometry.meshValidation.pressureDiagnostics.negativePressureEffect, "intended to pull toward +x, into the pipette/barrel side");
+  assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.pipette_cell.aligned, true);
+  assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.nc_left.aligned, true);
+  assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.cell_dish_left.aligned, true);
+  assert.deepEqual(model.geometry.meshValidation.conventionWarnings, []);
   assert.equal(model.interfaces.nucleusCytoplasm.normalStiffness, 1.35);
+  assert.equal(model.interfaces.nucleusCytoplasm.stabilization.augmentation.enabled, false);
+  assert.equal(model.interfaces.cellDish.solverActive, false);
+  assert.equal(model.contact.pipetteNucleus.solverActive, true);
   assert.equal(model.loads.pressure[0].value, -0.7);
   assert.equal(model.loads.pressure[0].surface, "pipette_suction_surface");
 
@@ -33,6 +45,9 @@ test("native-only case builds FEBio model and XML without compatibility entrypoi
   assert.match(xml, /<Surface name="pipette_suction_surface">/);
   assert.match(xml, /<SurfacePair name="nucleus_cytoplasm_pair">/);
   assert.match(xml, /<contact name="nucleus_cytoplasm_interface" type="sticky" surface_pair="nucleus_cytoplasm_pair">/);
+  assert.doesNotMatch(xml, /<contact name="cell_dish_interface"/);
+  assert.match(xml, /cell_dish_interface omitted/);
+  assert.match(xml, /<contact name="pipette_nucleus_contact" type="sticky" surface_pair="pipette_nucleus_pair">/);
   assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_surface" type="pressure">/);
   assert.match(xml, /<Boundary>/);
   assert.match(xml, /<Output>/);
@@ -104,4 +119,16 @@ test("FEBio path ownership docs freeze legacy paths outside the native-only expo
   assert.match(workflow, /legacy \/ compatibility freeze/);
   assert.match(combined, /src\/febio\/native\//);
   assert.match(combined, /scripts\/export_febio_native_case\.mjs/);
+});
+
+test("geometry convention docs define active native coordinate and pressure rules", () => {
+  const conventions = fs.readFileSync(path.resolve("docs/febio/GEOMETRY_CONVENTIONS.md"), "utf8");
+
+  assert.match(conventions, /x`: aspiration \/ manipulation axis/);
+  assert.match(conventions, /\+x`: from cell center toward the pipette \/ barrel side/);
+  assert.match(conventions, /FEBio Quad Winding/);
+  assert.match(conventions, /pipette_suction_surface` is the deformable-side capture surface/);
+  assert.match(conventions, /Negative suction pressure is intended to pull toward `\+x`/);
+  assert.match(conventions, /nucleus_cytoplasm_pair/);
+  assert.match(conventions, /conventionWarnings/);
 });

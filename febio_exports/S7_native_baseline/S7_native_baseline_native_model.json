@@ -845,9 +845,9 @@
             "type": "quad4",
             "nodes": [
               1,
-              2,
+              4,
               3,
-              4
+              2
             ]
           },
           {
@@ -855,9 +855,9 @@
             "type": "quad4",
             "nodes": [
               41,
-              42,
+              44,
               43,
-              44
+              42
             ]
           },
           {
@@ -865,9 +865,9 @@
             "type": "quad4",
             "nodes": [
               33,
-              34,
+              36,
               35,
-              36
+              34
             ]
           }
         ],
@@ -889,9 +889,9 @@
             "type": "quad4",
             "nodes": [
               1,
-              2,
+              4,
               3,
-              4
+              2
             ]
           }
         ],
@@ -901,9 +901,9 @@
             "type": "quad4",
             "nodes": [
               41,
-              42,
+              44,
               43,
-              44
+              42
             ]
           }
         ],
@@ -913,9 +913,9 @@
             "type": "quad4",
             "nodes": [
               33,
-              34,
+              36,
               35,
-              36
+              34
             ]
           }
         ],
@@ -1129,7 +1129,284 @@
           "secondary": true,
           "surfacesReady": true
         }
-      }
+      },
+      "coordinateConvention": {
+        "axes": {
+          "x": {
+            "meaning": "aspiration/manipulation axis",
+            "positive": "from cell center toward the pipette/barrel side",
+            "negative": "from pipette mouth toward cell interior"
+          },
+          "y": {
+            "meaning": "section thickness / out-of-plane axis",
+            "positive": "one side of the thin 3D section",
+            "negative": "opposite side of the thin 3D section"
+          },
+          "z": {
+            "meaning": "dish-to-apical vertical axis",
+            "positive": "away from dish / apical",
+            "negative": "toward dish / basal"
+          }
+        },
+        "pressure": {
+          "suctionSurface": "pipette_suction_surface",
+          "surfaceOwnership": "deformable-side capture surface",
+          "rigidMouthSurface": "pipette_contact_surface",
+          "currentSuctionNormal": "-x",
+          "negativePressureEffect": "intended to pull toward +x, into the pipette/barrel side"
+        },
+        "contactPairs": {
+          "nucleus_cytoplasm_pair": {
+            "primary": "cytoplasm_interface_surface",
+            "secondary": "nucleus_interface_surface"
+          },
+          "cell_dish_pair": {
+            "primary": "cell_dish_surface",
+            "secondary": "dish_contact_surface"
+          },
+          "pipette_nucleus_pair": {
+            "primary": "nucleus_interface_right_surface",
+            "secondary": "pipette_contact_surface"
+          },
+          "pipette_cell_pair": {
+            "primary": "pipette_suction_surface",
+            "secondary": "pipette_contact_surface"
+          }
+        }
+      },
+      "surfaceNormalDiagnostics": {
+        "entries": {
+          "nucleus_interface_left_surface": {
+            "normal": [
+              -1,
+              0,
+              0
+            ],
+            "actual": "-x",
+            "expected": "-x",
+            "matchesConvention": true
+          },
+          "nucleus_interface_right_surface": {
+            "normal": [
+              1,
+              0,
+              0
+            ],
+            "actual": "+x",
+            "expected": "+x",
+            "matchesConvention": true
+          },
+          "nucleus_interface_top_surface": {
+            "normal": [
+              0,
+              0,
+              1
+            ],
+            "actual": "+z",
+            "expected": "+z",
+            "matchesConvention": true
+          },
+          "nucleus_interface_bottom_surface": {
+            "normal": [
+              0,
+              0,
+              -1
+            ],
+            "actual": "-z",
+            "expected": "-z",
+            "matchesConvention": true
+          },
+          "cytoplasm_interface_left_surface": {
+            "normal": [
+              1,
+              0,
+              0
+            ],
+            "actual": "+x",
+            "expected": "+x",
+            "matchesConvention": true
+          },
+          "cytoplasm_interface_right_surface": {
+            "normal": [
+              -1,
+              0,
+              0
+            ],
+            "actual": "-x",
+            "expected": "-x",
+            "matchesConvention": true
+          },
+          "cytoplasm_interface_top_surface": {
+            "normal": [
+              0,
+              0,
+              -1
+            ],
+            "actual": "-z",
+            "expected": "-z",
+            "matchesConvention": true
+          },
+          "cytoplasm_interface_bottom_surface": {
+            "normal": [
+              0,
+              0,
+              1
+            ],
+            "actual": "+z",
+            "expected": "+z",
+            "matchesConvention": true
+          },
+          "cell_dish_left_surface": {
+            "normal": [
+              0,
+              0,
+              -1
+            ],
+            "actual": "-z",
+            "expected": "-z",
+            "matchesConvention": true
+          },
+          "cell_dish_center_surface": {
+            "normal": [
+              0,
+              0,
+              -1
+            ],
+            "actual": "-z",
+            "expected": "-z",
+            "matchesConvention": true
+          },
+          "cell_dish_right_surface": {
+            "normal": [
+              0,
+              0,
+              -1
+            ],
+            "actual": "-z",
+            "expected": "-z",
+            "matchesConvention": true
+          },
+          "dish_contact_surface": {
+            "normal": [
+              0,
+              0,
+              1
+            ],
+            "actual": "+z",
+            "expected": "+z",
+            "matchesConvention": true
+          },
+          "pipette_suction_surface": {
+            "normal": [
+              -1,
+              0,
+              0
+            ],
+            "actual": "-x",
+            "expected": "-x",
+            "matchesConvention": true
+          },
+          "pipette_contact_surface": {
+            "normal": [
+              1,
+              0,
+              0
+            ],
+            "actual": "+x",
+            "expected": "+x",
+            "matchesConvention": true
+          }
+        },
+        "warnings": []
+      },
+      "contactPairDiagnostics": {
+        "checks": {
+          "nc_left": {
+            "primary": "cytoplasm_interface_left_surface",
+            "secondary": "nucleus_interface_left_surface",
+            "primaryNormal": "+x",
+            "secondaryNormal": "-x",
+            "dot": -1,
+            "expected": "opposed",
+            "aligned": true
+          },
+          "nc_right": {
+            "primary": "cytoplasm_interface_right_surface",
+            "secondary": "nucleus_interface_right_surface",
+            "primaryNormal": "-x",
+            "secondaryNormal": "+x",
+            "dot": -1,
+            "expected": "opposed",
+            "aligned": true
+          },
+          "nc_top": {
+            "primary": "cytoplasm_interface_top_surface",
+            "secondary": "nucleus_interface_top_surface",
+            "primaryNormal": "-z",
+            "secondaryNormal": "+z",
+            "dot": -1,
+            "expected": "opposed",
+            "aligned": true
+          },
+          "nc_bottom": {
+            "primary": "cytoplasm_interface_bottom_surface",
+            "secondary": "nucleus_interface_bottom_surface",
+            "primaryNormal": "+z",
+            "secondaryNormal": "-z",
+            "dot": -1,
+            "expected": "opposed",
+            "aligned": true
+          },
+          "cell_dish_left": {
+            "primary": "cell_dish_left_surface",
+            "secondary": "dish_contact_surface",
+            "primaryNormal": "-z",
+            "secondaryNormal": "+z",
+            "dot": -1,
+            "expected": "opposed",
+            "aligned": true
+          },
+          "cell_dish_center": {
+            "primary": "cell_dish_center_surface",
+            "secondary": "dish_contact_surface",
+            "primaryNormal": "-z",
+            "secondaryNormal": "+z",
+            "dot": -1,
+            "expected": "opposed",
+            "aligned": true
+          },
+          "cell_dish_right": {
+            "primary": "cell_dish_right_surface",
+            "secondary": "dish_contact_surface",
+            "primaryNormal": "-z",
+            "secondaryNormal": "+z",
+            "dot": -1,
+            "expected": "opposed",
+            "aligned": true
+          },
+          "pipette_cell": {
+            "primary": "pipette_suction_surface",
+            "secondary": "pipette_contact_surface",
+            "primaryNormal": "-x",
+            "secondaryNormal": "+x",
+            "dot": -1,
+            "expected": "opposed",
+            "aligned": true
+          }
+        },
+        "warnings": []
+      },
+      "pressureDiagnostics": {
+        "suctionSurface": "pipette_suction_surface",
+        "surfaceOwnership": "deformable-side capture surface",
+        "rigidMouthSurface": "pipette_contact_surface",
+        "suctionNormal": "-x",
+        "expectedSuctionNormal": "-x",
+        "negativePressureEffect": "intended to pull toward +x, into the pipette/barrel side",
+        "valid": true,
+        "warnings": []
+      },
+      "conventionWarnings": []
     },
     "nucleus": {
       "shape": "ellipse",
@@ -1242,7 +1519,7 @@
   "interfaces": {
     "nucleusCytoplasm": {
       "type": "sticky",
-      "status": "partial-true-cohesive / sticky-active / stabilization-validated",
+      "status": "partial-true-cohesive / sticky-active / non-augmented / stabilization-validated",
       "mode": "solver-primary cohesive-approximation",
       "surfacePair": {
         "name": "nucleus_cytoplasm_pair",
@@ -1263,9 +1540,9 @@
         "searchTolerance": 0.08,
         "symmetricStiffness": false,
         "augmentation": {
-          "enabled": true,
+          "enabled": false,
           "minPasses": 0,
-          "maxPasses": 12
+          "maxPasses": 0
         },
         "ramp": [
           {
@@ -1321,8 +1598,10 @@
     },
     "cellDish": {
       "type": "tied-elastic",
-      "status": "partial-cohesive-ready / tied-elastic-active",
-      "mode": "solver-primary tied-contact",
+      "status": "diagnostic-only / disabled until refined cell-dish mesh",
+      "solverActive": false,
+      "mode": "surface-output-only",
+      "inactiveReason": "Correct opposed cell-dish winding activates the contact but the current coarse debug mesh produces a negative jacobian during lift; keep surfaces and diagnostics, omit solver contact.",
       "surfacePair": {
         "name": "cell_dish_pair",
         "primary": "cell_dish_surface",
@@ -1343,7 +1622,8 @@
   "contact": {
     "pipetteNucleus": {
       "type": "sticky",
-      "status": "solver-active capture-hold contact",
+      "status": "solver-active capture-hold stabilizer",
+      "solverActive": true,
       "mode": "capture-hold",
       "tolerance": 0.2,
       "searchTolerance": 2.2,
@@ -1494,11 +1774,11 @@
             0
           ],
           [
-            1,
+            2,
             0
           ],
           [
-            2,
+            3,
             1
           ],
           [

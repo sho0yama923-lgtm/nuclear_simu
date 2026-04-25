@@ -31,7 +31,8 @@ function buildContacts(spec, mesh) {
   return {
     pipetteNucleus: {
       type: spec.contacts.pipetteNucleus.type,
-      status: "solver-active capture-hold contact",
+      status: "solver-active capture-hold stabilizer",
+      solverActive: true,
       mode: "capture-hold",
       tolerance: spec.contacts.pipetteNucleus.tolerance,
       searchTolerance: spec.contacts.pipetteNucleus.searchTolerance,
@@ -128,7 +129,7 @@ function buildLoads(spec) {
       }
     ],
     controllers: [
-      { id: 101, name: "lift_ramp", points: [[0, 0], [1, 0], [2, 1], [5, 1]] },
+      { id: 101, name: "lift_ramp", points: [[0, 0], [2, 0], [3, 1], [5, 1]] },
       { id: 102, name: "inward_ramp", points: [[0, 0], [3, 0], [4, 1], [5, 1]] },
       { id: loadController, name: "suction_pressure_curve", unit: spec.loads.suctionPressure.unit, points: clone(spec.loads.suctionPressure.curve) }
     ],
