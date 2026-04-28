@@ -132,14 +132,14 @@ Markdown files should have one primary role. If a document no longer owns active
   - Temporary S7-K diagnostic definition for cell-dish load-bearing gates.
   - When S7-K closes, either merge durable output-channel content into `FEBIO_OUTPUT_MAPPING.md` and root-cause lessons into `INCIDENTS_AND_ROOT_CAUSES.md`, or explicitly mark this file historical.
 
-### Historical / retirement candidates
+### Archived history
 
-These files should not be treated as current source-of-truth unless a task explicitly reactivates them. Before moving or deleting, extract durable lessons into the active docs above.
+These files are historical records and are not current source-of-truth. Durable lessons from them should live in active docs above.
 
-- `docs/febio/PRESSURE_SUCTION_STAGE_S3.md`
-- `docs/febio/ASPIRATION_OUTPUT_STAGE_S4.md`
-- `docs/febio/STICKY_COHESIVE_STAGE_S5.md`
-- `docs/febio/TRUE_COHESIVE_STAGE_S6.md`
+- `docs/history/febio/PRESSURE_SUCTION_STAGE_S3.md`
+- `docs/history/febio/ASPIRATION_OUTPUT_STAGE_S4.md`
+- `docs/history/febio/STICKY_COHESIVE_STAGE_S5.md`
+- `docs/history/febio/TRUE_COHESIVE_STAGE_S6.md`
 - `docs/history/2026-04-progress-history.md`
 
 ### Already legacy
@@ -180,6 +180,8 @@ These files should not be treated as current source-of-truth unless a task expli
   - 研究問い、仮定、条件表、用語・指標。
 - [docs/febio/](febio/)
   - active FEBio native spec、geometry conventions、output mapping、model refinement strategy、temporary active diagnostics。
+- [docs/history/](history/)
+  - historical progress and retired stage notes. Not active source-of-truth.
 
 ## テスト
 
