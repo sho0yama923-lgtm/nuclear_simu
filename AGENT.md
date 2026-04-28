@@ -9,7 +9,8 @@
 5. `docs/ops/STUDIO_CONFIRMATION_GATES.md` when touching FEBio Studio-visible geometry, contact, pressure, load activation, or real-run force/response validation
 6. `docs/febio/FEBIO_NATIVE_SPEC.md` when touching FEBio solver parameters, direct FEBio input, UI parameter conversion, or FEBio-native CLI/backend validation
 7. `docs/febio/FEBIO_PATH_OWNERSHIP.md` before touching FEBio export paths, to confirm active vs legacy ownership
-8. `TASK_REQUEST_TEMPLATE.md` when shaping a new bounded task request
+8. `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md` when a task solves, diagnoses, or works around a nontrivial problem
+9. `TASK_REQUEST_TEMPLATE.md` when shaping a new bounded task request
 
 ## Role
 
@@ -160,7 +161,33 @@ Examples:
   - local procedures and bounded read-set rules belong in the relevant `SKILL.md` or `docs/ops/`
   - durable broad policy, roadmap stage plans, and long-term priority belong in `docs/ops/ROADMAP.md`
   - current state recognition, next bounded milestone, fine-grained implementation notes, done conditions, and blockers belong in `PROGRESS.md`
+  - solved problems, nontrivial bugs, root causes, misleading diagnostics, reusable guardrails, and troubleshooting order belong in `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md`
 - If more than one layer is affected, update all affected layers together rather than only one of them.
+
+## Solved Problem Learning Loop
+
+Purpose:
+
+- make `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md` an active learning stock, not a passive archive
+- turn mistakes, bugs, misleading diagnostics, and milestone-retirement findings into reusable rules
+- feed repeated incident lessons back into policy documents so agents stop repeating the same failure mode
+
+Rules:
+
+- At the end of any nontrivial task, ask whether the task solved, diagnosed, worked around, or disproved a problem with reusable lessons.
+- If yes, add or update an entry in `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md` in the same change set.
+- This is required when the task involved solver behavior, Studio handoff, parser/output interpretation, diagnostics, active-path ownership, migration/legacy boundaries, or a misleading metric/gate.
+- When a milestone is retired or compressed in `PROGRESS.md`, extract mistakes, bugs, root causes, and guardrails into `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md` before deleting detailed logs.
+- If an incident entry produces a durable rule, propagate it to the owning policy document:
+  - active path / legacy boundary -> `docs/febio/FEBIO_PATH_OWNERSHIP.md` or `ACTIVE_FILES.md`
+  - broad stage priority -> `docs/ops/ROADMAP.md`
+  - current milestone / blocker / resume point -> `PROGRESS.md`
+  - Studio confirmation behavior -> `docs/ops/STUDIO_CONFIRMATION_GATES.md`
+  - output/parser semantics -> `docs/febio/FEBIO_OUTPUT_MAPPING.md`
+  - geometry/pressure/contact convention -> `docs/febio/GEOMETRY_CONVENTIONS.md`
+  - agent workflow or recurring Codex behavior -> `AGENT.md` or a relevant `.skills/**/SKILL.md`
+- Do not duplicate long incident narratives in policy docs. Put the detailed cause and fix in `INCIDENTS_AND_ROOT_CAUSES.md`; put only the resulting rule in the policy owner.
+- Pure typo, formatting, or scratch-only changes do not need incident entries unless they reveal a reusable rule.
 
 ## ROADMAP / PROGRESS Responsibility Rule
 
