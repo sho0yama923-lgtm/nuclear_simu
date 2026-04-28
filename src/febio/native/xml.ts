@@ -24,6 +24,10 @@ function resolveNodeIds(mesh = {}, setName) {
   return mesh.nodeSets?.[setName] || nodeIdsForElementSet(mesh, setName);
 }
 
+function filterObjectByKeys(source = {}, keys = new Set()) {
+  return Object.fromEntries(Object.entries(source || {}).filter(([key]) => keys.has(key)));
+}
+
 function serializeMaterialsToXml(materials = {}) {
   return [
     "  <Material>",
@@ -45,12 +49,14 @@ function serializeMaterialsToXml(materials = {}) {
 }
 
 function serializeMeshToXml(mesh = {}) {
-  const nodeSetLines = {
+  const allNodeSetLines = {
     ...Object.fromEntries(Object.keys(mesh.elementSets || {}).map((name) => [`${name}_nodes`, nodeIdsForElementSet(mesh, name)])),
     ...(mesh.nodeSets || {}),
     all_nodes_set: (mesh.nodes || []).map((node) => node.id),
     deformable_nodes_set: (mesh.nodes || []).filter((node) => !resolveNodeIds(mesh, "pipette").includes(node.id)).map((node) => node.id)
   };
+  const allowedNodeSets = Array.isArray(mesh.febioNodeSetNames) ? new Set(mesh.febioNodeSetNames) : null;
+  const nodeSetLines = allowedNodeSets ? filterObjectByKeys(allNodeSetLines, allowedNodeSets) : allNodeSetLines;
   return [
     "  <Mesh>",
     "    <Nodes name=\"all_nodes\">",
@@ -154,6 +160,36 @@ function serializeContactToXml(model) {
   const pn = model.contact.pipetteNucleus;
   const pc = model.contact.pipetteCell;
   const cd = model.interfaces.cellDish;
+  const ncLocalPairs = Object.entries(nc.localSurfacePairs || {}).filter(([, pair]) => pair?.name);
+  const nucleusCytoplasmContact =
+    nc.type === "conformal-shared-node"
+      ? [
+          `    <!-- nucleus_cytoplasm_interface omitted: status=${escapeXml(nc.status)} mode=${escapeXml(nc.mode)} requestedType=${escapeXml(nc.requestedType || "sticky")} -->`
+        ]
+      : nc.type === "tied-elastic"
+      ? (ncLocalPairs.length ? ncLocalPairs : [["interface", nc.surfacePair]]).flatMap(([region, pair]) => [
+          `    <contact name="nucleus_cytoplasm_${escapeXml(region)}_interface" type="tied-elastic" surface_pair="${pair?.name || "nucleus_cytoplasm_pair"}">`,
+          "      <!-- solver-primary force-transfer coupling; cohesive law deferred -->",
+          `      <penalty>${serializeNumber(nc.penalty.Kn)}</penalty>`,
+          `      <tolerance>${serializeNumber(nc.tolerance || stabilization.searchTolerance || 0)}</tolerance>`,
+          `      <!-- requestedType=${escapeXml(nc.requestedType || "sticky")} criticalNormalStress=${serializeNumber(nc.criticalNormalStress)} criticalShearStress=${serializeNumber(nc.criticalShearStress)} fractureEnergy=${serializeNumber(nc.fractureEnergy)} -->`,
+          "    </contact>"
+        ])
+      : [
+          `    <contact name="nucleus_cytoplasm_interface" type="${nc.type || "sticky"}" surface_pair="${nc.surfacePair?.name || "nucleus_cytoplasm_pair"}">`,
+          "      <!-- solver-primary cohesive approximation -->",
+          `      <penalty>${serializeNumber(nc.penalty.Kn)}</penalty>`,
+          `      <tolerance>${serializeNumber(nc.tolerance || stabilization.searchTolerance || 0)}</tolerance>`,
+          `      <search_tolerance>${serializeNumber(stabilization.searchTolerance || nc.tolerance || 0)}</search_tolerance>`,
+          `      <laugon>${stabilization.augmentation?.enabled ? 1 : 0}</laugon>`,
+          `      <minaug>${Number(stabilization.augmentation?.minPasses || 0).toFixed(0)}</minaug>`,
+          `      <maxaug>${Number(stabilization.augmentation?.maxPasses || 0).toFixed(0)}</maxaug>`,
+          `      <max_traction>${serializeNumber(nc.cohesiveApproximation.maxTraction || nc.criticalNormalStress || 0)}</max_traction>`,
+          `      <snap_tol>${serializeNumber(nc.cohesiveApproximation.snapTolerance)}</snap_tol>`,
+          `      <!-- cohesive criticalNormalStress=${serializeNumber(nc.criticalNormalStress)} -->`,
+          ...(stabilization.ramp || []).map((entry) => `      <!-- ramp ${entry.step}: normalPenalty=${serializeNumber(entry.normalPenalty)} tangentialPenalty=${serializeNumber(entry.tangentialPenalty)} frictionProxy=${serializeNumber(entry.frictionProxy)} -->`),
+          "    </contact>"
+        ];
   const cellDishContact =
     cd?.solverActive === false
       ? [
@@ -187,19 +223,7 @@ function serializeContactToXml(model) {
         ];
   return [
     "  <Contact>",
-    "    <contact name=\"nucleus_cytoplasm_interface\" type=\"sticky\" surface_pair=\"nucleus_cytoplasm_pair\">",
-    "      <!-- solver-primary cohesive approximation -->",
-    `      <penalty>${serializeNumber(nc.penalty.Kn)}</penalty>`,
-    `      <tolerance>${serializeNumber(nc.tolerance || stabilization.searchTolerance || 0)}</tolerance>`,
-    `      <search_tolerance>${serializeNumber(stabilization.searchTolerance || nc.tolerance || 0)}</search_tolerance>`,
-    `      <laugon>${stabilization.augmentation?.enabled ? 1 : 0}</laugon>`,
-    `      <minaug>${Number(stabilization.augmentation?.minPasses || 0).toFixed(0)}</minaug>`,
-    `      <maxaug>${Number(stabilization.augmentation?.maxPasses || 0).toFixed(0)}</maxaug>`,
-    `      <max_traction>${serializeNumber(nc.cohesiveApproximation.maxTraction || nc.criticalNormalStress || 0)}</max_traction>`,
-    `      <snap_tol>${serializeNumber(nc.cohesiveApproximation.snapTolerance)}</snap_tol>`,
-    `      <!-- cohesive criticalNormalStress=${serializeNumber(nc.criticalNormalStress)} -->`,
-    ...(stabilization.ramp || []).map((entry) => `      <!-- ramp ${entry.step}: normalPenalty=${serializeNumber(entry.normalPenalty)} tangentialPenalty=${serializeNumber(entry.tangentialPenalty)} frictionProxy=${serializeNumber(entry.frictionProxy)} -->`),
-    "    </contact>",
+    ...nucleusCytoplasmContact,
     ...cellDishContact,
     ...pipetteNucleusContact,
     `    <contact name="pipette_cell_contact" type="${pc.type}" surface_pair="${pc.surfacePair?.name || ""}">`,
@@ -229,10 +253,72 @@ function serializeLogfileToXml(outputs = {}, mesh = {}) {
   ].filter(Boolean);
 }
 
+function addSurfacePair(surfaceNames, surfacePair) {
+  if (!surfacePair) return;
+  if (surfacePair.primary) surfaceNames.add(surfacePair.primary);
+  if (surfacePair.secondary) surfaceNames.add(surfacePair.secondary);
+}
+
+function getActiveSurfacePairNames(model = {}) {
+  const pairNames = new Set();
+  const nc = model.interfaces?.nucleusCytoplasm;
+  const cd = model.interfaces?.cellDish;
+  const pn = model.contact?.pipetteNucleus;
+  const pc = model.contact?.pipetteCell;
+
+  if (nc?.solverActive !== false && nc?.type !== "conformal-shared-node") {
+    if (nc.type === "tied-elastic" && nc.localSurfacePairs) {
+      Object.values(nc.localSurfacePairs).forEach((pair) => pair?.name && pairNames.add(pair.name));
+    } else if (nc.surfacePair?.name) {
+      pairNames.add(nc.surfacePair.name);
+    }
+  }
+  if (cd?.solverActive !== false && cd?.surfacePair?.name) pairNames.add(cd.surfacePair.name);
+  if (pn?.solverActive !== false && pn?.surfacePair?.name) pairNames.add(pn.surfacePair.name);
+  if (pc?.surfacePair?.name) pairNames.add(pc.surfacePair.name);
+
+  return pairNames;
+}
+
+function filterOutputsForFebioXml(outputs = {}, activeSurfaceNames = new Set()) {
+  const isSolverActiveOutput = (entry) =>
+    activeSurfaceNames.has(entry.surface) && !String(entry.name || "").startsWith("nucleus_cytoplasm_");
+  return {
+    ...outputs,
+    faceData: (outputs.faceData || []).filter(isSolverActiveOutput),
+    plotfileSurfaceData: (outputs.plotfileSurfaceData || []).filter(isSolverActiveOutput)
+  };
+}
+
+function buildFebioMeshView(model = {}, outputs = {}) {
+  const fullMesh = model.geometry?.mesh || {};
+  const activePairNames = getActiveSurfacePairNames(model);
+  const activeSurfaceNames = new Set();
+
+  (model.loads?.pressure || []).forEach((entry) => entry.surface && activeSurfaceNames.add(entry.surface));
+  Object.values(filterObjectByKeys(fullMesh.surfacePairs || {}, activePairNames)).forEach((pair) => addSurfacePair(activeSurfaceNames, pair));
+  (outputs.faceData || []).forEach((entry) => entry.surface && activeSurfaceNames.add(entry.surface));
+  (outputs.plotfileSurfaceData || []).forEach((entry) => entry.surface && activeSurfaceNames.add(entry.surface));
+
+  return {
+    ...fullMesh,
+    surfaces: filterObjectByKeys(fullMesh.surfaces || {}, activeSurfaceNames),
+    surfacePairs: filterObjectByKeys(fullMesh.surfacePairs || {}, activePairNames),
+    nodeSets: filterObjectByKeys(fullMesh.nodeSets || {}, new Set(["dish_fixed_nodes"])),
+    febioNodeSetNames: ["dish_fixed_nodes", "deformable_nodes_set"]
+  };
+}
+
 export function serializeNativeModelToFebioXml(model) {
-  const mesh = model.geometry?.mesh || {};
+  const fullMesh = model.geometry?.mesh || {};
+  const activePairNames = getActiveSurfacePairNames(model);
+  const preOutputSurfaceNames = new Set();
+  (model.loads?.pressure || []).forEach((entry) => entry.surface && preOutputSurfaceNames.add(entry.surface));
+  Object.values(filterObjectByKeys(fullMesh.surfacePairs || {}, activePairNames)).forEach((pair) => addSurfacePair(preOutputSurfaceNames, pair));
+  const outputs = filterOutputsForFebioXml(model.logOutputs, preOutputSurfaceNames);
+  const mesh = buildFebioMeshView(model, outputs);
   const controllerIdMap = buildLoadControllerIdMap(model.loads);
-  const plotfileSurfaceTractionXml = (model.outputs?.plotfileSurfaceData || []).map((entry) => `      <var type="${entry.variable}" surface="${entry.surface}"/>`).join("\n");
+  const plotfileSurfaceTractionXml = (outputs.plotfileSurfaceData || []).map((entry) => `      <var type="${entry.variable}" surface="${entry.surface}"/>`).join("\n");
   const lift = model.boundary?.prescribed?.find((entry) => entry.name === "pipette_lift_z")?.value || 0;
   const inward = model.boundary?.prescribed?.find((entry) => entry.name === "pipette_inward_x")?.value || 0;
   const stepMotion = new Map([
@@ -299,7 +385,7 @@ export function serializeNativeModelToFebioXml(model) {
     ...stepXml,
     "  </Step>",
     "  <Output>",
-    ...serializeLogfileToXml(model.logOutputs, mesh),
+    ...serializeLogfileToXml(outputs, fullMesh),
     "    <plotfile type=\"febio\">",
     "      <var type=\"displacement\" />",
     "      <var type=\"stress\" />",

@@ -40,23 +40,33 @@ function validateNucleusCytoplasm(spec) {
 export function buildNativeInterfaces(spec, mesh) {
   const nc = spec.contacts.nucleusCytoplasm;
   const pipetteNucleus = spec.contacts.pipetteNucleus;
-  const normalPenalty = buildPenalty(nc.normalStiffness, nc.criticalNormalStress, nc.fractureEnergy);
-  const tangentialPenalty = buildPenalty(nc.tangentialStiffness, nc.criticalShearStress, nc.fractureEnergy);
+  const normalPenalty = clamp(Math.max(buildPenalty(nc.normalStiffness, nc.criticalNormalStress, nc.fractureEnergy), nc.normalStiffness * 0.85), 0.35, 2.5);
+  const tangentialPenalty = clamp(Math.max(buildPenalty(nc.tangentialStiffness, nc.criticalShearStress, nc.fractureEnergy), nc.tangentialStiffness * 0.65), 0.2, 1.8);
   const frictionProxy = clamp(0.12 + (pipetteNucleus.friction || 0) * 0.25, 0.12, 0.28);
+  const maxTraction = clamp(Math.max(nc.criticalNormalStress * 2.5, nc.criticalShearStress * 2.5, normalPenalty * 1.4), 1.0, 4.0);
+  const snapTolerance = clamp((nc.fractureEnergy / Math.max(nc.criticalNormalStress, 0.05)) * 0.8, 0.18, 0.6);
   const nucleusCytoplasm = {
-    type: nc.type,
-    status: "partial-true-cohesive / sticky-active / non-augmented",
-    mode: "solver-primary cohesive-approximation",
+    type: "conformal-shared-node",
+    requestedType: nc.type,
+    solverActive: false,
+    status: "force-transfer-shared-node / cohesive-law-deferred",
+    mode: "mesh-conformal force-transfer coupling",
     surfacePair: mesh.surfacePairs.nucleus_cytoplasm_pair,
+    localSurfacePairs: {
+      left: mesh.surfacePairs.nucleus_cytoplasm_left_pair,
+      right: mesh.surfacePairs.nucleus_cytoplasm_right_pair,
+      top: mesh.surfacePairs.nucleus_cytoplasm_top_pair,
+      bottom: mesh.surfacePairs.nucleus_cytoplasm_bottom_pair,
+    },
     normalStiffness: nc.normalStiffness,
     tangentialStiffness: nc.tangentialStiffness,
     criticalNormalStress: nc.criticalNormalStress,
     criticalShearStress: nc.criticalShearStress,
     fractureEnergy: nc.fractureEnergy,
     penalty: { Kn: normalPenalty, Kt: tangentialPenalty },
-    tolerance: 0.08,
+    tolerance: 0.18,
     stabilization: {
-      searchTolerance: 0.08,
+      searchTolerance: 0.22,
       symmetricStiffness: false,
       augmentation: { enabled: false, minPasses: 0, maxPasses: 0 },
       ramp: buildPenaltyRamp(normalPenalty, tangentialPenalty, frictionProxy)
@@ -64,8 +74,8 @@ export function buildNativeInterfaces(spec, mesh) {
     cohesiveApproximation: {
       penalty: normalPenalty,
       tangentialPenalty,
-      maxTraction: clamp(Math.max(nc.criticalNormalStress * 0.55, nc.criticalShearStress * 0.7), 0.03, 0.25),
-      snapTolerance: clamp((nc.fractureEnergy / Math.max(nc.criticalNormalStress, 0.05)) * 0.28, 0.02, 0.25),
+      maxTraction,
+      snapTolerance,
       frictionProxy
     },
     nativeObservation: {
@@ -84,10 +94,9 @@ export function buildNativeInterfaces(spec, mesh) {
     nucleusCytoplasm,
     cellDish: {
       type: cellDishSpec.type,
-      status: "diagnostic-only / disabled until refined cell-dish mesh",
-      solverActive: false,
-      mode: "surface-output-only",
-      inactiveReason: "Correct opposed cell-dish winding activates the contact but the current coarse debug mesh produces a negative jacobian during lift; keep surfaces and diagnostics, omit solver contact.",
+      status: "solver-active / s7-h reactivated on current native mesh",
+      solverActive: true,
+      mode: "solver-active cell-dish contact",
       surfacePair: mesh.surfacePairs.cell_dish_pair,
       normalStiffness: cellDishSpec.normalStiffness,
       tangentialStiffness: cellDishSpec.tangentialStiffness,

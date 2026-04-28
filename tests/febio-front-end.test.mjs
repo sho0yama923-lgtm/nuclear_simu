@@ -1125,11 +1125,11 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(codebase, /generated\/dist\/browser\/main\.js/);
   assert.match(nativeSpecDoc, /FEBio-native spec JSON/);
   assert.match(nativeSpecDoc, /force-transfer \/ contact activation/);
-  assert.match(progress, /cell-dish tied contact が no-pair/);
+  assert.match(progress, /cell-dish solver-active contact が未復帰/);
   assert.match(roadmap, /Stage S6: True cohesive\/failure preparation \| completed-with-residual/);
   assert.match(roadmap, /native interface traction \/ damage output/);
   assert.match(roadmap, /CLI\/backend export/);
-  assert.match(progress, /load\/contact\/output 成立後に sticky cohesive solver validation/);
+  assert.match(progress, /load\/contact\/output 成立後に cohesive \/ detachment solver validation/);
   assert.match(febioMapping, /native 接線成分の更新|Native Tangential Update/);
   assert.match(febioMapping, /rows that start directly with face values/);
   assert.doesNotMatch(exportScript, /simulation\.js|simulation-febio|node:vm|vm\.runInContext/);

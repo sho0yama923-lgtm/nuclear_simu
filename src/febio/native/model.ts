@@ -31,8 +31,9 @@ function buildContacts(spec, mesh) {
   return {
     pipetteNucleus: {
       type: spec.contacts.pipetteNucleus.type,
-      status: "solver-active capture-hold stabilizer",
-      solverActive: true,
+      status: "omitted after shared-node nucleus-cytoplasm coupling; pipette-cell pressure/contact remains solver-active",
+      solverActive: false,
+      inactiveReason: "shared-node force transfer removed the stabilizer requirement",
       mode: "capture-hold",
       tolerance: spec.contacts.pipetteNucleus.tolerance,
       searchTolerance: spec.contacts.pipetteNucleus.searchTolerance,
@@ -63,6 +64,20 @@ function buildContacts(spec, mesh) {
       autoPenalty: 1,
       friction: spec.contacts.pipetteCell.friction
     }
+  };
+}
+
+function buildSolverFacingLogOutputs(outputs) {
+  const logOutputs = buildNativeLogOutputs(outputs);
+  const activeFaceData = new Set([
+    "cell_dish_interface_surface",
+    "pipette_cell_contact_surface",
+    "pipette_contact_surface",
+  ]);
+  return {
+    ...logOutputs,
+    faceData: (logOutputs.faceData || []).filter((entry) => activeFaceData.has(entry.name)),
+    plotfileSurfaceData: [],
   };
 }
 
@@ -144,6 +159,7 @@ export function buildNativeFebioModel(nativeCaseSpec = {}) {
   const meshValidation = validateNativeMesh(mesh);
   const interfaces = buildNativeInterfaces(spec, mesh);
   const outputs = buildNativeOutputs(spec, mesh);
+  const logOutputs = buildSolverFacingLogOutputs(outputs);
   const parameterDigest = digestNativeCaseSpec(spec);
 
   return {
@@ -195,7 +211,7 @@ export function buildNativeFebioModel(nativeCaseSpec = {}) {
     loads: buildLoads(spec),
     steps: clone(spec.steps),
     outputs,
-    logOutputs: buildNativeLogOutputs(outputs),
+    logOutputs,
     diagnostics: {
       ...clone(spec.diagnostics),
       validationReport,

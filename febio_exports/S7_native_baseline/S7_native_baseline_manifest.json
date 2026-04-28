@@ -1,6 +1,6 @@
 {
   "caseName": "S7_native_baseline",
-  "generatedAt": "2026-04-25T04:24:08.881Z",
+  "generatedAt": "2026-04-28T10:32:43.888Z",
   "parameterDigest": "fdig_e1617277",
   "exportReady": true,
   "solverMetadata": {
@@ -21,15 +21,7 @@
     "logPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.log",
     "xpltPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.xplt",
     "csvOutputPaths": [
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_nucleus_cytoplasm.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_nc_left.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_nc_right.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_nc_top.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_nc_bottom.csv",
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_cell_dish.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_cd_left.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_cd_center.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_cd_right.csv",
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_pipette_cell_contact.csv",
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_pipette_contact.csv",
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_rigid_pipette.csv",
@@ -49,15 +41,7 @@
     "xpltPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.xplt",
     "resultPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline_result.json",
     "outputCsv": [
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_nucleus_cytoplasm.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_nc_left.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_nc_right.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_nc_top.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_nc_bottom.csv",
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_cell_dish.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_cd_left.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_cd_center.csv",
-      "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_cd_right.csv",
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_pipette_cell_contact.csv",
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_pipette_contact.csv",
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_rigid_pipette.csv",
@@ -172,6 +156,22 @@
             "primary": "cytoplasm_interface_surface",
             "secondary": "nucleus_interface_surface"
           },
+          "nucleus_cytoplasm_left_pair": {
+            "primary": "cytoplasm_interface_left_surface",
+            "secondary": "nucleus_interface_left_surface"
+          },
+          "nucleus_cytoplasm_right_pair": {
+            "primary": "cytoplasm_interface_right_surface",
+            "secondary": "nucleus_interface_right_surface"
+          },
+          "nucleus_cytoplasm_top_pair": {
+            "primary": "cytoplasm_interface_top_surface",
+            "secondary": "nucleus_interface_top_surface"
+          },
+          "nucleus_cytoplasm_bottom_pair": {
+            "primary": "cytoplasm_interface_bottom_surface",
+            "secondary": "nucleus_interface_bottom_surface"
+          },
           "cell_dish_pair": {
             "primary": "cell_dish_surface",
             "secondary": "dish_contact_surface"
@@ -200,12 +200,12 @@
           },
           "nucleus_interface_right_surface": {
             "normal": [
-              1,
+              -1,
               0,
               0
             ],
-            "actual": "+x",
-            "expected": "+x",
+            "actual": "-x",
+            "expected": "-x",
             "matchesConvention": true
           },
           "nucleus_interface_top_surface": {
@@ -240,12 +240,12 @@
           },
           "cytoplasm_interface_right_surface": {
             "normal": [
-              -1,
+              1,
               0,
               0
             ],
-            "actual": "-x",
-            "expected": "-x",
+            "actual": "+x",
+            "expected": "+x",
             "matchesConvention": true
           },
           "cytoplasm_interface_top_surface": {
@@ -320,12 +320,12 @@
           },
           "pipette_contact_surface": {
             "normal": [
-              1,
+              -1,
               0,
               0
             ],
-            "actual": "+x",
-            "expected": "+x",
+            "actual": "-x",
+            "expected": "-x",
             "matchesConvention": true
           }
         },
@@ -345,8 +345,8 @@
           "nc_right": {
             "primary": "cytoplasm_interface_right_surface",
             "secondary": "nucleus_interface_right_surface",
-            "primaryNormal": "-x",
-            "secondaryNormal": "+x",
+            "primaryNormal": "+x",
+            "secondaryNormal": "-x",
             "dot": -1,
             "expected": "opposed",
             "aligned": true
@@ -400,9 +400,9 @@
             "primary": "pipette_suction_surface",
             "secondary": "pipette_contact_surface",
             "primaryNormal": "-x",
-            "secondaryNormal": "+x",
-            "dot": -1,
-            "expected": "opposed",
+            "secondaryNormal": "-x",
+            "dot": 1,
+            "expected": "same",
             "aligned": true
           }
         },
@@ -430,8 +430,8 @@
           "hold",
           "lift"
         ],
-        "normalPenaltyRatio": 0.25925925925925924,
-        "tangentialPenaltyRatio": 0.2059591836734693
+        "normalPenaltyRatio": 0.8499999999999999,
+        "tangentialPenaltyRatio": 0.65
       }
     }
   },

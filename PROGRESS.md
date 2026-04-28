@@ -1,6 +1,6 @@
 # FEBio 精度改善の現在地
 
-最終更新: 2026-04-25
+最終更新: 2026-04-28
 
 ## 現在の状況
 
@@ -21,16 +21,22 @@
 - 今後の FEBio export work では今回作った native-only 経路以外を legacy / compatibility freeze として扱い、新しい solver behavior では触らない。詳細は `docs/febio/FEBIO_PATH_OWNERSHIP.md` に固定した。
 - 現在の主要ファイル一覧は `ACTIVE_FILES.md` にまとめた。
 - S7-E で coordinate / surface normal / pressure sign / contact pair convention を `docs/febio/GEOMETRY_CONVENTIONS.md` に固定し、active native validator に normal / alignment diagnostics を追加した。Studio/CLI 確認では `pipette_suction_surface` が deformable 側、normal `-x`、negative pressure が `+x` pipette/barrel 側へ作用する想定と整合したため、この milestone は completed とする。
-- 現在の最優先: S7-F でモデル高度化の方針を native-only 経路上に限定して詰める。具体的には refined native mesh、cell-dish solver-active 化、nucleus-cytoplasm coupling、pipette-cell contact の役割分担、warning-free CLI run の維持条件を整理する。
+- S7-F でモデル高度化の方針を `docs/febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md` に固定した。refined mesh、cell-dish solver-active 化、nucleus-cytoplasm coupling、pipette contact role は現在の native-only baseline 経路をそのまま高度化して進める。別 refined 経路や別 case は作らない。
+- S7-G で `S7_native_baseline` / `src/febio/native/` の現行経路を直接改善し、dish top を left / center / right の 3 bands に分割した。`conventionWarnings=[]` を維持し、regenerated FEBio CLI run は normal termination、FEBio log 内の `Warning:` / `ERROR` / `Negative jacobian` / `No force acting` は 0 件。
+- S7-H で同じ現行経路上の `cell_dish_interface` を solver-active に戻した。regenerated FEBio CLI run は normal termination、FEBio log 内の `Warning:` / `ERROR` / `Negative jacobian` / `No force acting` は 0 件。cell-dish solver-active contact が未復帰だった blocker は解消した。
+- S7-I で solver-active になった cell-dish の物理量を確認した。`cell_dish_interface_surface` / localCd 出力は生成されるが final contact pressure は 0 近傍、nucleus displacement は nonzero、cytoplasm displacement はほぼ 0。現 model は「nucleus suction / pipette reaction」は成立しているが、cell body への force transfer はまだ弱い。
+- S7-J で nucleus -> cytoplasm の force-transfer path を改善した。現行 native mesh 上で nucleus-cytoplasm interface を contact ではなく shared-node coupling にし、NC tied contact warning を避けつつ cytoplasm displacement を nonzero 化した。regenerated FEBio CLI run は normal termination、FEBio log 内の `Warning:` / `ERROR` / `Negative jacobian` / `No force acting` は 0 件。
+- S7-K の前処理として、同じ現行 `.feb` の Studio handoff を整理した。未使用の診断用 NodeSet / Surface / SurfacePair を `.feb` mesh から外し、FEBioStudio の `nodeset24` export failure と unused named selection warnings を解消した。Studio import は warning dialog なし、Studio save は `.fsm` として成功、CLI run も warning-free normal termination。
+- 現在の最優先: S7-K で cell-dish load-bearing を改善する。Studio/CLI handoff は再び warning-free になったため、次は cytoplasm 変位が cell-dish contact pressure に結びつかない原因を basal geometry / cell-dish contact type / dish constraint の順に切り分ける。
 - load/contact/output 成立後に cohesive / detachment solver validation を進める方針は維持し、native-only export 経路をその確認入口にする。
-- 次の model refinement は S7-F で設計方針と安全な切り分けを定め、S7-G 以降で実装・検証を進める。
+- 次の model refinement は S7-K で cytoplasm displacement が cell-dish load-bearing に結びつかない問題を扱う。
 - 全体ロードマップ: [docs/ops/ROADMAP.md](docs/ops/ROADMAP.md)
 - FEBio-native spec 方針: [docs/febio/FEBIO_NATIVE_SPEC.md](docs/febio/FEBIO_NATIVE_SPEC.md)
 
 ## 再開位置
 
-- 最後に完了した節目: Milestone S7-E completed。coordinate / normal / pressure sign / contact-pair convention を規定し、`pipette_suction_surface` の向きと pressure direction が想定と一致することを Studio/CLI/validator で確認した。
-- 現在の未完了項目: モデル詳細の高度化。cell-dish solver-active 化、debug mesh から refined native mesh への移行、nucleus-cytoplasm coupling の物理化、pipette-cell / pipette-nucleus contact の役割整理は S7-F 以降に残す。
+- 最後に完了した節目: Milestone S7-J completed。nucleus-cytoplasm を shared-node coupling にし、cytoplasm displacement を nonzero 化した。
+- 現在の未完了項目: cell-dish contact は solver-active で走るが、final contact pressure は 0 のまま。cell-dish gap は positive で、basal surface が load-bearing になっていない。
 - S7-A で生成済みの direct handoff:
   - `legacy/febio_exports/S7_direct_entry/S7_direct_force_transfer.feb`
   - `legacy/febio_exports/S7_direct_entry/febio_S7_direct_force_transfer_native_spec.json`
@@ -61,8 +67,9 @@
   - `src/febio/native/model.ts`
   - `src/febio/native/xml.ts`
   - `docs/febio/GEOMETRY_CONVENTIONS.md`
+  - `docs/febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md`
   - `docs/ops/STUDIO_CONFIRMATION_GATES.md`
-- 次ステップの完了条件: S7-F のモデル高度化方針を、native-only active path の範囲、確認順序、warning-free run を壊さない rollback point、次に実装する最小単位まで具体化する。
+- 次ステップの完了条件: S7-K で cell-dish load-bearing の阻害要因を native model 上で切り分け、最小の実装変更を加えて warning-free CLI run と output comparison を行うこと。
 
 ## ROADMAP.md との使い分け
 
@@ -101,9 +108,126 @@ agent は次のいずれかに到達するまで進める。
 
 ## 次の bounded milestone
 
-### Milestone S7-F: Native Model Refinement Strategy
+### Milestone S7-K: Cell-Dish Load-Bearing Refinement
 
 状態: active。
+
+この milestone の目的は、S7-J で cytoplasm へ力が伝わるようになった現行 native model のまま、cell-dish contact が load-bearing output を持つ状態へ近づけること。別 refined 経路や別 case は作らない。
+
+#### 優先して疑う箇所
+
+- basal geometry: cytoplasm basal surface と dish top の initial gap / tied search / deformation 後 gap。
+- cell-dish contact law: 現 `tied-elastic` が pressure output として load-bearing を示さない可能性。
+- dish / basal constraints: dish fixed と section plane lock が contact pressure を生みにくい配置になっている可能性。
+- pipette motion balance: lift / manipulation が basal contact を離す方向に強すぎる可能性。
+
+#### Done condition
+
+- done: Studio handoff 前処理として、`.feb` から未使用 named selections を減らし、winding warning を出していた active rigid mouth surface をFEBioStudioの要素面順序に合わせた。
+- done: warning 再発防止のため、原因を `docs/febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md` の `Studio Handoff Warning Root Cause` に記録した。原因は solver failure ではなく、診断用 NodeSet / Surface / SurfacePair を `.feb` に出し続けたことで Studio が未使用 named selection として取り込み、再保存時に内部 `nodesetNN` 参照を壊したこと。
+- done: 共有節点 coupling 後は不要になった `pipette_nucleus_contact` を solver XML から外し、`pipette_cell_contact` と suction pressure に pipette interaction を集約した。
+- done: `npm test` は 43 passed。
+- done: `febio_exports/S7_native_baseline/` を再生成した。
+- done: FEBio CLI run は normal termination。`febio_exports/S7_native_baseline/jobs/S7_native_baseline.log` 内の `Warning:` / `ERROR` / `Negative jacobian` / `No force acting` / `No contact pairs` は 0 件。
+- done: FEBioStudio で regenerated `S7_native_baseline.feb` を import。warning dialog は出ず、ログは `success!`。Studio save は `febio_exports/S7_native_baseline/S7_native_baseline.fsm ... SUCCESS`。
+- pending: S7-K 本体として、S7-J/S7-K handoff 後の cell-dish gap / pressure / cytoplasm displacement を基準値として記録する。
+- pending: `src/febio/native/` 内で cell-dish load-bearing に関する最小変更を 1 つ入れる。
+- pending: FEBio CLI run で warning-free を維持し、cell-dish pressure / gap、pipette reaction、nucleus/cytoplasm displacement を S7-J と比較する。
+
+### Milestone S7-J: Force-Transfer Coupling Refinement
+
+状態: completed。
+
+この milestone の目的は、current native path のまま、suction が nucleus だけを動かして cytoplasm / cell-dish へ十分伝わっていない状態を改善すること。別 refined 経路や別 case は作らない。
+
+#### 優先して疑う箇所
+
+- `pipette_nucleus_contact`: capture-hold stabilizer が強く、主たる motion を nucleus 側に閉じ込めている可能性。
+- `nucleus_cytoplasm_interface`: non-augmented sticky approximation が force transfer として弱い、または pressure path と噛み合っていない可能性。
+- `pipette_cell_contact` / `pipette_suction_surface`: pressure-driven inspection target が nucleus-side capture surface に偏り、cell body suction としては不十分な可能性。
+- `cell_dish_interface`: solver-active には戻ったが、cytoplasm 側がほぼ動かないため load-bearing output が出ていない可能性。
+
+#### Done condition
+
+- done: force-transfer imbalance の原因候補を model field と output field に対応づけた。sticky / tied NC contact はこの nonconformal interface では force transfer として不十分、または tied pair warning を出すため、contact ではなく mesh coupling が必要と判断した。
+- done: `src/febio/native/mesh.ts` で nucleus-cytoplasm interface を shared-node coupling にした。left/right cytoplasm を z 方向に分割し、nucleus element と cytoplasm elements が interface nodes を共有する。
+- done: `src/febio/native/interfaces.ts` / `src/febio/native/xml.ts` で `nucleus_cytoplasm_interface` を solver contact としては出さず、`conformal-shared-node` coupling として扱うようにした。
+- done: `npm test` は 43 tests pass。
+- done: `febio_exports/S7_native_baseline/` を再生成した。
+- done: FEBio CLI run は normal termination。`Warning:` / `ERROR` / `Negative jacobian` / `No force acting` は 0 件。
+- done: output comparison では nucleus / cytoplasm の max displacement がともに `7.316857217329245 um` になり、cell body への force transfer が成立した。final pipette-cell contact pressure は `0.146713403788`、final rigid reaction は `Fx=1.25657369944`, `Fz=44.8382906929`。
+- remaining: cell-dish contact pressure はまだ 0。cell-dish gap は positive のため、S7-K で load-bearing refinement に進む。
+
+### Milestone S7-I: Cell-Dish Output Validation
+
+状態: completed。
+
+この milestone の目的は、solver-active に戻った `cell_dish_interface` が物理検証に使える出力を持っているかを確認し、次に contact type / stiffness / geometry / stabilizer のどれを触るべきか決めること。
+
+#### Done condition
+
+- done: `febio_interface_cell_dish.csv` と localCd CSV の contact gap / contact pressure を読んだ。localCd left / center / right は final `gap=0, pressure=0`、aggregate `cell_dish_interface_surface` も pressure は 0 近傍。
+- done: `febio_rigid_pipette.csv` の reaction と `febio_pipette_cell_contact.csv` の pressure は nonzero で維持された。final rigid `Fx=12.6032884237`、final pipette-cell pressure `0.734806068177`。
+- done: nucleus node displacement は nonzero。final nucleus right-side nodes は `ux ~= -5.095 um`。cytoplasm nodes は 0 近傍。
+- done: 次は contact type より先に force-transfer imbalance を疑う。具体的には pipette-nucleus stabilizer、nucleus-cytoplasm coupling、pipette-cell pressure/contact role の順に切り分ける。
+
+### Milestone S7-H: Cell-Dish Solver-Active Reactivation
+
+状態: completed。
+
+この milestone の目的は、S7-G で改善した現行 `S7_native_baseline` mesh のまま、`cell_dish_interface` を solver-active に戻せるかを最小変更で確認すること。別 refined 経路や別 case は作らない。
+
+#### 実装方針
+
+```text
+febio_cases/native/S7_baseline.native.json
+-> src/febio/native/interfaces.ts
+-> src/febio/native/xml.ts
+-> febio_exports/S7_native_baseline/
+```
+
+S7-G の mesh は rollback/reference point として維持し、まず contact activation と contact parameter だけを変える。negative jacobian や solver warning が出た場合は、mesh 変更を戻さず `cell_dish_interface` の solver-active 化だけを保留する。
+
+#### Done condition
+
+- done: `cell_dish_interface` を現行 native model 上で solver-active に戻した。
+- done: `cell_dish_surface = -z`、`dish_contact_surface = +z`、`conventionWarnings=[]` を維持した。
+- done: `febio_exports/S7_native_baseline/` を再生成した。
+- done: FEBio CLI の read/run で `Warning:` / `ERROR` / `Negative jacobian` / `No force acting` が出ないことを確認した。
+- done: `febio_rigid_pipette.csv` と `febio_pipette_cell_contact.csv` は nonzero output を維持した。final rigid reaction は `Fx=12.6032884237`、final pipette-cell contact pressure は `0.734806068177`。
+- note: `febio_interface_cell_dish.csv` は出力されるが、final contact pressure は 0 近傍。S7-I で contact output の物理的有効性を確認する。
+
+### Milestone S7-G: Current Native Model Refinement
+
+状態: completed。
+
+この milestone の目的は、別 refined 経路を作らず、現在の `S7_native_baseline` / `src/febio/native/` 経路そのものを高度化して、cell-dish solver-active 化へ進む geometry 前提を整えること。
+
+#### 実装方針
+
+```text
+febio_cases/native/S7_baseline.native.json
+-> src/febio/native/mesh.ts
+-> src/febio/native/interfaces.ts
+-> src/febio/native/model.ts
+-> src/febio/native/xml.ts
+-> febio_exports/S7_native_baseline/
+```
+
+S7-E の warning-free run は git / generated artifact / log 上の参照点として扱う。実装は現行 path を直接更新し、変更ごとに regenerate と CLI run で確認する。
+
+#### Done condition
+
+- done: 現行 `S7_baseline.native.json` / `src/febio/native/mesh.ts` の cell bottom / dish top geometry 改善として、dish top を left / center / right の 3 contact bands に分割した。
+- done: mesh validation は structural valid。native regression test で `dish` element set が `[4, 8, 9]`、`dish_contact_surface` が 3 facets、`cellDishBands.mode = in-place-current-native` であることを確認した。
+- done: `conventionWarnings` は空のまま維持された。
+- done: `febio_exports/S7_native_baseline/` を再生成した。
+- done: FEBio CLI run は normal termination。`febio_exports/S7_native_baseline/jobs/S7_native_baseline.log` 内の `Warning:` / `ERROR` / `Negative jacobian` / `No force acting` は 0 件。
+- deferred-to-S7-H: `cell_dish_interface` の solver-active reactivation。
+
+### Milestone S7-F: Native Model Refinement Strategy
+
+状態: completed。
 
 この milestone の目的は、S7-E で固定した向きの規約を前提に、native-only 経路上でモデルを高度化する順序と安全な確認境界を決めること。ここでは旧 UI / canonical / template compatibility path は触らない。
 
@@ -145,10 +269,10 @@ S7-E warning-free orientation baseline
 
 #### Done condition
 
-- pending: refined native mesh の最小設計案を `PROGRESS.md` または dedicated doc に固定する。
-- pending: cell-dish solver-active 化の前提条件と失敗時 rollback point を書く。
-- pending: nucleus-cytoplasm / pipette-cell / pipette-nucleus の役割分担を active native model 上で明文化する。
-- pending: 次に実装する最小変更単位を 1 つ選ぶ。
+- done: refined native mesh の最小設計案を `docs/febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md` に固定した。
+- done: cell-dish solver-active 化の前提条件と失敗時 rollback point を書いた。
+- done: nucleus-cytoplasm / pipette-cell / pipette-nucleus の役割分担を active native model 上で明文化した。
+- done: 次に実装する最小変更単位を、現行 `S7_native_baseline` 経路の cell bottom / dish top geometry 改善に決めた。別 refined 経路や別 case は作らない。
 
 ### Milestone S7-E: Coordinate / Surface / Pressure Convention Diagnostics
 
@@ -439,8 +563,8 @@ S7-H:
 | native direct path がまだ legacy adapter を経由している | S7-A/B/C の旧 direct path は残るが、主検証経路にはしない | S7-D の native-only path を主経路に固定済み | 旧 direct path は legacy / compatibility reference としてだけ読む | low |
 | UI parameter conversion が solver validation を複雑化している | UI convenience parameter -> canonical spec -> FEBio template -> XML の変換を毎回通すと、force-transfer 問題が UI mapping 由来か FEBio model 由来か切り分けにくい | 標準 `runSimulation` は FEBio-native spec first に変更済み。UI parameter path は compatibility / preset generation 用に残す | 残る scripts / browser bridge の旧経路を順次 legacy 扱いへ寄せ、contact / pressure / force transfer は direct spec path だけで検証する | high |
 | 旧 UI/canonical docs が active guidance と混在している | agent が旧 UI parameter mapping / browser bridge / handoff docs を current FEBio-native source of truth と誤認するリスクがあった | `legacy/docs/febio/` へ移動済み。新しい solver parameter の根拠にはしない | 必要な場合のみ historical reference / compatibility maintenance として読む | low |
-| cell-dish solver-active contact が未復帰 | S7-E で surface orientation は `cell_dish=-z` / `dish=+z` に揃ったが、現 coarse debug mesh で tied contact を有効化すると lift 中に negative jacobian が出る | 現 baseline では cell-dish を surface diagnostics / output only とし、warning-free CLI run を維持する | S7-F/S7-G で refined native mesh を設計し、cell-dish solver-active contact を段階的に戻す | high |
-| native mesh が粗い debug mesh のまま | Studio 上で blocky に見え、旧 UI 時代の見た目・局所吸引・接触面の期待とずれる | `meshMode=s7-debug-local-nucleus` として明示し、確認用 FEB は debug-run 限定で扱う | native-only pipeline 成立後、nucleus/cytoplasm/pipette 周りの refined native mesh を実装し、local suction aperture と cell-dish 接触を同時に成立させる | high |
+| resolved: cell-dish solver-active contact が未復帰だった | S7-E では tied contact activation が lift 中に negative jacobian を起こした | S7-G で dish top を 3-band 化し、S7-H で `cell_dish_interface` を solver-active に戻した | 次は solver-active cell-dish output が物理検証に使えるかを S7-I で確認する | medium |
+| native mesh がまだ最小 debug/refinement mesh | Studio 上で blocky に見え、旧 UI 時代の見た目・局所吸引・接触面の期待とずれる | `meshMode=s7-debug-local-nucleus` として明示しつつ、S7-G で現行 path の dish top を 3-band 化した | nucleus/cytoplasm/pipette 周りの refinement と local suction aperture の改善を段階的に進める | high |
 | rigid body output parsing は列ずれしやすい | FEBio rigid body CSV は `id,x,y,z,Fx,Fy,Fz` の形で出るため、id 列を除いた後も z と Fx/Fz の index を誤ると force を誤読する | `scripts/convert_febio_output.mjs` で z=`values[2]`、Fx=`values[3]`、Fz=`values[5]` として修正済み | 今後 force validation test では face pressure と rigid reaction を分けて見る | medium |
 | native interface output は real-run validation が必要 | interface traction / damage の output contract はあるが、実 run payload での coverage がまだ確定していない | converter/import で native/proxy/unavailable provenance を明示する | active load/contact 成立後に declared output path を real solver output で検証する | high |
 | sticky cohesive は true traction-separation law ではない | mesh / load / output が未確立のまま validation すると物理解釈がぶれる | effective coupling proxy として扱い、validation scope を広げすぎない | load/contact/output 成立後に sticky approximation の安定性と interface geometry を実 FEBio run で検証する | high |
@@ -454,8 +578,8 @@ S7-H:
 | FEBio-native spec path | implemented / native-only-main-path | `febio_cases/native/*.native.json` -> `src/febio/native/` -> `.feb` の主経路がある。S7-E baseline は warning-free CLI run と orientation confirmation まで成立 | 旧 `src/febio/spec/` direct path は compatibility / historical reference。モデル物理の source of truth にはしない | S7-F で native-only path 上の model refinement 方針を固定する |
 | Canonical parameter schema | implemented / explicit-compatibility | source of truth は `src/model/schema.ts`。unit system は `um-s-kPa-nN` として `src/model/types.ts` に記録済み。public API では `runCanonicalSimulation` で明示的に呼ぶ | 今後の solver validation では主経路にしない。FEBio-native 移行完了後は legacy / compatibility 扱いへ移す | compatibility / preset generation 用に限定して残す |
 | Source-of-truth split | implemented / needs-new-native-entrypoint | `src/` modules と `generated/dist/` build path は分離済み。既存 FEBio export / convert scripts は `src/public-api.ts` を直接 import するものがある | S7-D の新 export path では `src/public-api.ts`、`generated/dist`、UI/canonical bridge を読まない必要がある | `scripts/export_febio_native_case.mjs` は `src/febio/native/index.ts` だけを読むようにする |
-| FEBio run bundle / bridge | implemented-infrastructure / native-only-handoff | native-only exporter は `.feb` / effective spec / native model / manifest / README を出す。CLI run は `febio_exports/S7_native_baseline/jobs/` で normal termination / warnings 0 を確認済み | result normalization / classification は S7-F の主対象にしない。output CSV の物理解釈は refined model 後に詰める | S7-F では model refinement の確認指標として CSV / rigid reaction / displacement を使う |
-| Refined mesh | debug-geometry / next-refinement-target | nucleus / cytoplasm / dish / pipette domains、required node sets、contact surfaces、surface-pair diagnostics、pipette-nucleus / pipette-cell contact pair がある。現 baseline は `s7-debug-local-nucleus` として粗い mesh を明示する | cell-dish solver-active contact と true cohesive validation には粗すぎる | S7-F で refined native mesh の最小設計案と rollback point を決める |
+| FEBio run bundle / bridge | implemented-infrastructure / output-contract-complete / native-only-handoff | native-only exporter は `.feb` / effective spec / native model / manifest / README を出す。S7-H CLI run は `febio_exports/S7_native_baseline/jobs/` で normal termination / warnings 0 を確認済み | result normalization / classification は S7-I の主対象にしない。output CSV の物理解釈は contact validation 後に詰める | S7-I では cell-dish / pipette-cell / rigid reaction / displacement を確認指標にする |
+| Refined mesh | in-place-current-native / partial | nucleus / cytoplasm / dish / pipette domains、required node sets、contact surfaces、surface-pair diagnostics、pipette-nucleus / pipette-cell contact pair がある。S7-G で dish top を 3-band 化し、S7-H で cell-dish solver-active contact まで復帰した | まだ全体としては coarse debug mesh。cell-dish pressure は 0 近傍で、true cohesive validation には物理量の追加確認が必要 | S7-I で output validation を行い、次の mesh/contact tuning を決める |
 | Nucleus-cytoplasm interface | partial | sticky cohesive approximation は `src/febio/interfaces/nucleusCytoplasm.ts` にあり、現時点では effective coupling proxy | true traction-separation law ではなく、solver-active output も validation 待ち | S7-D では interface construction / validation の考え方だけ新 native model に移し、true cohesive は扱わない |
 | Native interface traction / damage output | completed-contract / pending-real-run | export は face-data と plotfile contact traction path を宣言し、converter/import は native/proxy/unavailable provenance を保持する | real solver output coverage は未検証 | native-only pipeline 成立後、active load/contact 成立と declared output path を real solver output で検証する |
 | Classification | partial / deferred | canonical classifier は public API から利用可能 | real solver output が未成立だと cleanup の評価軸が弱い。S7-D の export path では呼ばない | real solver outputs に基づいて後で整理する。今は優先度を下げる |
