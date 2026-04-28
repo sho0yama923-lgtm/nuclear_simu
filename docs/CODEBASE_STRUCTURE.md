@@ -40,11 +40,11 @@ All previous FEBio export, UI/canonical conversion, public API, browser bridge, 
 - `src/model/types.ts`
   - shared region names、schema constants、coordinate metadata。
 - `src/febio/mesh/index.ts`
-  - mesh と surface-pair の source-of-truth。native direct path は現時点で `s7-debug-local-nucleus` の粗い確認用 mesh を明示し、pipette suction surface を nucleus-side capture face へ置く。
+  - legacy / compatibility shared mesh generation。新しい active native-only solver behavior では `src/febio/native/` を優先する。
 - `src/febio/spec/index.ts`
   - legacy / compatibility FEBio-native direct template mapping。新しい active FEBio output path では触らない。
 - `src/febio/interfaces/nucleusCytoplasm.ts`
-  - nucleus-cytoplasm interface の source-of-truth。sticky cohesive stabilization、stabilization validation、proxy/native observation ownership を含む。
+  - legacy / compatibility nucleus-cytoplasm interface helper。active native-only path では `src/febio/native/` の coupling を優先する。
 - `src/febio/export/index.ts`
   - legacy / compatibility FEBio template assembly、XML serialization、export bundle entrypoint、detachment event contract metadata、face-data coverage metadata、plotfile `contact traction` bridge contract。
 - `src/febio/import/normalizeFebioResult.ts`
@@ -76,6 +76,88 @@ All previous FEBio export, UI/canonical conversion, public API, browser bridge, 
 
 Compatibility は退役経路に置く。新しい長期責務は canonical `src/` module に置き、compatibility 側は bridge/caller として薄くする。
 
+## Markdown file role map
+
+Markdown files should have one primary role. If a document no longer owns active guidance, extract durable lessons first, then move it to history or legacy.
+
+### Operating contract
+
+- [AGENT.md](../AGENT.md)
+  - Stable AI / Codex operating contract: read order, source-of-truth rules, active-path lock, work granularity, Studio gate, anti-patterns.
+- [TASK_REQUEST_TEMPLATE.md](../TASK_REQUEST_TEMPLATE.md)
+  - Repeatable task request shape.
+
+### Current state
+
+- [PROGRESS.md](../PROGRESS.md)
+  - Current-state file only: active milestone, current facts, interpretation, next bounded task, done condition, important retained findings.
+  - Historical detail must be retired when a milestone completes or stops being active.
+
+### Long-term direction
+
+- [docs/ops/ROADMAP.md](ops/ROADMAP.md)
+  - Broad roadmap, stage purpose, review gates, later/deferred work, auxiliary roadmap positioning.
+  - Fine-grained implementation checklists do not belong here.
+
+### Active ownership and structure
+
+- [ACTIVE_FILES.md](../ACTIVE_FILES.md)
+  - Active vs legacy working-surface index.
+- [docs/CODEBASE_STRUCTURE.md](CODEBASE_STRUCTURE.md)
+  - Repo structure, source-of-truth map, Markdown role map.
+- [docs/febio/FEBIO_PATH_OWNERSHIP.md](febio/FEBIO_PATH_OWNERSHIP.md)
+  - Active native-only FEBio path vs legacy/compatibility path boundary.
+
+### Active FEBio reference
+
+- [docs/febio/FEBIO_NATIVE_SPEC.md](febio/FEBIO_NATIVE_SPEC.md)
+  - FEBio-native spec policy and solver-facing condition ownership.
+- [docs/febio/GEOMETRY_CONVENTIONS.md](febio/GEOMETRY_CONVENTIONS.md)
+  - Coordinate axes, surface normals, pressure sign, contact-pair convention.
+- [docs/febio/FEBIO_OUTPUT_MAPPING.md](febio/FEBIO_OUTPUT_MAPPING.md)
+  - Logfile / `.xplt` / Studio output channel mapping and parser caveats.
+- [docs/febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md](febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md)
+  - Active native model refinement strategy. Keep it as strategy; move incidents and long run logs to the relevant ops/history docs.
+
+### Problem-solving and confirmation gates
+
+- [docs/ops/INCIDENTS_AND_ROOT_CAUSES.md](ops/INCIDENTS_AND_ROOT_CAUSES.md)
+  - Curated stock of major problem causes, prevention rules, reusable failure patterns, and troubleshooting order.
+- [docs/ops/STUDIO_CONFIRMATION_GATES.md](ops/STUDIO_CONFIRMATION_GATES.md)
+  - What the agent can verify mechanically and what requires FEBio Studio human confirmation.
+
+### Temporary active diagnostics
+
+- [docs/febio/CELL_DISH_LOAD_BEARING_DIAGNOSTICS.md](febio/CELL_DISH_LOAD_BEARING_DIAGNOSTICS.md)
+  - Temporary S7-K diagnostic definition for cell-dish load-bearing gates.
+  - When S7-K closes, either merge durable output-channel content into `FEBIO_OUTPUT_MAPPING.md` and root-cause lessons into `INCIDENTS_AND_ROOT_CAUSES.md`, or explicitly mark this file historical.
+
+### Historical / retirement candidates
+
+These files should not be treated as current source-of-truth unless a task explicitly reactivates them. Before moving or deleting, extract durable lessons into the active docs above.
+
+- `docs/febio/PRESSURE_SUCTION_STAGE_S3.md`
+- `docs/febio/ASPIRATION_OUTPUT_STAGE_S4.md`
+- `docs/febio/STICKY_COHESIVE_STAGE_S5.md`
+- `docs/febio/TRUE_COHESIVE_STAGE_S6.md`
+- `docs/history/2026-04-progress-history.md`
+
+### Already legacy
+
+- `legacy/docs/febio/*`
+- `legacy/febio_exports/*`
+- `legacy/README.md`
+
+## Markdown retirement rules
+
+- Do not keep the same operational rule in multiple active documents.
+- `PROGRESS.md` must not accumulate old logs.
+- Major problem causes and reusable troubleshooting lessons belong in `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md`.
+- Studio visual confirmation rules belong in `docs/ops/STUDIO_CONFIRMATION_GATES.md`.
+- Output-channel and parser semantics belong in `docs/febio/FEBIO_OUTPUT_MAPPING.md`.
+- Stage-specific documents that are no longer active should move to history or legacy after their durable lessons are extracted.
+- Temporary diagnostic documents must declare their retirement condition.
+
 ## 文書
 
 - [README.md](../README.md)
@@ -93,11 +175,11 @@ Compatibility は退役経路に置く。新しい長期責務は canonical `src
 - [docs/VALIDATION_MATRIX.md](VALIDATION_MATRIX.md)
   - 変更種別ごとの最低検証。
 - [docs/ops/](ops/)
-  - 変更フロー、doc 同期、再開手順。
+  - 変更フロー、doc 同期、再開手順、Studio confirmation、incident/root-cause stock。
 - [docs/research/](research/)
   - 研究問い、仮定、条件表、用語・指標。
 - [docs/febio/](febio/)
-  - FEBio modeling、interface、bridge、runbook、output mapping。
+  - active FEBio native spec、geometry conventions、output mapping、model refinement strategy、temporary active diagnostics。
 
 ## テスト
 
