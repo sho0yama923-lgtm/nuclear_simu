@@ -11,6 +11,66 @@ async function loadNativeModule() {
   return import(pathToFileURL(modulePath).href);
 }
 
+function xpltChunk(id, payload = Buffer.alloc(0)) {
+  const header = Buffer.alloc(8);
+  header.writeUInt32BE(id, 0);
+  header.writeUInt32LE(payload.length, 4);
+  return Buffer.concat([header, payload]);
+}
+
+function xpltInt(value) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeInt32LE(value, 0);
+  return buffer;
+}
+
+function xpltFloat(value) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeFloatLE(value, 0);
+  return buffer;
+}
+
+function xpltContactForceRow(itemId, x, y, z) {
+  const buffer = Buffer.alloc(20);
+  buffer.writeInt32LE(itemId, 0);
+  buffer.writeInt32LE(12, 4);
+  buffer.writeFloatLE(x, 8);
+  buffer.writeFloatLE(y, 12);
+  buffer.writeFloatLE(z, 16);
+  return buffer;
+}
+
+function buildMinimalXpltContactForce(states) {
+  const preamble = Buffer.alloc(12);
+  preamble.write("BEF\0", 0, "latin1");
+  preamble.writeUInt32LE(0x01000000, 4);
+  preamble.writeUInt32LE(0, 8);
+  const surfaceRecord = (itemId, name) => {
+    const nameBuffer = Buffer.from(name, "utf8");
+    const payload = Buffer.alloc(4 + nameBuffer.length);
+    payload.writeUInt32LE(nameBuffer.length, 0);
+    nameBuffer.copy(payload, 4);
+    return xpltChunk(0x00310401, Buffer.concat([
+      xpltChunk(0x02310401, xpltInt(itemId)),
+      xpltChunk(0x04310401, payload)
+    ]));
+  };
+  return Buffer.concat([
+    preamble,
+    xpltChunk(0x00300401, Buffer.concat([
+      surfaceRecord(1, "cell_dish_surface"),
+      surfaceRecord(2, "dish_contact_surface")
+    ])),
+    ...states.map((state) => xpltChunk(0x00000002, Buffer.concat([
+      xpltChunk(0x00000102, xpltChunk(0x02000102, xpltFloat(state.time))),
+      xpltChunk(0x00000202, xpltChunk(0x00050202, xpltChunk(0x01000202, Buffer.concat([
+        xpltChunk(0x02000202, xpltInt(1)),
+        xpltChunk(0x03000202, Buffer.concat(state.rows.map((row) => xpltContactForceRow(row.itemId, row.x, row.y, row.z))))
+      ]))))
+    ])))
+  ]);
+}
+
 test("native-only case builds FEBio model and XML without compatibility entrypoints", async () => {
   const native = await loadNativeModule();
   const casePath = path.resolve("febio_cases/native/S7_baseline.native.json");
@@ -22,6 +82,7 @@ test("native-only case builds FEBio model and XML without compatibility entrypoi
   assert.equal(model.status.source, "febio-native-case");
   assert.equal(model.exportReady, true);
   assert.equal(model.effectiveNativeSpec.caseName, "S7_native_baseline");
+  assert.equal(model.effectiveNativeSpec.outputNameTag, "S7-K");
   assert.ok(model.parameterDigest.startsWith("fdig_"));
   assert.equal(model.geometry.meshValidation.valid, true);
   assert.equal(model.geometry.meshValidation.coordinateConvention.axes.x.positive, "from cell center toward the pipette/barrel side");
@@ -32,6 +93,9 @@ test("native-only case builds FEBio model and XML without compatibility entrypoi
   assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.pipette_cell.aligned, true);
   assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.nc_left.aligned, true);
   assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.cell_dish_left.aligned, true);
+  assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.cell_dish_left.normalGapMagnitude, 0);
+  assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.cell_dish_center.normalGapMagnitude, 0);
+  assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.cell_dish_right.normalGapMagnitude, 0);
   assert.deepEqual(model.geometry.meshValidation.conventionWarnings, []);
   assert.equal(model.geometry.mesh.elementSets.dish.length, 3);
   assert.equal(model.geometry.mesh.surfaces.dish_contact_surface.length, 3);
@@ -59,6 +123,8 @@ test("native-only case builds FEBio model and XML without compatibility entrypoi
   assert.match(xml, /<contact name="cell_dish_interface" type="tied-elastic" surface_pair="cell_dish_pair">/);
   assert.doesNotMatch(xml, /<contact name="pipette_nucleus_contact"/);
   assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_surface" type="pressure">/);
+  assert.match(xml, /<NodeSet name="nucleus_nodes">45,46,47,48,49,50,51,52<\/NodeSet>/);
+  assert.match(xml, /<node_data name="nucleus_nodes" file="febio_nucleus_nodes\.csv" data="ux;uy;uz" delim="," node_set="nucleus_nodes" \/>/);
   assert.match(xml, /<Boundary>/);
   assert.match(xml, /<Output>/);
 
@@ -89,20 +155,64 @@ test("native-only export script writes FEBio handoff artifacts", () => {
 
   assert.equal(printed, outDir);
   const files = [
-    "S7_native_baseline.feb",
-    "S7_native_baseline_effective_native_spec.json",
-    "S7_native_baseline_native_model.json",
-    "S7_native_baseline_manifest.json",
-    "S7_native_baseline_README.txt"
+    "S7-K_S7_native_baseline.feb",
+    "S7-K_S7_native_baseline_effective_native_spec.json",
+    "S7-K_S7_native_baseline_native_model.json",
+    "S7-K_S7_native_baseline_manifest.json",
+    "S7-K_S7_native_baseline_README.txt"
   ];
   files.forEach((file) => assert.equal(fs.existsSync(path.join(outDir, file)), true));
-  const manifest = JSON.parse(fs.readFileSync(path.join(outDir, "S7_native_baseline_manifest.json"), "utf8"));
+  const manifest = JSON.parse(fs.readFileSync(path.join(outDir, "S7-K_S7_native_baseline_manifest.json"), "utf8"));
+  assert.equal(manifest.outputNameTag, "S7-K");
+  assert.equal(manifest.baseName, "S7-K_S7_native_baseline");
   assert.equal(manifest.solverMetadata.source, "febio-native-only");
   assert.match(manifest.commands.febioCli, /febio4 -i/);
-  assert.match(manifest.files.feb, /S7_native_baseline\.feb/);
-  assert.match(manifest.expectedArtifacts.logPath, /S7_native_baseline\.log/);
-  assert.match(manifest.expectedArtifacts.xpltPath, /S7_native_baseline\.xplt/);
+  assert.match(manifest.files.feb, /S7-K_S7_native_baseline\.feb/);
+  assert.match(manifest.expectedArtifacts.logPath, /S7-K_S7_native_baseline\.log/);
+  assert.match(manifest.expectedArtifacts.xpltPath, /S7-K_S7_native_baseline\.xplt/);
   assert.ok(manifest.expectedArtifacts.csvOutputPaths.some((entry) => entry.endsWith("febio_pipette_cell_contact.csv")));
+});
+
+test("native run diagnostics summarize final contact and reaction gates", async () => {
+  const native = await loadNativeModule();
+  const block = (name, rows) => [
+    "*Step  = 1",
+    "*Time  = 5",
+    `*Data  = ${name}`,
+    ...rows
+  ].join("\n");
+  const summary = native.summarizeNativeFebioRunFiles({
+    log: "Intel MKL WARNING: platform notice\nN O R M A L   T E R M I N A T I O N\n",
+    cellDish: block("cell_dish_interface_surface", ["1,0.47,0", "2,0.41,0", "3,0.57,0"]),
+    pipetteCell: block("pipette_cell_contact_surface", ["1,0.12,0.14"]),
+    pipetteContact: block("pipette_contact_surface", ["1,0,0"]),
+    rigidPipette: block("pipette_rigid_body", ["4 16.5 0 16.15 1.2 0 4.4"]),
+    nucleus: block("nucleus_nodes", ["45 -4 0 -0.5"]),
+    cytoplasm: block("cytoplasm_nodes", ["45,-4,0,-0.5"]),
+    xplt: buildMinimalXpltContactForce([
+      { time: 0, rows: [{ itemId: 1, x: 0, y: 0, z: 0 }] },
+      { time: 5, rows: [{ itemId: 1, x: 25, y: 0, z: 2.5 }, { itemId: 2, x: -25, y: 0, z: -2.5 }] }
+    ])
+  });
+
+  assert.equal(summary.warnings.normalTermination, 1);
+  assert.equal(summary.warnings.platformWarning, 1);
+  assert.equal(summary.gates.warningFree, true);
+  assert.equal(summary.cellDish.maxAbsPressure, 0);
+  assert.equal(summary.cellDish.maxFinalGap, 0.57);
+  assert.equal(summary.gates.cellDishLoadBearing, false);
+  assert.equal(summary.gates.cellDishGapControlled, false);
+  assert.equal(summary.pipetteCell.maxAbsPressure, 0.14);
+  assert.equal(summary.rigidPipette.reaction.Fx, 1.2);
+  assert.equal(summary.gates.pipetteInteractionActive, true);
+  assert.equal(summary.gates.nucleusCytoplasmMoved, true);
+  assert.equal(summary.gates.plotfileContactForceActive, true);
+  assert.equal(summary.plotfileContactForce.stateCount, 2);
+  assert.equal(summary.plotfileContactForce.maxAbs.x, 25);
+  assert.equal(summary.plotfileContactForce.maxAbs.z, 2.5);
+  assert.equal(summary.plotfileContactForce.zToXRatio, 0.1);
+  assert.equal(summary.plotfileContactForce.surfaceByItemId["1"], "cell_dish_surface");
+  assert.equal(summary.plotfileContactForce.finalState.rows[0].surface, "cell_dish_surface");
 });
 
 test("FEBio path ownership docs freeze legacy paths outside the native-only exporter", () => {

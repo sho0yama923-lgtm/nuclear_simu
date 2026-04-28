@@ -12,7 +12,7 @@
     ]
   },
   "caseName": "S7_native_baseline",
-  "parameterDigest": "fdig_e1617277",
+  "parameterDigest": "fdig_c74dfebd",
   "coordinateSystem": {
     "unitSystem": "um-nN-s",
     "length": "um",
@@ -22,6 +22,7 @@
   },
   "effectiveNativeSpec": {
     "caseName": "S7_native_baseline",
+    "outputNameTag": "S7-K",
     "unitSystem": "um-nN-s",
     "geometry": {
       "nucleus": {
@@ -86,7 +87,7 @@
       },
       "cellDish": {
         "type": "tied-elastic",
-        "normalStiffness": 1.55,
+        "normalStiffness": 15.5,
         "tangentialStiffness": 1.25,
         "criticalNormalStress": 0.95,
         "criticalShearStress": 0.65,
@@ -2040,7 +2041,7 @@
         "primary": "cell_dish_surface",
         "secondary": "dish_contact_surface"
       },
-      "normalStiffness": 1.55,
+      "normalStiffness": 15.5,
       "tangentialStiffness": 1.25,
       "criticalNormalStress": 0.95,
       "criticalShearStress": 0.65,
@@ -2091,7 +2092,7 @@
         "primary": "pipette_suction_surface",
         "secondary": "pipette_contact_surface"
       },
-      "penalty": 0.6975,
+      "penalty": 6.9750000000000005,
       "symmetricStiffness": 0,
       "autoPenalty": 1,
       "friction": 0.091

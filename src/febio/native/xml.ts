@@ -24,6 +24,12 @@ function resolveNodeIds(mesh = {}, setName) {
   return mesh.nodeSets?.[setName] || nodeIdsForElementSet(mesh, setName);
 }
 
+function resolveLogNodeSetName(mesh = {}, setName) {
+  if (mesh.nodeSets?.[setName]) return setName;
+  if (mesh.elementSets?.[setName]) return `${setName}_nodes`;
+  return setName;
+}
+
 function filterObjectByKeys(source = {}, keys = new Set()) {
   return Object.fromEntries(Object.entries(source || {}).filter(([key]) => keys.has(key)));
 }
@@ -245,7 +251,7 @@ function serializeContactToXml(model) {
 function serializeLogfileToXml(outputs = {}, mesh = {}) {
   return [
     "    <logfile>",
-    ...(outputs.nodeData || []).map((entry) => `      <node_data name="${entry.name}" file="${entry.file}" data="${entry.data || "ux;uy;uz"}" delim=",">${resolveNodeIds(mesh, entry.nodeSet).join(",")}</node_data>`),
+    ...(outputs.nodeData || []).map((entry) => `      <node_data name="${entry.name}" file="${entry.file}" data="${entry.data || "ux;uy;uz"}" delim="," node_set="${resolveLogNodeSetName(mesh, entry.nodeSet)}" />`),
     ...(outputs.rigidBodyData || []).map((entry) => `      <rigid_body_data name="${entry.name}" file="${entry.file}" data="${entry.data || "x;y;z;Fx;Fy;Fz"}" delim=",">4</rigid_body_data>`),
     ...(outputs.faceData || []).map((entry) => `      <face_data name="${entry.name}" file="${entry.file}" data="${entry.logfileData || "contact gap;contact pressure"}" delim="," surface="${entry.surface}" />`),
     outputs.aspiration ? `      <!-- derived_data name="${outputs.aspiration.name}" metric="${outputs.aspiration.metric}" unit="${outputs.aspiration.unit}" payload="${outputs.aspiration.payloadPath}" source="${outputs.aspiration.preferredSource}" -->` : null,
@@ -294,18 +300,20 @@ function buildFebioMeshView(model = {}, outputs = {}) {
   const fullMesh = model.geometry?.mesh || {};
   const activePairNames = getActiveSurfacePairNames(model);
   const activeSurfaceNames = new Set();
+  const activeNodeSetNames = new Set(["dish_fixed_nodes", "deformable_nodes_set"]);
 
   (model.loads?.pressure || []).forEach((entry) => entry.surface && activeSurfaceNames.add(entry.surface));
   Object.values(filterObjectByKeys(fullMesh.surfacePairs || {}, activePairNames)).forEach((pair) => addSurfacePair(activeSurfaceNames, pair));
   (outputs.faceData || []).forEach((entry) => entry.surface && activeSurfaceNames.add(entry.surface));
   (outputs.plotfileSurfaceData || []).forEach((entry) => entry.surface && activeSurfaceNames.add(entry.surface));
+  (outputs.nodeData || []).forEach((entry) => activeNodeSetNames.add(resolveLogNodeSetName(fullMesh, entry.nodeSet)));
 
   return {
     ...fullMesh,
     surfaces: filterObjectByKeys(fullMesh.surfaces || {}, activeSurfaceNames),
     surfacePairs: filterObjectByKeys(fullMesh.surfacePairs || {}, activePairNames),
-    nodeSets: filterObjectByKeys(fullMesh.nodeSets || {}, new Set(["dish_fixed_nodes"])),
-    febioNodeSetNames: ["dish_fixed_nodes", "deformable_nodes_set"]
+    nodeSets: filterObjectByKeys(fullMesh.nodeSets || {}, activeNodeSetNames),
+    febioNodeSetNames: [...activeNodeSetNames]
   };
 }
 

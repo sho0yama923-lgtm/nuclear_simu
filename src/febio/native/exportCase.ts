@@ -5,10 +5,16 @@ function cleanCaseName(name) {
   return String(name || "native_case").replace(/[^A-Za-z0-9_.-]+/g, "_");
 }
 
+function buildBaseName(model) {
+  const tag = cleanCaseName(model.effectiveNativeSpec?.outputNameTag || "");
+  const caseName = cleanCaseName(model.caseName);
+  return tag ? `${tag}_${caseName}` : caseName;
+}
+
 export function buildNativeFebioExport(caseSpec = {}, options = {}) {
   const model = buildNativeFebioModel(caseSpec);
   const febXml = serializeNativeModelToFebioXml(model);
-  const baseName = cleanCaseName(model.caseName);
+  const baseName = buildBaseName(model);
   const outDir = options.outDir || ".";
   const files = {
     feb: `${outDir}/${baseName}.feb`,
@@ -24,6 +30,8 @@ export function buildNativeFebioExport(caseSpec = {}, options = {}) {
   expectedCsv.push(`${outDir}/febio_rigid_pipette.csv`, `${outDir}/febio_nucleus_nodes.csv`, `${outDir}/febio_cytoplasm_nodes.csv`);
   const manifest = {
     caseName: model.caseName,
+    outputNameTag: model.effectiveNativeSpec?.outputNameTag || "",
+    baseName,
     generatedAt: options.generatedAt || new Date().toISOString(),
     parameterDigest: model.parameterDigest,
     exportReady: model.exportReady,

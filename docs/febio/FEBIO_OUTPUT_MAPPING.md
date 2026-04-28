@@ -167,7 +167,7 @@
 
 いまは次の点に注意が必要です。
 
-- `.xplt` はまだ直接読んでいない
+- FEBio logfile CSV は、XML に `delim=","` を指定していても実ファイルが空白区切りになることがある。parser はカンマだけで split しない。少なくとも comma / whitespace tolerant に読む。
 - `nucleus-cytoplasm` は face_data を使って normal / gap を native 寄りに読んでいるが、true cohesive damage / tangential traction はまだ未読込
 - `localNc` / `localCd` は node set 変位差から再構成した reduced-order 指標
 - 膜は proxy であり、FEBio の membrane/shell 解析結果ではない
@@ -193,6 +193,8 @@
 
 ## 10. native 接線成分の更新
 
+- S7-K で `.xplt` の face `contact force` を直接読む最小 parser を追加した。これにより、Studio で見える contact force と logfile `contact pressure` が食い違う場合も機械診断に載せられる。
+- S7-K で重要な parser 事故を修正した。FEBio が空白区切りで出した `node_data` / `face_data` を既存 parser がカンマだけで split し、行全体を 1 列として扱ったため、一部 displacement / contact summary を 0 と誤読していた。今後の FEBio CSV reader は `delim=","` を信用しすぎず、comma / whitespace tolerant にする。
 - `scripts/convert_febio_output.mjs` now reuses native face tangential traction for `localNc.*.shearStress` and `localCd.*.shearStress` when those face snapshots expose extra traction columns.
 - The converter now supports both face snapshot rows with a leading entity id and rows that start directly with face values.
 - The converter also uses the face-data descriptor to handle rows with extra leading metadata columns and descriptor-driven field order, as long as the payload still declares which columns are `gap` / `pressure` / tangential traction.

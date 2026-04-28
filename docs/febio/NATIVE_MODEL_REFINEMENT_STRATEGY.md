@@ -149,6 +149,22 @@ S7-K handoff-cleanup result:
 
 The next refinement target is cell-dish load-bearing. The current model now transfers force into the cell body, but the basal surface is not yet producing load-bearing cell-dish pressure.
 
+S7-K baseline diagnostics result:
+
+- contact pair diagnostics now include primary/secondary centroids, centroid delta, signed normal gap, and normal gap magnitude;
+- the regenerated native model reports `normalGapMagnitude=0` and normal dot `-1` for cell-dish left / center / right, so initial basal separation is not the current blocker;
+- regenerated FEBio CLI run remains warning-free and reaches normal termination;
+- final cell-dish pressure remains 0 with final gaps `[0.470949285102, 0.41310068936, 0.569874108195]`;
+- final pipette-cell pressure and rigid reaction are also 0 after `pipette_nucleus_contact` was omitted, so pipette interaction needs Studio confirmation before another solver-facing redesign;
+- scratch `sliding-elastic` / `sticky` cell-dish contact variants fail immediately with negative jacobian, while a basal settling pressure variant runs but still produces zero cell-dish pressure.
+- `scripts/diagnose_febio_native_run.mjs --run-dir febio_exports/S7_native_baseline/jobs` summarizes the active CLI run gates. The current state is `warningFree=true`, `cellDishLoadBearing=false`, `pipetteInteractionActive=false`, and `nucleusCytoplasmMoved=true`.
+- S7-K active artifacts use the `S7-K_S7_native_baseline` base name so Studio/CLI outputs can be distinguished from earlier S7 handoffs.
+- FEBioStudio can create unstable internal `nodesetNN` references when logfile `node_data` records contain inline node id lists. The active XML now emits explicit logfile NodeSets and references them through `node_set` attributes to avoid Run-before-save failures such as `Invalid reference to mesh item list ... nodeset04`.
+- Studio post view shows `contact force Magnitude` as 0 at Time 0 and nonzero along the cell bottom / dish-adjacent band at Time 5. This means plotfile contact force may contain load-bearing information even while logfile face-data `contact pressure` remains all-zero; do not treat face-data pressure alone as the final load-bearing verdict.
+- A minimal native `.xplt` diagnostic now reads plotfile face `contact force` directly. For `S7-K_S7_native_baseline.xplt`, max absolute X is `25.5922966003`, max absolute Z is `2.36685323715`, and `zToXRatio=0.0924830340`. The current basal contact response is therefore real but mostly horizontal / shear, with comparatively weak dish-normal support.
+- The `.xplt` diagnostic also maps plotfile face item ids back to surface names. The active contact force rows are `itemId=1 -> cell_dish_surface` and `itemId=2 -> dish_contact_surface`; `pipette_suction_surface` and `pipette_contact_surface` remain zero in the current run.
+- Raising cell-dish `normalStiffness` from `1.55` to `15.5` keeps the CLI run warning-free and reduces final cell-dish max gap from about `0.57` to `0.0566542533992`. This creates a useful intermediate gate, `cellDishGapControlled=true`, but face-data `contact pressure` remains zero and the plotfile contact-force Z/X ratio remains low (`0.0689032524`).
+
 Rollback point:
 
 - if cell-dish contact causes divergence or negative jacobian, revert only the cell-dish contact activation for that case;

@@ -31,6 +31,31 @@ agent は次を自力で確認・修正してよい。
 - output request が XML に出ているか
 - generated XML の snapshot / regex test を追加すること
 
+### FEBioStudio Run 前保存エラー
+
+FEBioStudio で Run を押した直後に次のような dialog が出る場合、FEBio solver の計算失敗ではなく、Studio が `.feb` を保存し直す段階で mesh item reference を壊している可能性が高い。
+
+```text
+Failed saving FEBio file:
+Invalid reference to mesh item list when exporting:
+nodesetNN
+```
+
+S7-K では、logfile `<node_data>` に node id を直接列挙していたため、FEBioStudio が内部 `nodesetNN` selection へ変換し、Run 前 save で `nodeset04` 参照を壊した。
+
+対応方針:
+
+- solver-facing XML の `<Mesh>` に、logfile で使う NodeSet を明示的に出す。
+- `<node_data>` は node id 直書きではなく `node_set="nucleus_nodes"` のような明示 NodeSet 参照にする。
+- FEBioStudio 内で古いタブを使い回さず、regenerated `.feb` を開き直して Run する。
+- 再発防止 test では、generated XML に `<NodeSet name="nucleus_nodes">...` と `<node_data ... node_set="nucleus_nodes" />` があることを確認する。
+
+S7-K での実装例:
+
+- `src/febio/native/xml.ts` の `serializeLogfileToXml` は `node_set` 属性を出す。
+- `buildFebioMeshView` は `nucleus_nodes` / `cytoplasm_nodes` / `pipette_contact_nodes` を solver-facing `<Mesh>` に残す。
+- regenerated `febio_exports/S7_native_baseline/S7-K_S7_native_baseline.feb` は FEBioStudio Run に成功し、post view で `S7-K_S7_native_baseline.xplt` を表示できた。
+
 ### mesh / surface の機械的 validation
 
 agent は次を自力で実装・修正してよい。
@@ -197,6 +222,25 @@ Studio確認依頼:
 - face-data contact pressure が all-zero
 - pressure load は XML 上 active だが反力が出ない
 - contact / pressure / force transfer の原因切り分け
+
+## 重要ミスの再発防止ログ
+
+### FEBio CSV delimiter 誤読
+
+S7-K で、FEBio logfile CSV の `node_data` / `face_data` を parser が誤読した。
+
+原因:
+
+- XML では `<node_data ... delim=",">` / `<face_data ... delim=",">` と指定していた。
+- しかし FEBio / FEBioStudio が生成した実ファイルは、少なくとも一部で comma ではなく whitespace 区切りだった。
+- 既存 parser は `line.split(",")` だけを使っていたため、`37 -1.86 0 -0.54` のような行全体を 1 列として扱い、変位や contact summary を 0 と誤読した。
+
+対策:
+
+- FEBio logfile CSV reader は comma / whitespace tolerant にする。
+- 具体的には `/[,\s]+/` 相当で split し、空 token を捨てる。
+- `delim=","` は出力仕様の希望として扱い、実ファイルの検証なしに parser 前提へ固定しない。
+- Studio の contour 表示と parser summary が食い違う場合は、まず delimiter / column parsing / leading id column を疑う。
 
 ## 関連ファイル
 

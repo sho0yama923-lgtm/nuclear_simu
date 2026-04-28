@@ -1,25 +1,27 @@
 {
   "caseName": "S7_native_baseline",
-  "generatedAt": "2026-04-28T10:45:00.404Z",
-  "parameterDigest": "fdig_e1617277",
+  "outputNameTag": "S7-K",
+  "baseName": "S7-K_S7_native_baseline",
+  "generatedAt": "2026-04-28T14:49:53.411Z",
+  "parameterDigest": "fdig_c74dfebd",
   "exportReady": true,
   "solverMetadata": {
     "solverMode": "febio",
     "source": "febio-native-only"
   },
   "files": {
-    "feb": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.feb",
-    "effectiveNativeSpec": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline_effective_native_spec.json",
-    "nativeModel": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline_native_model.json",
-    "manifest": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline_manifest.json",
-    "readme": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline_README.txt",
-    "expectedLog": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.log",
-    "expectedXplt": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.xplt",
-    "expectedResultJson": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline_result.json"
+    "feb": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline.feb",
+    "effectiveNativeSpec": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline_effective_native_spec.json",
+    "nativeModel": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline_native_model.json",
+    "manifest": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline_manifest.json",
+    "readme": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline_README.txt",
+    "expectedLog": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline.log",
+    "expectedXplt": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline.xplt",
+    "expectedResultJson": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline_result.json"
   },
   "expectedArtifacts": {
-    "logPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.log",
-    "xpltPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.xplt",
+    "logPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline.log",
+    "xpltPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline.xplt",
     "csvOutputPaths": [
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_cell_dish.csv",
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_pipette_cell_contact.csv",
@@ -28,18 +30,18 @@
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_nucleus_nodes.csv",
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_cytoplasm_nodes.csv"
     ],
-    "resultJsonPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline_result.json"
+    "resultJsonPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline_result.json"
   },
   "commands": {
-    "febioCli": "febio4 -i \"/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.feb\"",
-    "repositoryRunner": "powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile \"/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.feb\""
+    "febioCli": "febio4 -i \"/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline.feb\"",
+    "repositoryRunner": "powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile \"/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline.feb\""
   },
   "studioConfirmation": {
-    "febPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.feb",
+    "febPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline.feb",
     "runDirectory": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline",
-    "logPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.log",
-    "xpltPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline.xplt",
-    "resultPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7_native_baseline_result.json",
+    "logPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline.log",
+    "xpltPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline.xplt",
+    "resultPath": "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/S7-K_S7_native_baseline_result.json",
     "outputCsv": [
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_interface_cell_dish.csv",
       "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S7_native_baseline/febio_pipette_cell_contact.csv",

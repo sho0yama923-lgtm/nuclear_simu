@@ -320,6 +320,10 @@ function add(a, b) {
   return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 }
 
+function scale(vector, factor) {
+  return vector.map((value) => value * factor);
+}
+
 function nodePointMap(mesh = {}) {
   return new Map((mesh.nodes || []).map((node) => [node.id, [node.x, node.y, node.z]]));
 }
@@ -330,12 +334,27 @@ function facetNormal(facet, points) {
   return normalize(cross(subtract(nodes[1], nodes[0]), subtract(nodes[2], nodes[0])));
 }
 
+function facetCentroid(facet, points) {
+  const nodes = (facet?.nodes || []).map((id) => points.get(id)).filter(Boolean);
+  if (!nodes.length) return [0, 0, 0];
+  const total = nodes.reduce((acc, node) => add(acc, node), [0, 0, 0]);
+  return scale(total, 1 / nodes.length);
+}
+
 function surfaceNormal(mesh, surfaceName) {
   const points = nodePointMap(mesh);
   const facets = mesh.surfaces?.[surfaceName] || [];
   if (!facets.length) return null;
   const total = facets.reduce((acc, facet) => add(acc, facetNormal(facet, points)), [0, 0, 0]);
   return normalize(total);
+}
+
+function surfaceCentroid(mesh, surfaceName) {
+  const points = nodePointMap(mesh);
+  const facets = mesh.surfaces?.[surfaceName] || [];
+  if (!facets.length) return null;
+  const total = facets.reduce((acc, facet) => add(acc, facetCentroid(facet, points)), [0, 0, 0]);
+  return scale(total, 1 / facets.length);
 }
 
 function axisLabel(normal) {
@@ -377,9 +396,13 @@ function buildContactPairDiagnostics(mesh) {
     PAIR_ALIGNMENT_CHECKS.map((check) => {
       const primaryNormal = surfaceNormal(mesh, check.primary);
       const secondaryNormal = surfaceNormal(mesh, check.secondary);
+      const primaryCentroid = surfaceCentroid(mesh, check.primary);
+      const secondaryCentroid = surfaceCentroid(mesh, check.secondary);
       const normalDot = primaryNormal && secondaryNormal ? dot(primaryNormal, secondaryNormal) : null;
       const opposed = normalDot != null && normalDot < -0.75;
       const same = normalDot != null && normalDot > 0.75;
+      const centroidDelta = primaryCentroid && secondaryCentroid ? subtract(secondaryCentroid, primaryCentroid) : null;
+      const signedNormalGap = centroidDelta && primaryNormal ? dot(centroidDelta, primaryNormal) : null;
       return [
         check.name,
         {
@@ -388,6 +411,11 @@ function buildContactPairDiagnostics(mesh) {
           primaryNormal: axisLabel(primaryNormal),
           secondaryNormal: axisLabel(secondaryNormal),
           dot: normalDot,
+          primaryCentroid,
+          secondaryCentroid,
+          centroidDelta,
+          signedNormalGap,
+          normalGapMagnitude: signedNormalGap == null ? null : Math.abs(signedNormalGap),
           expected: check.expected,
           aligned: check.expected === "opposed" ? opposed : check.expected === "same" ? same : false,
         },

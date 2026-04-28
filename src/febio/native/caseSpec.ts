@@ -37,6 +37,7 @@ export function digestNativeCaseSpec(value) {
 export function normalizeNativeCaseSpec(input = {}) {
   const spec = cloneNativeValue(input);
   spec.caseName = String(spec.caseName || "native_case");
+  spec.outputNameTag = spec.outputNameTag == null ? "" : String(spec.outputNameTag);
   spec.unitSystem = spec.unitSystem || "um-nN-s";
   spec.geometry = spec.geometry || {};
   spec.materials = spec.materials || {};

@@ -10,3 +10,5 @@ export { buildNativeOutputs, buildNativeLogOutputs } from "./outputs.ts";
 export { buildNativeFebioModel } from "./model.ts";
 export { serializeNativeModelToFebioXml } from "./xml.ts";
 export { buildNativeFebioExport } from "./exportCase.ts";
+export { summarizeNativeFebioRunFiles } from "./runDiagnostics.ts";
+export { summarizeXpltContactForce } from "./xpltDiagnostics.ts";

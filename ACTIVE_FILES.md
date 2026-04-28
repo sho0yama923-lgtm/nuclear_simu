@@ -7,6 +7,7 @@ This is the current working surface for FEBio export and validation.
 ```text
 febio_cases/native/S7_baseline.native.json
 scripts/export_febio_native_case.mjs
+scripts/diagnose_febio_native_run.mjs
 src/febio/native/
 tests/febio-native-pipeline.test.mjs
 febio_exports/S7_native_baseline/
