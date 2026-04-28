@@ -100,10 +100,12 @@ Cell-dish is no longer simply missing. Contact force and gap control are present
 When a milestone completes or stops being active:
 
 1. Extract durable lessons into `Important retained findings`.
-2. Move incident causes to `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md`.
+2. Stock every understood major problem cause, prevention rule, or misleading diagnostic pattern in `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md`.
 3. Move specialized diagnostic rules to dedicated `docs/febio/` documents.
-4. Delete transient run logs and scratch observations from `PROGRESS.md`; git history remains the archive.
+4. Delete transient run logs and scratch observations from `PROGRESS.md`; git history remains the raw archive.
 5. Keep completed milestones to 1-3 line summaries.
+
+Major causes must not live only in `PROGRESS.md`. If a failure had a non-obvious cause, could recur, silently corrupted interpretation, or produced a reusable prevention rule, it gets an incident/root-cause entry.
 
 Only the active milestone should keep detailed current facts, interpretation, next task, and done condition.
 
