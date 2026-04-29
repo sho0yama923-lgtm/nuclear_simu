@@ -233,6 +233,44 @@ Rules:
 - Do not combine multiple independent milestones just because they are all part of the same long-term direction.
 - Prefer a change size that is large enough to be useful and small enough to review.
 
+### Practical completion bar
+
+A normal implementation milestone should not end after only one of these actions:
+
+- creating or editing a placeholder;
+- adding only a helper;
+- adding only a case JSON without export / diagnostic follow-through;
+- adding only docs while directly implied implementation or diagnostics remain pending;
+- updating `PROGRESS.md` without moving the actual active task forward.
+
+When the task is a FEBio comparison or stabilization pass, the expected review boundary is usually:
+
+1. case/spec/model change;
+2. export or generated artifact update, when tooling is available;
+3. run / diagnostic / test update, when tooling is available;
+4. concise status update in `PROGRESS.md`;
+5. detailed comparison notes in the relevant diagnostic doc, not in `PROGRESS.md`.
+
+Stop earlier only for a real blocker, unavailable runtime/tooling, or human confirmation gate.
+
+## PROGRESS Compression Rule
+
+Purpose:
+
+- keep `PROGRESS.md` readable as the current-state file;
+- prevent completed comparison logs from accumulating there;
+- keep detailed evidence in the correct diagnostic / incident documents.
+
+Rules:
+
+- Only the active milestone may keep detailed facts, interpretation, next task, and done condition.
+- Completed milestones and comparison runs must be compressed to 1-3 line summaries in `PROGRESS.md`.
+- Do not append every run artifact, numeric table, or failed comparison to `PROGRESS.md`.
+- Put detailed comparison evidence in the owning diagnostic doc, for example `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`.
+- Put causes, prevention rules, misleading diagnostics, and recurring failure patterns in `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md`.
+- If `PROGRESS.md` grows because a milestone produced many comparisons, immediately retire the older comparison details in the same change set.
+- A `PROGRESS.md` update that advances the active milestone should also remove stale details from inactive milestones.
+
 ## Studio Confirmation Gate Rule
 
 Purpose:
@@ -264,7 +302,7 @@ Rules:
 - When implementing FEBio solver behavior, define required solver parameters first in FEBio-native spec.
 - Do not introduce new physics parameters only in UI schema.
 - UI parameters are presentation aliases, preset inputs, or compatibility inputs; they are not the physics source of truth.
-- Physics validation must use the CLI/backend FEBio-native path until export, run, convert, diagnostics, and Studio confirmation are stable.
+- Physics validation must use the CLI/backend FEBio-native path until export, run, convert, diagnostics, and Studio confirmation gates are stable.
 - UI integration should happen after FEBio-native spec, CLI export/run, converter/import, diagnostics, and Studio confirmation gates are stable.
 - If legacy UI parameters are still supported, route them through an explicit compatibility/preset conversion layer into FEBio-native spec.
 - Once FEBio-native spec migration is complete, UI-parameter conversion files must be treated as legacy / compatibility code, not active physics source-of-truth.
@@ -381,3 +419,4 @@ Also:
 - leaving the repository in a state where the next reviewer cannot run, inspect, or evaluate the change
 - putting fine-grained implementation checklists in `docs/ops/ROADMAP.md` instead of `PROGRESS.md`
 - putting broad roadmap stage policy only in `PROGRESS.md` without updating `docs/ops/ROADMAP.md` when the broad direction changes
+- accumulating long completed-milestone or comparison logs in `PROGRESS.md` instead of retiring them to diagnostic / incident docs
