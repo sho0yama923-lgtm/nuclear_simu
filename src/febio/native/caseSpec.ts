@@ -53,6 +53,17 @@ export function normalizeNativeCaseSpec(input = {}) {
   if (Number.isFinite(pressure.value) && pressure.value > 0) pressure.value *= -1;
   pressure.magnitude = Number.isFinite(pressure.value) ? Math.abs(pressure.value) : NaN;
   spec.loads.suctionPressure = pressure;
+
+  const preload = spec.loads.cellDishNormalPreload || {};
+  preload.enabled = preload.enabled === true;
+  preload.name = preload.name || "cell_dish_normal_preload";
+  preload.surface = preload.surface || "cell_dish_surface";
+  preload.value = preload.enabled ? numberOr(preload.value, NaN) : numberOr(preload.value, 0);
+  preload.magnitude = Math.abs(Number.isFinite(preload.value) ? preload.value : 0);
+  preload.unit = preload.unit || "kPa";
+  preload.loadController = Number.isFinite(Number(preload.loadController)) ? Number(preload.loadController) : 203;
+  preload.curve = Array.isArray(preload.curve) ? preload.curve : [[0, 0], [1, 1], [5, 1]];
+  spec.loads.cellDishNormalPreload = preload;
   return spec;
 }
 
@@ -97,6 +108,10 @@ export function validateNativeCaseSpec(input = {}) {
   });
   if (spec.unitSystem !== "um-nN-s") warnings.push("native-only export currently expects unitSystem um-nN-s");
   if (!spec.loads.suctionPressure?.surface) errors.push("loads.suctionPressure.surface is required");
+  if (spec.loads.cellDishNormalPreload?.enabled) {
+    if (!Number.isFinite(Number(spec.loads.cellDishNormalPreload.value))) errors.push("loads.cellDishNormalPreload.value must be a finite number when enabled");
+    if (!spec.loads.cellDishNormalPreload.surface) errors.push("loads.cellDishNormalPreload.surface is required when enabled");
+  }
   if (!spec.boundary.fixedNodeSet) errors.push("boundary.fixedNodeSet is required");
   if (!spec.steps.length) errors.push("steps must include solver steps");
   return { valid: errors.length === 0, errors, warnings, source: "febio-native-case" };

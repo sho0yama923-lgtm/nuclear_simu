@@ -127,6 +127,8 @@ Solver-active load に直接必要な値を持つ。
 
 S7-C 以降、micropipette suction pressure は剛体ピペット面ではなく、変形体側の `pipette_suction_surface` に載せる。native default では `geometry.pipette.puncture` と `geometry.pipette.tip` を分離し、旧 UI の `xp` 相当は実行接触位置ではなく穿刺 metadata として保持する。確認用 direct case の `pipette_suction_surface` は nucleus right-side capture face を指し、surface orientation は FEBio pressure solve で negative jacobian を起こさない `[10,14,15,11]` に固定する。
 
+S7-L 以降、cell-dish normal support の bounded comparison 用に `loads.cellDishNormalPreload` を任意で持てる。`enabled=true` のときだけ `cell_dish_surface` へ solver-active pressure load を追加する。`cell_dish_surface` の法線は `-z` なので、正の preload pressure は basal cell surface を dish 方向へ押す比較 load として扱う。baseline case では無効のままにする。S7-M の `0.10 kPa` candidate は warning-free のまま `.xplt` normal-support gate に到達したが、face-data pressure は zero のままなので output-channel mismatch は別に扱う。
+
 現時点の native direct mesh は `meshMode=s7-debug-local-nucleus` の粗い debug mesh であり、refined native mesh ではない。これは Studio / CLI 確認用の過渡状態として扱い、次段階で local suction aperture と cell-dish contact を持つ refined mesh へ置き換える。
 
 ### boundary

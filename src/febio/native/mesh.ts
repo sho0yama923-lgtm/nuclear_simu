@@ -324,6 +324,10 @@ function scale(vector, factor) {
   return vector.map((value) => value * factor);
 }
 
+function magnitude(vector) {
+  return Math.hypot(vector?.[0] || 0, vector?.[1] || 0, vector?.[2] || 0);
+}
+
 function nodePointMap(mesh = {}) {
   return new Map((mesh.nodes || []).map((node) => [node.id, [node.x, node.y, node.z]]));
 }
@@ -403,6 +407,8 @@ function buildContactPairDiagnostics(mesh) {
       const same = normalDot != null && normalDot > 0.75;
       const centroidDelta = primaryCentroid && secondaryCentroid ? subtract(secondaryCentroid, primaryCentroid) : null;
       const signedNormalGap = centroidDelta && primaryNormal ? dot(centroidDelta, primaryNormal) : null;
+      const normalOffset = signedNormalGap == null || !primaryNormal ? null : scale(primaryNormal, signedNormalGap);
+      const tangentialOffset = centroidDelta && normalOffset ? subtract(centroidDelta, normalOffset) : null;
       return [
         check.name,
         {
@@ -416,6 +422,8 @@ function buildContactPairDiagnostics(mesh) {
           centroidDelta,
           signedNormalGap,
           normalGapMagnitude: signedNormalGap == null ? null : Math.abs(signedNormalGap),
+          tangentialOffset,
+          tangentialOffsetMagnitude: tangentialOffset ? magnitude(tangentialOffset) : null,
           expected: check.expected,
           aligned: check.expected === "opposed" ? opposed : check.expected === "same" ? same : false,
         },
@@ -431,6 +439,18 @@ function buildContactPairDiagnostics(mesh) {
 function buildPressureDiagnostics(mesh) {
   const suction = surfaceNormal(mesh, COORDINATE_CONVENTION.pressure.suctionSurface);
   const suctionNormal = axisLabel(suction);
+  const suctionCentroid = surfaceCentroid(mesh, COORDINATE_CONVENTION.pressure.suctionSurface);
+  const mouthCentroid = surfaceCentroid(mesh, COORDINATE_CONVENTION.pressure.rigidMouthSurface);
+  const centroidDelta = suctionCentroid && mouthCentroid ? subtract(mouthCentroid, suctionCentroid) : null;
+  const signedNormalGap = centroidDelta && suction ? dot(centroidDelta, suction) : null;
+  const normalOffset = signedNormalGap == null || !suction ? null : scale(suction, signedNormalGap);
+  const tangentialOffset = centroidDelta && normalOffset ? subtract(centroidDelta, normalOffset) : null;
+  const tangentialOffsetMagnitude = tangentialOffset ? magnitude(tangentialOffset) : null;
+  const maxTangentialOffsetForReady = 0.1;
+  const couplingReady =
+    suctionNormal === COORDINATE_CONVENTION.pressure.currentSuctionNormal &&
+    tangentialOffsetMagnitude != null &&
+    tangentialOffsetMagnitude <= maxTangentialOffsetForReady;
   return {
     suctionSurface: COORDINATE_CONVENTION.pressure.suctionSurface,
     surfaceOwnership: COORDINATE_CONVENTION.pressure.surfaceOwnership,
@@ -438,6 +458,20 @@ function buildPressureDiagnostics(mesh) {
     suctionNormal,
     expectedSuctionNormal: COORDINATE_CONVENTION.pressure.currentSuctionNormal,
     negativePressureEffect: COORDINATE_CONVENTION.pressure.negativePressureEffect,
+    couplingReadiness: {
+      ready: couplingReady,
+      suctionCentroid,
+      rigidMouthCentroid: mouthCentroid,
+      centroidDelta,
+      signedNormalGap,
+      normalGapMagnitude: signedNormalGap == null ? null : Math.abs(signedNormalGap),
+      tangentialOffset,
+      tangentialOffsetMagnitude,
+      maxTangentialOffsetForReady,
+      interpretation: couplingReady
+        ? "pipette suction surface is normal-aligned and tangentially colocated with the rigid mouth surface"
+        : "pipette suction surface is not tangentially colocated with the rigid mouth surface; pressure can be declared while contact/reaction channels remain inactive"
+    },
     valid: suctionNormal === COORDINATE_CONVENTION.pressure.currentSuctionNormal,
     warnings:
       suctionNormal === COORDINATE_CONVENTION.pressure.currentSuctionNormal

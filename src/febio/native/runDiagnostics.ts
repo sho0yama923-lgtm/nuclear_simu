@@ -8,6 +8,9 @@
 
 import { summarizeXpltContactForce } from "./xpltDiagnostics.ts";
 
+const FORCE_EPSILON = 1e-9;
+const CELL_DISH_NORMAL_SUPPORT_RATIO = 0.2;
+
 function parseNumber(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
@@ -104,6 +107,73 @@ function displacementSummary(text = "") {
   };
 }
 
+function cellDishForceDiagnostics(cellDish, plotfileContactForce) {
+  const hasPressure = cellDish.hasLoadBearingPressure === true;
+  const hasContactForce = plotfileContactForce.hasContactForce === true;
+  const normalForce = plotfileContactForce.maxAbs?.normal || 0;
+  const tangentialForce = plotfileContactForce.maxAbs?.tangential || 0;
+  const normalToTangentialRatio = plotfileContactForce.normalToTangentialRatio || 0;
+  return {
+    pressureForceMismatch: !hasPressure && hasContactForce,
+    normalForce,
+    tangentialForce,
+    normalToTangentialRatio,
+    normalSupportThreshold: {
+      minMagnitude: FORCE_EPSILON,
+      minNormalToTangentialRatio: CELL_DISH_NORMAL_SUPPORT_RATIO
+    },
+    hasNormalSupport: normalForce > FORCE_EPSILON && normalToTangentialRatio >= CELL_DISH_NORMAL_SUPPORT_RATIO,
+    hasTangentialForce: tangentialForce > FORCE_EPSILON,
+    interpretation: !hasPressure && hasContactForce
+      ? "cell-dish face-data pressure is zero while plotfile contact force is nonzero"
+      : ""
+  };
+}
+
+function plotfileSurfaceForce(plotfileContactForce, surfaceName) {
+  return plotfileContactForce?.surfaceSummaries?.[surfaceName] || {
+    nonzeroRowCount: 0,
+    hasContactForce: false,
+    maxAbs: {
+      x: 0,
+      y: 0,
+      z: 0,
+      magnitude: 0,
+      normal: 0,
+      tangential: 0
+    }
+  };
+}
+
+function pipetteInteractionDiagnostics(pipetteCell, pipetteContact, rigidPipette, plotfileContactForce) {
+  const suctionPlotfileForce = plotfileSurfaceForce(plotfileContactForce, "pipette_suction_surface");
+  const mouthPlotfileForce = plotfileSurfaceForce(plotfileContactForce, "pipette_contact_surface");
+  const pressureActive = pipetteCell.hasLoadBearingPressure === true;
+  const mouthPressureActive = pipetteContact.hasLoadBearingPressure === true;
+  const rigidReactionActive = rigidPipette.hasReaction === true;
+  const suctionPlotfileForceActive = suctionPlotfileForce.hasContactForce === true;
+  const mouthPlotfileForceActive = mouthPlotfileForce.hasContactForce === true;
+  const plotfileForceActive = suctionPlotfileForceActive || mouthPlotfileForceActive;
+  const hasInteraction = pressureActive || mouthPressureActive || rigidReactionActive || plotfileForceActive;
+  return {
+    pressureActive,
+    mouthPressureActive,
+    rigidReactionActive,
+    suctionPlotfileForceActive,
+    mouthPlotfileForceActive,
+    plotfileForceActive,
+    hasInteraction,
+    maxPressure: pipetteCell.maxAbsPressure || 0,
+    maxMouthPressure: pipetteContact.maxAbsPressure || 0,
+    maxRigidReaction: rigidPipette.maxAbsReaction || 0,
+    suctionPlotfileForce,
+    mouthPlotfileForce,
+    interpretation: hasInteraction
+      ? "pipette interaction is active in at least one pressure, rigid-reaction, or plotfile-force channel"
+      : "pipette interaction channels are all inactive: pipette-cell pressure, pipette mouth pressure, rigid reaction, and pipette plotfile contact force are zero"
+  };
+}
+
 export function summarizeNativeFebioRunFiles(files = {}) {
   const warnings = warningCounts(files.log || "");
   const cellDish = surfaceContactSummary(files.cellDish || "");
@@ -113,6 +183,8 @@ export function summarizeNativeFebioRunFiles(files = {}) {
   const nucleus = displacementSummary(files.nucleus || "");
   const cytoplasm = displacementSummary(files.cytoplasm || "");
   const plotfileContactForce = summarizeXpltContactForce(files.xplt);
+  const cellDishForce = cellDishForceDiagnostics(cellDish, plotfileContactForce);
+  const pipetteInteraction = pipetteInteractionDiagnostics(pipetteCell, pipetteContact, rigidPipette, plotfileContactForce);
   return {
     warnings,
     cellDish,
@@ -122,12 +194,25 @@ export function summarizeNativeFebioRunFiles(files = {}) {
     nucleus,
     cytoplasm,
     plotfileContactForce,
+    cellDishForce,
+    pipetteInteraction,
     gates: {
       warningFree: warnings.warning === 0 && warnings.error === 0 && warnings.negativeJacobian === 0 && warnings.noForceActing === 0 && warnings.noContactPairs === 0,
+      cellDishPressureActive: cellDish.hasLoadBearingPressure,
+      cellDishContactForceActive: plotfileContactForce.hasContactForce === true,
+      cellDishNormalSupportActive: cellDishForce.hasNormalSupport,
+      cellDishTangentialForceActive: cellDishForce.hasTangentialForce,
+      cellDishPressureForceMismatch: cellDishForce.pressureForceMismatch,
       cellDishLoadBearing: cellDish.hasLoadBearingPressure,
       cellDishGapControlled: cellDish.hasControlledGap,
       plotfileContactForceActive: plotfileContactForce.hasContactForce === true,
-      pipetteInteractionActive: pipetteCell.hasLoadBearingPressure || rigidPipette.hasReaction,
+      pipetteCellPressureActive: pipetteInteraction.pressureActive,
+      pipetteMouthPressureActive: pipetteInteraction.mouthPressureActive,
+      pipetteRigidReactionActive: pipetteInteraction.rigidReactionActive,
+      pipetteSuctionPlotfileForceActive: pipetteInteraction.suctionPlotfileForceActive,
+      pipetteMouthPlotfileForceActive: pipetteInteraction.mouthPlotfileForceActive,
+      pipettePlotfileForceActive: pipetteInteraction.plotfileForceActive,
+      pipetteInteractionActive: pipetteInteraction.hasInteraction,
       nucleusCytoplasmMoved: nucleus.hasDisplacement && cytoplasm.hasDisplacement,
     },
   };

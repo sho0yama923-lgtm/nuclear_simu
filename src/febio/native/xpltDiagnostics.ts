@@ -116,7 +116,16 @@ function parseVectorRows(buffer, valuesChunk) {
     const x = buffer.readFloatLE(valueOffset);
     const y = buffer.readFloatLE(valueOffset + 4);
     const z = buffer.readFloatLE(valueOffset + 8);
-    rows.push({ itemId, x, y, z, magnitude: Math.hypot(x, y, z) });
+    rows.push({
+      itemId,
+      x,
+      y,
+      z,
+      magnitude: Math.hypot(x, y, z),
+      normalComponent: z,
+      normalMagnitude: Math.abs(z),
+      tangentialMagnitude: Math.hypot(x, y)
+    });
     offset = nextOffset;
   }
   return rows;
@@ -146,6 +155,32 @@ function updateMax(current, candidate, field) {
   return current;
 }
 
+function createSurfaceForceSummary() {
+  return {
+    nonzeroRowCount: 0,
+    hasContactForce: false,
+    maxAbs: {
+      x: 0,
+      y: 0,
+      z: 0,
+      magnitude: 0,
+      normal: 0,
+      tangential: 0
+    }
+  };
+}
+
+function updateSurfaceForceSummary(summary, row) {
+  if (row.magnitude > 1e-9) summary.nonzeroRowCount += 1;
+  summary.hasContactForce = summary.nonzeroRowCount > 0;
+  summary.maxAbs.x = Math.max(summary.maxAbs.x, Math.abs(row.x || 0));
+  summary.maxAbs.y = Math.max(summary.maxAbs.y, Math.abs(row.y || 0));
+  summary.maxAbs.z = Math.max(summary.maxAbs.z, Math.abs(row.z || 0));
+  summary.maxAbs.magnitude = Math.max(summary.maxAbs.magnitude, Math.abs(row.magnitude || 0));
+  summary.maxAbs.normal = Math.max(summary.maxAbs.normal, Math.abs(row.normalMagnitude || 0));
+  summary.maxAbs.tangential = Math.max(summary.maxAbs.tangential, Math.abs(row.tangentialMagnitude || 0));
+}
+
 export function summarizeXpltContactForce(input) {
   const buffer = toBuffer(input);
   if (!buffer || buffer.length < 12 || buffer.subarray(0, 4).toString("latin1") !== XPLT_MAGIC) {
@@ -154,7 +189,8 @@ export function summarizeXpltContactForce(input) {
 
   const surfaceByItemId = parseSurfaceItemMap(buffer);
   const states = [];
-  const maxima = { x: null, y: null, z: null, magnitude: null };
+  const maxima = { x: null, y: null, z: null, magnitude: null, normalMagnitude: null, tangentialMagnitude: null };
+  const surfaceSummaries = {};
   let nonzeroRowCount = 0;
 
   for (const topChunk of chunks(buffer, 12, buffer.length)) {
@@ -170,27 +206,43 @@ export function summarizeXpltContactForce(input) {
       maxima.y = updateMax(maxima.y, timedRow, "y");
       maxima.z = updateMax(maxima.z, timedRow, "z");
       maxima.magnitude = updateMax(maxima.magnitude, timedRow, "magnitude");
+      maxima.normalMagnitude = updateMax(maxima.normalMagnitude, timedRow, "normalMagnitude");
+      maxima.tangentialMagnitude = updateMax(maxima.tangentialMagnitude, timedRow, "tangentialMagnitude");
       if (row.magnitude > 1e-9) nonzeroRowCount += 1;
+      const surface = row.surface || `item:${row.itemId}`;
+      surfaceSummaries[surface] = surfaceSummaries[surface] || createSurfaceForceSummary();
+      updateSurfaceForceSummary(surfaceSummaries[surface], row);
     });
     states.push({ time, rowCount: rows.length, rows });
   }
 
   const maxAbsX = maxima.x?.value || 0;
   const maxAbsZ = maxima.z?.value || 0;
+  const maxNormal = maxima.normalMagnitude?.value || 0;
+  const maxTangential = maxima.tangentialMagnitude?.value || 0;
   return {
     available: true,
     stateCount: states.length,
     nonzeroRowCount,
     hasContactForce: nonzeroRowCount > 0,
+    componentBasis: {
+      normalAxis: "z",
+      tangentialAxes: ["x", "y"],
+      normalDirection: "cell-dish normal; +z is away from dish / apical"
+    },
     maxAbs: {
       x: maxAbsX,
       y: maxima.y?.value || 0,
       z: maxAbsZ,
-      magnitude: maxima.magnitude?.value || 0
+      magnitude: maxima.magnitude?.value || 0,
+      normal: maxNormal,
+      tangential: maxTangential
     },
     maxAt: maxima,
+    surfaceSummaries,
     surfaceByItemId,
     zToXRatio: maxAbsX > 0 ? maxAbsZ / maxAbsX : 0,
+    normalToTangentialRatio: maxTangential > 0 ? maxNormal / maxTangential : (maxNormal > 0 ? Infinity : 0),
     finalState: states.at(-1) || { time: 0, rowCount: 0, rows: [] }
   };
 }

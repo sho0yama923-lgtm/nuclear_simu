@@ -269,7 +269,7 @@ References:
 
 Status:
 
-- active / under diagnosis
+- diagnosed / split-gate mitigation active
 
 Discovered in:
 
@@ -283,8 +283,7 @@ Symptom:
 
 Cause:
 
-- Not fully resolved.
-- Current evidence indicates that face-data contact pressure and plotfile contact force are different output channels and cannot be collapsed into a single verdict.
+- Face-data contact pressure and plotfile contact force are different output channels and cannot be collapsed into a single verdict.
 - The pressure output may be inactive, unavailable for the tied-elastic formulation, or not representative of the force component currently observed in `.xplt`.
 
 Impact:
@@ -294,13 +293,15 @@ Impact:
 
 Fix or mitigation:
 
-- Split cell-dish diagnostics into separate gates:
+- Cell-dish diagnostics are split into separate gates:
   - `cellDishPressureActive`
   - `cellDishContactForceActive`
   - `cellDishNormalSupportActive`
   - `cellDishTangentialForceActive`
+  - `cellDishPressureForceMismatch`
   - `cellDishGapControlled`
 - Project `.xplt` contact force into normal and tangential components before choosing the next model-side change.
+- For the current S7-K baseline, pressure is inactive, contact force is active, tangential force is active, gap is controlled, and normal support remains below threshold.
 
 Regression guard:
 
@@ -319,7 +320,7 @@ References:
 
 Status:
 
-- active / mitigation planned
+- fixed / compatibility alias retained
 
 Discovered in:
 
@@ -342,8 +343,8 @@ Impact:
 
 Fix or mitigation:
 
-- Keep `cellDishLoadBearing` only as a compatibility alias or retire it after downstream references are updated.
-- Introduce explicit gates for pressure, plotfile force, normal support, tangential force, and gap control.
+- Keep `cellDishLoadBearing` only as a pressure-only compatibility alias or retire it after downstream references are updated.
+- Introduced explicit gates for pressure, plotfile force, normal support, tangential force, pressure/force mismatch, and gap control.
 - Document that old `cellDishLoadBearing=false` means pressure-output inactive, not necessarily force absent.
 
 Regression guard:
@@ -398,4 +399,105 @@ References:
 
 - `docs/febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md`
 - `docs/febio/CELL_DISH_LOAD_BEARING_DIAGNOSTICS.md`
+- `PROGRESS.md`
+
+### INC-006: Cell-dish normal preload reaches normal support before pressure output
+
+Status:
+
+- diagnosed / normal-support candidate active
+
+Discovered in:
+
+- S7-L normal preload comparison
+
+Symptom:
+
+- Adding `0.05 kPa` positive pressure on `cell_dish_surface` increased `.xplt` normal contact force and preserved warning-free termination, but did not close the normal-support gate.
+- Increasing preload to `0.10 kPa` preserved warning-free termination and made `cellDishNormalSupportActive=true`.
+- Face-data contact pressure remained zero in both preload cases.
+
+Cause:
+
+- Normal preload increases the cell-dish normal component enough to close the `.xplt` support gate at `0.10 kPa`.
+- The pressure-output mismatch is not fixed by preload and is likely an output-channel / formulation interpretation issue.
+
+Impact:
+
+- Normal preload is a viable model-side candidate for normal support in the current tied-elastic baseline.
+- A pressure-only localCd or load-bearing verdict will still report false even when normal support is present in `.xplt`.
+
+Fix or mitigation:
+
+- Keep the S7-K tied-elastic baseline, S7-L `0.05 kPa`, and S7-M `0.10 kPa` as comparison points.
+- Treat S7-M as the current warning-free normal-support candidate.
+- Converter/import now preserve `native-plotfile-contact-traction` as a localCd normal/damage source when a standard plotfile bridge payload provides normal traction and face-data pressure is zero.
+- Real `.xplt` extraction now feeds that bridge for `cell_dish_surface`; converted result JSON can carry the plotfile normal source.
+- The current extraction is explicitly labeled as global cell-dish fan-out, not region-resolved localCd force, until region-split plotfile surfaces exist.
+
+Regression guard:
+
+- Do not call cell-dish absent when `cellDishContactForceActive=true` and `cellDishNormalSupportActive=true`, even if `cellDishPressureActive=false`.
+- Keep pressure-output mismatch as a separate gate until the face-data channel is understood or replaced in downstream diagnostics.
+- Keep global plotfile bridge provenance distinct from future region-specific plotfile provenance.
+
+References:
+
+- `febio_cases/native/S7_normal_preload.native.json`
+- `febio_exports/S7_normal_preload/S7-L_S7_normal_preload.feb`
+- `febio_cases/native/S7_normal_preload_high.native.json`
+- `febio_exports/S7_normal_preload_high/S7-M_S7_normal_preload_high.feb`
+- `scripts/convert_febio_output.mjs`
+- `src/febio/import/normalizeFebioResult.ts`
+- `docs/febio/CELL_DISH_LOAD_BEARING_DIAGNOSTICS.md`
+- `docs/febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md`
+
+### INC-007: Pipette interaction inactive across pressure, reaction, and plotfile force
+
+Status:
+
+- diagnosed / carried to next model-side phase
+
+Discovered in:
+
+- S7-Q pipette interaction diagnostic split
+
+Symptom:
+
+- S7-M reaches warning-free normal termination and has cell-dish normal support.
+- `febio_pipette_cell_contact.csv` pressure remains zero.
+- `febio_pipette_contact.csv` pressure remains zero.
+- `febio_rigid_pipette.csv` reaction remains zero.
+- `.xplt` contact force remains zero on `pipette_suction_surface` and `pipette_contact_surface`.
+
+Cause:
+
+- Not solved in S7. The current diagnostics show the pipette/cell coupling is inactive across all emitted force channels.
+- Nucleus and cytoplasm displacement can be nonzero while pipette force capture is still absent, so movement alone is not proof of pipette interaction.
+- S8-A pre-run geometry diagnostics show the suction surface and rigid mouth surface are normal-aligned with zero normal gap, but tangentially offset by `8.5 um` in the x-z section.
+
+Impact:
+
+- Detachment interpretation cannot be considered physically complete until pipette interaction is active or deliberately replaced.
+- S7 can close as a diagnostic stage, but the next model-side phase should start from pipette coupling rather than another cell-dish contact-law change.
+
+Fix or mitigation:
+
+- Split `pipetteInteractionActive` into pressure, mouth pressure, rigid reaction, suction plotfile force, and mouth plotfile force gates.
+- Add `pressureDiagnostics.couplingReadiness` to report suction/mouth centroid delta, normal gap, and tangential offset before running FEBio.
+- Preserve S7-M as the cell-dish normal-support candidate.
+- Carry pipette coupling / suction force capture as the next model-side blocker.
+
+Regression guard:
+
+- Do not infer pipette interaction from nucleus/cytoplasm displacement alone.
+- Do not infer pipette readiness from normal alignment or normal gap alone; check tangential offset too.
+- Require at least one active pipette pressure, rigid reaction, or pipette plotfile force channel before treating suction force capture as established.
+
+References:
+
+- `src/febio/native/runDiagnostics.ts`
+- `src/febio/native/xpltDiagnostics.ts`
+- `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`
+- `docs/febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md`
 - `PROGRESS.md`

@@ -8,12 +8,75 @@ import {
   attachExplicitDetachmentEvents,
   buildDetachmentMetricsFromLocalState,
   buildOutputMappingSummary,
+  buildXpltPlotfileBridgePayload,
+  computeCellDishRegionStateWithFace,
+  computeNormalTractionFromPlotfileBridge,
   computeTangentialTractionFromFaceSnapshot,
   computeTangentialTractionFromPlotfileBridge,
   getRigidPipetteState,
   inferFaceSnapshotValueOffset,
   resolveTangentialShearObservation,
 } from "../scripts/convert_febio_output.mjs";
+
+function xpltChunk(id, payload = Buffer.alloc(0)) {
+  const header = Buffer.alloc(8);
+  header.writeUInt32BE(id, 0);
+  header.writeUInt32LE(payload.length, 4);
+  return Buffer.concat([header, payload]);
+}
+
+function xpltInt(value) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeInt32LE(value, 0);
+  return buffer;
+}
+
+function xpltFloat(value) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeFloatLE(value, 0);
+  return buffer;
+}
+
+function xpltContactForceRow(itemId, x, y, z) {
+  const buffer = Buffer.alloc(20);
+  buffer.writeInt32LE(itemId, 0);
+  buffer.writeInt32LE(12, 4);
+  buffer.writeFloatLE(x, 8);
+  buffer.writeFloatLE(y, 12);
+  buffer.writeFloatLE(z, 16);
+  return buffer;
+}
+
+function buildMinimalXpltContactForce(states) {
+  const preamble = Buffer.alloc(12);
+  preamble.write("BEF\0", 0, "latin1");
+  preamble.writeUInt32LE(0x01000000, 4);
+  preamble.writeUInt32LE(0, 8);
+  const surfaceRecord = (itemId, name) => {
+    const nameBuffer = Buffer.from(name, "utf8");
+    const payload = Buffer.alloc(4 + nameBuffer.length);
+    payload.writeUInt32LE(nameBuffer.length, 0);
+    nameBuffer.copy(payload, 4);
+    return xpltChunk(0x00310401, Buffer.concat([
+      xpltChunk(0x02310401, xpltInt(itemId)),
+      xpltChunk(0x04310401, payload),
+    ]));
+  };
+  return Buffer.concat([
+    preamble,
+    xpltChunk(0x00300401, Buffer.concat([
+      surfaceRecord(1, "cell_dish_surface"),
+      surfaceRecord(2, "dish_contact_surface"),
+    ])),
+    ...states.map((state) => xpltChunk(0x00000002, Buffer.concat([
+      xpltChunk(0x00000102, xpltChunk(0x02000102, xpltFloat(state.time))),
+      xpltChunk(0x00000202, xpltChunk(0x00050202, xpltChunk(0x01000202, Buffer.concat([
+        xpltChunk(0x02000202, xpltInt(1)),
+        xpltChunk(0x03000202, Buffer.concat(state.rows.map((row) => xpltContactForceRow(row.itemId, row.x, row.y, row.z)))),
+      ])))),
+    ]))),
+  ]);
+}
 
 async function loadGeneratedModule(relativePath) {
   const modulePath = path.resolve(process.cwd(), "generated", "dist", ...relativePath.split("/"));
@@ -769,6 +832,44 @@ test("import derives localCd from native face-data payloads and keeps source lab
   assert.equal(imported.localCd.right.provenance, "proxy-fallback-explicit");
 });
 
+test("import preserves localCd plotfile normal source as native observation", async () => {
+  const app = await loadApp();
+  const spec = app.buildSimulationInput("A", app.DEFAULTS);
+  const imported = app.importFebioResult(
+    {
+      normalizedResult: {
+        caseName: "A",
+        params: spec.params,
+        localCdNative: {
+          center: {
+            normalStress: 0.34,
+            shearStress: 0.12,
+            damage: 0.08,
+            sourceNormal: "native-plotfile-contact-traction",
+            sourceDamage: "native-plotfile-contact-traction",
+            sourceShear: "native-plotfile-contact-traction",
+            sourceNormalDetail: {
+              regionScope: "global",
+              payloadRegion: "__global",
+              appliedRegion: "center",
+              fanoutFallback: true,
+            },
+          },
+        },
+      },
+    },
+    spec,
+  );
+
+  assert.equal(imported.localCd.center.normalStress, 0.34);
+  assert.equal(imported.localCd.center.sourceNormal, "native-plotfile-contact-traction");
+  assert.equal(imported.localCd.center.sourceDamage, "native-plotfile-contact-traction");
+  assert.equal(imported.localCd.center.sourceShear, "native-plotfile-contact-traction");
+  assert.equal(imported.localCd.center.sourceNormalDetail.regionScope, "global");
+  assert.equal(imported.localCd.center.sourceNormalDetail.fanoutFallback, true);
+  assert.equal(imported.localCd.center.provenance, "native-face-data-preferred");
+});
+
 test("import normalizes history localCd native payloads before membrane and damage summaries", async () => {
   const app = await loadApp();
   const spec = app.buildSimulationInput("A", app.DEFAULTS);
@@ -853,6 +954,48 @@ test("external FEBio converter reads tangential traction from standard plotfile 
   );
 });
 
+test("external FEBio converter reads normal traction from standard plotfile bridge entries", () => {
+  assert.equal(
+    computeNormalTractionFromPlotfileBridge("localCd", "center", {
+      contactTraction: { x: 0.31, z: -0.42 },
+      sectionAxes: { normal: "z", tangential: "x" },
+    }),
+    0.42,
+  );
+  assert.equal(
+    computeNormalTractionFromPlotfileBridge("localNc", "left", {
+      contactTraction: [-0.33, 0, 0.08],
+    }),
+    0.33,
+  );
+  assert.equal(
+    computeNormalTractionFromPlotfileBridge("localCd", "right", {
+      normalTraction: -0.51,
+    }),
+    0.51,
+  );
+});
+
+test("external FEBio converter builds localCd bridge payload from xplt contact force", () => {
+  const bridge = buildXpltPlotfileBridgePayload(buildMinimalXpltContactForce([
+    { time: 0, rows: [{ itemId: 1, x: 0, y: 0, z: 0 }] },
+    { time: 5, rows: [{ itemId: 1, x: 25, y: 0, z: -8 }, { itemId: 2, x: -25, y: 0, z: 8 }] },
+  ]));
+
+  assert.equal(bridge.localCd.__global.length, 2);
+  assert.equal(bridge.localCd.__global[1].source, "xplt-contact-force");
+  assert.equal(bridge.localCd.__global[1].regionScope, "global");
+  assert.equal(bridge.localCd.__global[1].payloadRegion, "__global");
+  assert.equal(bridge.localCd.__global[1].fanoutFallback, true);
+  assert.deepEqual(bridge.localCd.__global[1].sectionAxes, { normal: "z", tangential: "x" });
+  assert.equal(bridge.localCd.__global[1].normalTraction, -8);
+  assert.equal(bridge.localCd.__global[1].tangentialTraction, 25);
+  assert.equal(
+    computeNormalTractionFromPlotfileBridge("localCd", "center", bridge.localCd.__global[1]),
+    8,
+  );
+});
+
 test("external FEBio converter prefers standard plotfile traction bridge over proxy shear fallback", () => {
   const resolved = resolveTangentialShearObservation(
     "localNc",
@@ -875,6 +1018,75 @@ test("external FEBio converter prefers standard plotfile traction bridge over pr
 
   assert.equal(resolved.sourceShear, "native-plotfile-contact-traction");
   assert.equal(resolved.shearStress, 0.44);
+});
+
+test("external FEBio converter uses plotfile normal traction when cell-dish pressure is zero", () => {
+  const computed = computeCellDishRegionStateWithFace(
+    "center",
+    [{ time: 1, records: [[0.04, 0.02]] }],
+    [{
+      time: 1,
+      dataFields: ["contact gap", "contact pressure"],
+      records: [[1, 0.03, 0]],
+    }],
+    {
+      normalStiffness: 10,
+      tangentialStiffness: 1,
+      criticalNormalStress: 0.95,
+      criticalShearStress: 0.65,
+      fractureEnergy: 0.35,
+    },
+    [{
+      time: 1,
+      contactTraction: { x: 0.12, z: -0.34 },
+      sectionAxes: { normal: "z", tangential: "x" },
+    }],
+  );
+
+  assert.equal(computed.state.normalStress, 0.34);
+  assert.equal(computed.state.shearStress, 0.12);
+  assert.equal(computed.state.sourceNormal, "native-plotfile-contact-traction");
+  assert.equal(computed.state.sourceDamage, "native-plotfile-contact-traction");
+  assert.equal(computed.state.sourceShear, "native-plotfile-contact-traction");
+  assert.equal(computed.timeline[0].sourceNormal, "native-plotfile-contact-traction");
+});
+
+test("external FEBio converter marks global xplt bridge fan-out provenance", () => {
+  const computed = computeCellDishRegionStateWithFace(
+    "left",
+    [{ time: 1, records: [[0.04, 0.02]] }],
+    [{
+      time: 1,
+      dataFields: ["contact gap", "contact pressure"],
+      records: [[1, 0.03, 0]],
+    }],
+    {
+      normalStiffness: 10,
+      tangentialStiffness: 1,
+      criticalNormalStress: 0.95,
+      criticalShearStress: 0.65,
+      fractureEnergy: 0.35,
+    },
+    [{
+      time: 1,
+      surface: "cell_dish_surface",
+      source: "xplt-contact-force",
+      interfaceGroup: "localCd",
+      payloadRegion: "__global",
+      regionScope: "global",
+      spatialResolution: "global-surface",
+      fanoutFallback: true,
+      contactTraction: { x: 0.12, z: -0.34 },
+      sectionAxes: { normal: "z", tangential: "x" },
+    }],
+  );
+
+  assert.equal(computed.state.sourceNormalDetail.regionScope, "global");
+  assert.equal(computed.state.sourceNormalDetail.payloadRegion, "__global");
+  assert.equal(computed.state.sourceNormalDetail.appliedRegion, "left");
+  assert.equal(computed.state.sourceNormalDetail.fanoutFallback, true);
+  assert.equal(computed.state.sourceShearDetail.spatialResolution, "global-surface");
+  assert.equal(computed.timeline[0].sourceDamageDetail.fanoutFallback, true);
 });
 
 test("external FEBio converter supports face snapshots without a leading entity id", () => {

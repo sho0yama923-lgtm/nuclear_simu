@@ -154,16 +154,26 @@ S7-K baseline diagnostics result:
 - contact pair diagnostics now include primary/secondary centroids, centroid delta, signed normal gap, and normal gap magnitude;
 - the regenerated native model reports `normalGapMagnitude=0` and normal dot `-1` for cell-dish left / center / right, so initial basal separation is not the current blocker;
 - regenerated FEBio CLI run remains warning-free and reaches normal termination;
-- final cell-dish pressure remains 0 with final gaps `[0.470949285102, 0.41310068936, 0.569874108195]`;
+- final cell-dish pressure remains 0 with final gaps `[0.0466542077989, 0.0429836539341, 0.0566542533992]` after the current `normalStiffness=15.5` baseline;
 - final pipette-cell pressure and rigid reaction are also 0 after `pipette_nucleus_contact` was omitted, so pipette interaction needs Studio confirmation before another solver-facing redesign;
 - scratch `sliding-elastic` / `sticky` cell-dish contact variants fail immediately with negative jacobian, while a basal settling pressure variant runs but still produces zero cell-dish pressure.
-- `scripts/diagnose_febio_native_run.mjs --run-dir febio_exports/S7_native_baseline/jobs` summarizes the active CLI run gates. The current state is `warningFree=true`, `cellDishLoadBearing=false`, `pipetteInteractionActive=false`, and `nucleusCytoplasmMoved=true`.
+- `scripts/diagnose_febio_native_run.mjs --run-dir febio_exports/S7_native_baseline/jobs --base-name S7-K_S7_native_baseline` summarizes the active CLI run gates. The current state is `warningFree=true`, `cellDishPressureActive=false`, `cellDishContactForceActive=true`, `cellDishNormalSupportActive=false`, `cellDishTangentialForceActive=true`, `cellDishPressureForceMismatch=true`, `cellDishGapControlled=true`, `pipetteInteractionActive=false`, and `nucleusCytoplasmMoved=true`.
 - S7-K active artifacts use the `S7-K_S7_native_baseline` base name so Studio/CLI outputs can be distinguished from earlier S7 handoffs.
 - FEBioStudio can create unstable internal `nodesetNN` references when logfile `node_data` records contain inline node id lists. The active XML now emits explicit logfile NodeSets and references them through `node_set` attributes to avoid Run-before-save failures such as `Invalid reference to mesh item list ... nodeset04`.
 - Studio post view shows `contact force Magnitude` as 0 at Time 0 and nonzero along the cell bottom / dish-adjacent band at Time 5. This means plotfile contact force may contain load-bearing information even while logfile face-data `contact pressure` remains all-zero; do not treat face-data pressure alone as the final load-bearing verdict.
-- A minimal native `.xplt` diagnostic now reads plotfile face `contact force` directly. For `S7-K_S7_native_baseline.xplt`, max absolute X is `25.5922966003`, max absolute Z is `2.36685323715`, and `zToXRatio=0.0924830340`. The current basal contact response is therefore real but mostly horizontal / shear, with comparatively weak dish-normal support.
+- A minimal native `.xplt` diagnostic now reads plotfile face `contact force` directly and projects it into cell-dish normal/tangential components. For `S7-K_S7_native_baseline.xplt`, max tangential force is `25.5978221893`, max normal force is `1.7637732029`, and `normalToTangentialRatio=0.0689032524`. The current basal contact response is therefore real but mostly horizontal / shear, with comparatively weak dish-normal support.
 - The `.xplt` diagnostic also maps plotfile face item ids back to surface names. The active contact force rows are `itemId=1 -> cell_dish_surface` and `itemId=2 -> dish_contact_surface`; `pipette_suction_surface` and `pipette_contact_surface` remain zero in the current run.
 - Raising cell-dish `normalStiffness` from `1.55` to `15.5` keeps the CLI run warning-free and reduces final cell-dish max gap from about `0.57` to `0.0566542533992`. This creates a useful intermediate gate, `cellDishGapControlled=true`, but face-data `contact pressure` remains zero and the plotfile contact-force Z/X ratio remains low (`0.0689032524`).
+- S7-L adds optional `loads.cellDishNormalPreload` without changing the S7-K baseline. The comparison case `S7-L_S7_normal_preload` applies `0.05 kPa` positive pressure on `cell_dish_surface`, runs warning-free, keeps `cellDishGapControlled=true`, and improves `normalToTangentialRatio` from about `0.0689` to `0.1424`.
+- The S7-L preload is helpful but insufficient: face-data contact pressure remains zero, `cellDishPressureForceMismatch=true`, and `cellDishNormalSupportActive=false` because the ratio is still below `0.2`. Prefer a bounded preload amplitude sweep before replacing the tied-elastic contact law.
+- S7-M applies `0.10 kPa` preload in `S7-M_S7_normal_preload_high`, runs warning-free, keeps `cellDishGapControlled=true`, and reaches `cellDishNormalSupportActive=true` with `normalToTangentialRatio=0.3445258323`.
+- S7-M still has `cellDishPressureActive=false` and `cellDishPressureForceMismatch=true`, so the remaining issue is output-channel interpretation rather than absence of cell-dish normal support.
+- S7-N updates converter/import semantics so `native-plotfile-contact-traction` can populate localCd normal stress when face-data pressure is zero and a plotfile bridge payload is available.
+- S7-O automatically extracts `cell_dish_surface` contact-force rows from real `.xplt` into a global localCd bridge. The converted S7-M result now carries `native-plotfile-contact-traction` for localCd normal/damage/shear with `peakCdNormal=8.846848487854004`.
+- S7-P records that bridge as global fan-out, not region-resolved localCd force, with `regionScope=global`, `payloadRegion=__global`, `spatialResolution=global-surface`, and `fanoutFallback=true` in result metadata and import state.
+- Prefer region-specific plotfile surfaces if they become available. Until then, keep S7-M as the cell-dish normal-support candidate and return to the inactive pipette interaction gate.
+- S7-Q splits pipette diagnostics into pressure, rigid reaction, and plotfile force channels. On S7-M all pipette channels are inactive, so S7 closes as diagnostic-complete and carries pipette coupling forward as the next model-side blocker.
+- S8-A adds pre-run pipette coupling readiness diagnostics. The current suction and rigid mouth surfaces have matching `-x` normals and zero normal gap, but are tangentially offset by `8.5 um`; this explains why declared pressure can still fail to reach contact/reaction channels.
 
 Rollback point:
 
@@ -201,6 +211,8 @@ Each refinement step must report:
 - `conventionWarnings`;
 - whether `febio_pipette_cell_contact.csv` is nonzero;
 - whether `febio_rigid_pipette.csv` reaction is nonzero;
+- whether `.xplt` contact force is nonzero on `pipette_suction_surface` or `pipette_contact_surface`;
+- whether `pressureDiagnostics.couplingReadiness.ready` is true before expecting nonzero pipette force channels;
 - whether nucleus and cytoplasm displacement outputs are nonzero.
 
 The next implementation unit is:

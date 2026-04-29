@@ -194,6 +194,12 @@
 ## 10. native 接線成分の更新
 
 - S7-K で `.xplt` の face `contact force` を直接読む最小 parser を追加した。これにより、Studio で見える contact force と logfile `contact pressure` が食い違う場合も機械診断に載せられる。
+- S7-K で `.xplt` contact force を cell-dish normal/tangential 成分に投影する診断を追加した。cell-dish normal は `z`、tangential は `sqrt(x^2 + y^2)` とし、`normalToTangentialRatio` で dish-normal support と shear-dominant force を分ける。
+- `summarizeNativeFebioRunFiles()` は `cellDishPressureActive`、`cellDishContactForceActive`、`cellDishNormalSupportActive`、`cellDishTangentialForceActive`、`cellDishPressureForceMismatch`、`cellDishGapControlled` を別 gate として返す。旧 `cellDishLoadBearing` は pressure-only 互換 alias として残す。
+- S7-N で converter/import が localCd の normal source として `native-plotfile-contact-traction` を保持できるようになった。face-data pressure が 0 でも、standard plotfile bridge entry に normal traction がある場合は `localCd.*.normalStress` / `peakNormal` / source labels に入る。
+- S7-O で converter が real `.xplt` から `cell_dish_surface` contact-force rows を読み、converted result 用の plotfile bridge payload を自動生成するようになった。現在の `.xplt` surface は region-split ではないため、bridge は `localCd.__global` として作り、left / center / right は region-specific data がない場合だけ global bridge に fallback する。
+- `S7-M_S7_normal_preload_high_result.json` では localCd left / center / right の normal / damage / shear source が `native-plotfile-contact-traction` になり、`peakCdNormal=8.846848487854004` を保持する。
+- S7-P で `sourceDetails` / `sourceNormalDetail` / `sourceDamageDetail` / `sourceShearDetail` に `regionScope=global`, `payloadRegion=__global`, `spatialResolution=global-surface`, `fanoutFallback=true` を保存するようにした。これにより global fan-out と将来の region-resolved plotfile force を区別できる。
 - S7-K で重要な parser 事故を修正した。FEBio が空白区切りで出した `node_data` / `face_data` を既存 parser がカンマだけで split し、行全体を 1 列として扱ったため、一部 displacement / contact summary を 0 と誤読していた。今後の FEBio CSV reader は `delim=","` を信用しすぎず、comma / whitespace tolerant にする。
 - `scripts/convert_febio_output.mjs` now reuses native face tangential traction for `localNc.*.shearStress` and `localCd.*.shearStress` when those face snapshots expose extra traction columns.
 - The converter now supports both face snapshot rows with a leading entity id and rows that start directly with face values.

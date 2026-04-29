@@ -59,7 +59,9 @@ function buildMinimalXpltContactForce(states) {
     preamble,
     xpltChunk(0x00300401, Buffer.concat([
       surfaceRecord(1, "cell_dish_surface"),
-      surfaceRecord(2, "dish_contact_surface")
+      surfaceRecord(2, "dish_contact_surface"),
+      surfaceRecord(3, "pipette_suction_surface"),
+      surfaceRecord(4, "pipette_contact_surface")
     ])),
     ...states.map((state) => xpltChunk(0x00000002, Buffer.concat([
       xpltChunk(0x00000102, xpltChunk(0x02000102, xpltFloat(state.time))),
@@ -90,7 +92,13 @@ test("native-only case builds FEBio model and XML without compatibility entrypoi
   assert.equal(model.geometry.meshValidation.pressureDiagnostics.suctionSurface, "pipette_suction_surface");
   assert.equal(model.geometry.meshValidation.pressureDiagnostics.surfaceOwnership, "deformable-side capture surface");
   assert.equal(model.geometry.meshValidation.pressureDiagnostics.negativePressureEffect, "intended to pull toward +x, into the pipette/barrel side");
+  assert.equal(model.geometry.meshValidation.pressureDiagnostics.couplingReadiness.ready, false);
+  assert.equal(model.geometry.meshValidation.pressureDiagnostics.couplingReadiness.normalGapMagnitude, 0);
+  assert.equal(model.geometry.meshValidation.pressureDiagnostics.couplingReadiness.tangentialOffsetMagnitude, 8.5);
+  assert.match(model.geometry.meshValidation.pressureDiagnostics.couplingReadiness.interpretation, /not tangentially colocated/);
   assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.pipette_cell.aligned, true);
+  assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.pipette_cell.normalGapMagnitude, 0);
+  assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.pipette_cell.tangentialOffsetMagnitude, 8.5);
   assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.nc_left.aligned, true);
   assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.cell_dish_left.aligned, true);
   assert.equal(model.geometry.meshValidation.contactPairDiagnostics.checks.cell_dish_left.normalGapMagnitude, 0);
@@ -113,6 +121,8 @@ test("native-only case builds FEBio model and XML without compatibility entrypoi
   assert.equal(model.contact.pipetteNucleus.solverActive, false);
   assert.equal(model.loads.pressure[0].value, -0.7);
   assert.equal(model.loads.pressure[0].surface, "pipette_suction_surface");
+  assert.equal(model.loads.pressure.some((entry) => entry.name === "cell_dish_normal_preload"), false);
+  assert.equal(model.effectiveNativeSpec.loads.cellDishNormalPreload.enabled, false);
 
   assert.match(xml, /<Material>/);
   assert.match(xml, /<Mesh>/);
@@ -123,6 +133,7 @@ test("native-only case builds FEBio model and XML without compatibility entrypoi
   assert.match(xml, /<contact name="cell_dish_interface" type="tied-elastic" surface_pair="cell_dish_pair">/);
   assert.doesNotMatch(xml, /<contact name="pipette_nucleus_contact"/);
   assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_surface" type="pressure">/);
+  assert.doesNotMatch(xml, /cell_dish_normal_preload/);
   assert.match(xml, /<NodeSet name="nucleus_nodes">45,46,47,48,49,50,51,52<\/NodeSet>/);
   assert.match(xml, /<node_data name="nucleus_nodes" file="febio_nucleus_nodes\.csv" data="ux;uy;uz" delim="," node_set="nucleus_nodes" \/>/);
   assert.match(xml, /<Boundary>/);
@@ -137,6 +148,34 @@ test("native-only case builds FEBio model and XML without compatibility entrypoi
     fs.readFileSync(path.resolve("scripts/export_febio_native_case.mjs"), "utf8")
   ].join("\n");
   assert.doesNotMatch(newPathText, /toLegacyTemplateShape|buildSimulationInput|buildFebioInputSpec|buildFebioNativeRunBundle|runSimulation|src\/public-api\.ts|generated\/dist|normalizeFebioResult|classification|simulation-febio/);
+});
+
+test("native-only normal preload case declares bounded cell-dish preload", async () => {
+  const native = await loadNativeModule();
+  const cases = [
+    { file: "febio_cases/native/S7_normal_preload.native.json", caseName: "S7_normal_preload", tag: "S7-L", value: 0.05, xmlValue: "0\\.050000" },
+    { file: "febio_cases/native/S7_normal_preload_high.native.json", caseName: "S7_normal_preload_high", tag: "S7-M", value: 0.1, xmlValue: "0\\.100000" }
+  ];
+  cases.forEach((entry) => {
+    const caseSpec = JSON.parse(fs.readFileSync(path.resolve(entry.file), "utf8"));
+    const model = native.buildNativeFebioModel(caseSpec);
+    const xml = native.serializeNativeModelToFebioXml(model);
+
+    assert.equal(model.caseName, entry.caseName);
+    assert.equal(model.effectiveNativeSpec.outputNameTag, entry.tag);
+    assert.equal(model.effectiveNativeSpec.loads.cellDishNormalPreload.enabled, true);
+    assert.equal(model.effectiveNativeSpec.loads.cellDishNormalPreload.value, entry.value);
+    assert.equal(model.loads.pressure.length, 2);
+    assert.equal(model.loads.pressure[1].name, "cell_dish_normal_preload");
+    assert.equal(model.loads.pressure[1].surface, "cell_dish_surface");
+    assert.equal(model.loads.pressure[1].value, entry.value);
+    assert.equal(model.loads.pressure[1].loadController, 203);
+    assert.equal(model.loads.controllers.some((controller) => controller.id === 203 && controller.name === "cell_dish_normal_preload_curve"), true);
+    assert.match(xml, /<surface_load name="cell_dish_normal_preload" surface="cell_dish_surface" type="pressure">/);
+    assert.match(xml, new RegExp(`<pressure lc="4">${entry.xmlValue}<\\/pressure>`));
+    assert.match(xml, /active-step pressure source=cell_dish_normal_preload/);
+    assert.match(xml, /<load_controller id="4" name="cell_dish_normal_preload_curve" type="loadcurve">/);
+  });
 });
 
 test("native-only export script writes FEBio handoff artifacts", () => {
@@ -201,18 +240,73 @@ test("native run diagnostics summarize final contact and reaction gates", async 
   assert.equal(summary.cellDish.maxAbsPressure, 0);
   assert.equal(summary.cellDish.maxFinalGap, 0.57);
   assert.equal(summary.gates.cellDishLoadBearing, false);
+  assert.equal(summary.gates.cellDishPressureActive, false);
+  assert.equal(summary.gates.cellDishContactForceActive, true);
+  assert.equal(summary.gates.cellDishTangentialForceActive, true);
+  assert.equal(summary.gates.cellDishNormalSupportActive, false);
+  assert.equal(summary.gates.cellDishPressureForceMismatch, true);
+  assert.equal(summary.cellDishForce.pressureForceMismatch, true);
+  assert.equal(summary.cellDishForce.normalForce, 2.5);
+  assert.equal(summary.cellDishForce.tangentialForce, 25);
+  assert.equal(summary.cellDishForce.normalToTangentialRatio, 0.1);
   assert.equal(summary.gates.cellDishGapControlled, false);
   assert.equal(summary.pipetteCell.maxAbsPressure, 0.14);
   assert.equal(summary.rigidPipette.reaction.Fx, 1.2);
+  assert.equal(summary.pipetteInteraction.pressureActive, true);
+  assert.equal(summary.pipetteInteraction.rigidReactionActive, true);
+  assert.equal(summary.pipetteInteraction.plotfileForceActive, false);
   assert.equal(summary.gates.pipetteInteractionActive, true);
+  assert.equal(summary.gates.pipetteCellPressureActive, true);
+  assert.equal(summary.gates.pipetteRigidReactionActive, true);
+  assert.equal(summary.gates.pipettePlotfileForceActive, false);
   assert.equal(summary.gates.nucleusCytoplasmMoved, true);
   assert.equal(summary.gates.plotfileContactForceActive, true);
   assert.equal(summary.plotfileContactForce.stateCount, 2);
   assert.equal(summary.plotfileContactForce.maxAbs.x, 25);
   assert.equal(summary.plotfileContactForce.maxAbs.z, 2.5);
+  assert.equal(summary.plotfileContactForce.maxAbs.normal, 2.5);
+  assert.equal(summary.plotfileContactForce.maxAbs.tangential, 25);
+  assert.equal(summary.plotfileContactForce.componentBasis.normalAxis, "z");
   assert.equal(summary.plotfileContactForce.zToXRatio, 0.1);
+  assert.equal(summary.plotfileContactForce.normalToTangentialRatio, 0.1);
   assert.equal(summary.plotfileContactForce.surfaceByItemId["1"], "cell_dish_surface");
+  assert.equal(summary.plotfileContactForce.surfaceSummaries.cell_dish_surface.hasContactForce, true);
+  assert.equal(summary.plotfileContactForce.surfaceSummaries.cell_dish_surface.maxAbs.tangential, 25);
   assert.equal(summary.plotfileContactForce.finalState.rows[0].surface, "cell_dish_surface");
+  assert.equal(summary.plotfileContactForce.finalState.rows[0].normalComponent, 2.5);
+  assert.equal(summary.plotfileContactForce.finalState.rows[0].tangentialMagnitude, 25);
+});
+
+test("native run diagnostics split pipette plotfile force from pressure and rigid reaction", async () => {
+  const native = await loadNativeModule();
+  const block = (name, rows) => [
+    "*Step  = 1",
+    "*Time  = 5",
+    `*Data  = ${name}`,
+    ...rows
+  ].join("\n");
+  const summary = native.summarizeNativeFebioRunFiles({
+    log: "N O R M A L   T E R M I N A T I O N\n",
+    cellDish: block("cell_dish_interface_surface", ["1,0.03,0"]),
+    pipetteCell: block("pipette_cell_contact_surface", ["1,0,0"]),
+    pipetteContact: block("pipette_contact_surface", ["1,0,0"]),
+    rigidPipette: block("pipette_rigid_body", ["4 16.5 0 16.15 0 0 0"]),
+    nucleus: block("nucleus_nodes", ["45 -1 0 0"]),
+    cytoplasm: block("cytoplasm_nodes", ["45,-1,0,0"]),
+    xplt: buildMinimalXpltContactForce([
+      { time: 0, rows: [{ itemId: 1, x: 0, y: 0, z: 0 }, { itemId: 3, x: 0, y: 0, z: 0 }] },
+      { time: 5, rows: [{ itemId: 1, x: 0, y: 0, z: 0 }, { itemId: 3, x: -3, y: 0, z: 0 }] }
+    ])
+  });
+
+  assert.equal(summary.gates.pipetteCellPressureActive, false);
+  assert.equal(summary.gates.pipetteRigidReactionActive, false);
+  assert.equal(summary.gates.pipetteSuctionPlotfileForceActive, true);
+  assert.equal(summary.gates.pipettePlotfileForceActive, true);
+  assert.equal(summary.gates.pipetteInteractionActive, true);
+  assert.equal(summary.pipetteInteraction.maxPressure, 0);
+  assert.equal(summary.pipetteInteraction.suctionPlotfileForce.maxAbs.x, 3);
+  assert.equal(summary.pipetteInteraction.interpretation, "pipette interaction is active in at least one pressure, rigid-reaction, or plotfile-force channel");
 });
 
 test("FEBio path ownership docs freeze legacy paths outside the native-only exporter", () => {

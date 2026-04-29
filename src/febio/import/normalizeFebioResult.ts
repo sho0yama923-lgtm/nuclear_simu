@@ -168,14 +168,14 @@ function inferNativeShearSource(regionSource, shearStress) {
 function hasNativeRegionProvenance(regionSource) {
   return (
     String(regionSource?.provenance || "").includes("native") ||
-    String(regionSource?.sourceNormal || "").includes("native-face") ||
-    String(regionSource?.sourceDamage || "").includes("native-face") ||
-    String(regionSource?.sourceShear || "").includes("native-face")
+    String(regionSource?.sourceNormal || "").includes("native-") ||
+    String(regionSource?.sourceDamage || "").includes("native-") ||
+    String(regionSource?.sourceShear || "").includes("native-")
   );
 }
 
 function hasNativeDamageObservation(regionSource) {
-  return String(regionSource?.sourceDamage || "").includes("native-face");
+  return String(regionSource?.sourceDamage || "").includes("native-");
 }
 
 function deriveDamageFromRegionMetrics(regionSource) {
@@ -274,6 +274,9 @@ function buildNativeLocalState(result, regions, sourcePaths) {
       sourceNormal,
       sourceDamage,
       sourceShear,
+      ...(regionSource?.sourceNormalDetail ? { sourceNormalDetail: structuredCloneSafe(regionSource.sourceNormalDetail) } : {}),
+      ...(regionSource?.sourceDamageDetail ? { sourceDamageDetail: structuredCloneSafe(regionSource.sourceDamageDetail) } : {}),
+      ...(regionSource?.sourceShearDetail ? { sourceShearDetail: structuredCloneSafe(regionSource.sourceShearDetail) } : {}),
     };
   });
 

@@ -121,6 +121,42 @@ function buildBoundary(spec, mesh) {
 function buildLoads(spec) {
   const loadController = spec.loads.suctionPressure.loadController;
   const holdController = spec.loads.holdForceProxy.loadController;
+  const preload = spec.loads.cellDishNormalPreload || {};
+  const pressureLoads = [
+    {
+      name: spec.loads.suctionPressure.name,
+      surface: spec.loads.suctionPressure.surface,
+      value: spec.loads.suctionPressure.value,
+      magnitude: spec.loads.suctionPressure.magnitude,
+      loadController,
+      status: "solver-active pressure-driven suction / native-only",
+      direction: "inward-negative-pressure",
+      unit: spec.loads.suctionPressure.unit
+    }
+  ];
+  const controllers = [
+    { id: 101, name: "lift_ramp", points: [[0, 0], [2, 0], [3, 1], [5, 1]] },
+    { id: 102, name: "inward_ramp", points: [[0, 0], [3, 0], [4, 1], [5, 1]] },
+    { id: loadController, name: "suction_pressure_curve", unit: spec.loads.suctionPressure.unit, points: clone(spec.loads.suctionPressure.curve) }
+  ];
+  if (preload.enabled) {
+    pressureLoads.push({
+      name: preload.name,
+      surface: preload.surface,
+      value: preload.value,
+      magnitude: preload.magnitude,
+      loadController: preload.loadController,
+      status: "solver-active bounded normal-preload comparison / native-only",
+      direction: "cell-dish-normal-preload; positive pressure on -z basal cell surface pushes toward dish",
+      unit: preload.unit
+    });
+    controllers.push({
+      id: preload.loadController,
+      name: "cell_dish_normal_preload_curve",
+      unit: preload.unit,
+      points: clone(preload.curve)
+    });
+  }
   return {
     nodal: [
       {
@@ -131,24 +167,12 @@ function buildLoads(spec) {
         status: "proxy-load / not pressure-driven"
       }
     ],
-    pressure: [
-      {
-        name: spec.loads.suctionPressure.name,
-        surface: spec.loads.suctionPressure.surface,
-        value: spec.loads.suctionPressure.value,
-        magnitude: spec.loads.suctionPressure.magnitude,
-        loadController,
-        status: "solver-active pressure-driven suction / native-only",
-        direction: "inward-negative-pressure",
-        unit: spec.loads.suctionPressure.unit
-      }
-    ],
-    controllers: [
-      { id: 101, name: "lift_ramp", points: [[0, 0], [2, 0], [3, 1], [5, 1]] },
-      { id: 102, name: "inward_ramp", points: [[0, 0], [3, 0], [4, 1], [5, 1]] },
-      { id: loadController, name: "suction_pressure_curve", unit: spec.loads.suctionPressure.unit, points: clone(spec.loads.suctionPressure.curve) }
-    ],
-    notes: ["pressure load is sourced directly from native case loads.suctionPressure"]
+    pressure: pressureLoads,
+    controllers,
+    notes: [
+      "pressure load is sourced directly from native case loads.suctionPressure",
+      preload.enabled ? "cell-dish normal preload is active for bounded S7-L comparison" : "cell-dish normal preload is disabled for the baseline"
+    ]
   };
 }
 
