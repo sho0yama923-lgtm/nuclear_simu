@@ -178,10 +178,224 @@ Each entry should include:
 - Regression guard
 - References
 
-## Current entries to expand
+## Entries
 
-- Studio save failures caused by unstable internal named selections.
-- FEBio logfile delimiter mismatches.
-- Output-channel mismatches between logfile face data and plotfile vectors.
-- Pressure-only `cellDishLoadBearing` interpretation being too narrow.
-- Contact variants that cause initial negative jacobian.
+### INC-001: FEBioStudio internal `nodesetNN` save failure
+
+Status:
+
+- fixed / guardrail active
+
+Discovered in:
+
+- S7-K Studio handoff cleanup
+
+Symptom:
+
+- FEBio CLI could read and solve the generated `.feb`, but FEBioStudio save/run handoff failed with invalid internal mesh item list references such as `nodesetNN`.
+- The failure looked like a Studio-visible file problem, even though CLI normal termination was possible.
+
+Cause:
+
+- Solver-facing `.feb` contained selections that were useful as diagnostics but were not required as active solver mesh items.
+- Some logfile node outputs used inline node id lists instead of stable named NodeSets.
+- FEBioStudio could import and rewrite these selections into internal `nodesetNN` references, then later emit invalid references on save/run.
+
+Impact:
+
+- CLI success was not sufficient evidence that the file was clean for Studio handoff.
+- Studio-visible validation could fail after an apparently successful export/run path.
+
+Fix or mitigation:
+
+- Emit only active solver-facing mesh items into `.feb`.
+- Keep diagnostic-only selections in the native model JSON, not in solver-facing XML.
+- Use explicit NodeSets and `node_set` references for logfile node output.
+
+Regression guard:
+
+- Treat Studio import/save/run as a separate confirmation gate from CLI normal termination.
+- When adding logfile node output, prefer named NodeSets over inline node id lists.
+- Do not emit unused diagnostic-only mesh items to the solver-facing mesh section.
+
+References:
+
+- `docs/ops/STUDIO_CONFIRMATION_GATES.md`
+- `src/febio/native/xml.ts`
+- `tests/febio-native-pipeline.test.mjs`
+
+### INC-002: FEBio logfile delimiter mismatch
+
+Status:
+
+- fixed / guardrail active
+
+Discovered in:
+
+- S7-K native run diagnostics
+
+Symptom:
+
+- Diagnostics could incorrectly summarize FEBio output as zero or malformed.
+- Parser results could disagree with FEBioStudio / `.xplt` observations.
+
+Cause:
+
+- FEBio logfile rows can be whitespace-delimited even when XML requests `delim=","`.
+- A comma-only parser can treat an entire whitespace-delimited numeric row as one field, silently corrupting displacement/contact summaries.
+
+Impact:
+
+- Displacement, contact pressure, gap, or reaction summaries could be misread.
+- A physics issue could be misclassified as all-zero response when the parser was actually wrong.
+
+Fix or mitigation:
+
+- Parse FEBio logfile numeric rows with comma / whitespace tolerance, for example `/[,\\s]+/`.
+- Distinguish missing output, all-zero output, and misparsed output.
+
+Regression guard:
+
+- Any new FEBio logfile parser must tolerate both comma and whitespace separators.
+- Before interpreting zeros, check row tokenization, leading id columns, and descriptor-driven field order.
+
+References:
+
+- `src/febio/native/runDiagnostics.ts`
+- `scripts/diagnose_febio_native_run.mjs`
+- `docs/febio/FEBIO_OUTPUT_MAPPING.md`
+
+### INC-003: Face-data pressure and `.xplt` contact-force mismatch
+
+Status:
+
+- active / under diagnosis
+
+Discovered in:
+
+- S7-K cell-dish diagnostics
+
+Symptom:
+
+- Logfile face-data `contact pressure` remains zero for the cell-dish interface.
+- FEBioStudio / `.xplt` show nonzero contact force on the cell-dish pair.
+- Gap control improves after increasing cell-dish normal stiffness, but dish-normal support remains weak.
+
+Cause:
+
+- Not fully resolved.
+- Current evidence indicates that face-data contact pressure and plotfile contact force are different output channels and cannot be collapsed into a single verdict.
+- The pressure output may be inactive, unavailable for the tied-elastic formulation, or not representative of the force component currently observed in `.xplt`.
+
+Impact:
+
+- A zero pressure output can be misread as absence of cell-dish contact force.
+- Contact response can be misinterpreted unless pressure, plotfile force, normal support, tangential force, and gap control are separated.
+
+Fix or mitigation:
+
+- Split cell-dish diagnostics into separate gates:
+  - `cellDishPressureActive`
+  - `cellDishContactForceActive`
+  - `cellDishNormalSupportActive`
+  - `cellDishTangentialForceActive`
+  - `cellDishGapControlled`
+- Project `.xplt` contact force into normal and tangential components before choosing the next model-side change.
+
+Regression guard:
+
+- Do not use face-data pressure alone as the final load-bearing verdict.
+- Preserve surface item id -> surface name mapping for `.xplt` face data.
+- Report pressure-zero / force-nonzero states explicitly.
+
+References:
+
+- `docs/febio/CELL_DISH_LOAD_BEARING_DIAGNOSTICS.md`
+- `docs/febio/FEBIO_OUTPUT_MAPPING.md`
+- `src/febio/native/xpltDiagnostics.ts`
+- `src/febio/native/runDiagnostics.ts`
+
+### INC-004: Pressure-only `cellDishLoadBearing` interpretation was too narrow
+
+Status:
+
+- active / mitigation planned
+
+Discovered in:
+
+- S7-K diagnostic review
+
+Symptom:
+
+- `cellDishLoadBearing=false` looked like a broad verdict that the cell-dish interface was not supporting load.
+- In the implementation, the gate mainly reflected whether face-data contact pressure was nonzero.
+
+Cause:
+
+- The gate name was broader than the measured quantity.
+- The boolean collapsed multiple physical and diagnostic concepts: pressure output, plotfile contact force, normal support, tangential force, and gap control.
+
+Impact:
+
+- Reviewers and agents could incorrectly conclude that there was no cell-dish force even when `.xplt` contact force was nonzero.
+- Model-side changes could be chosen before diagnosing whether the issue was output-channel mapping, normal support, contact law, or preload.
+
+Fix or mitigation:
+
+- Keep `cellDishLoadBearing` only as a compatibility alias or retire it after downstream references are updated.
+- Introduce explicit gates for pressure, plotfile force, normal support, tangential force, and gap control.
+- Document that old `cellDishLoadBearing=false` means pressure-output inactive, not necessarily force absent.
+
+Regression guard:
+
+- Boolean gate names must match the measured quantity.
+- If a gate is a high-level interpretation, it must be composed from explicit lower-level diagnostics.
+
+References:
+
+- `PROGRESS.md`
+- `docs/febio/CELL_DISH_LOAD_BEARING_DIAGNOSTICS.md`
+- `src/febio/native/runDiagnostics.ts`
+
+### INC-005: Cell-dish contact variants caused initial negative jacobian
+
+Status:
+
+- mitigated / watch
+
+Discovered in:
+
+- S7-K contact-law scratch exploration
+
+Symptom:
+
+- Some cell-dish contact variants, including sliding-elastic / sticky-style attempts, caused initial negative jacobian or unstable startup behavior.
+- The tied-elastic baseline could run warning-free, while the alternative variants were not immediately safe substitutions.
+
+Cause:
+
+- The current coarse/native mesh and initial contact geometry are sensitive to contact formulation changes.
+- A formulation that is conceptually attractive can still be numerically unsafe without mesh refinement, preload, or better initialization.
+
+Impact:
+
+- Switching contact law directly is not the safest first response to weak dish-normal support.
+- Broad contact-law rewrites can turn a diagnosable output/force problem into a solver-stability problem.
+
+Fix or mitigation:
+
+- Keep the warning-free tied-elastic baseline while diagnostics are split.
+- Diagnose pressure, plotfile force, normal support, tangential force, and gap control before changing contact law.
+- Treat contact-law changes as the next model-side step only after wiring, geometry, Studio handoff, parser behavior, and output-channel interpretation are checked.
+
+Regression guard:
+
+- Preserve a warning-free baseline for comparison.
+- Do not replace the active contact formulation without a bounded comparison run and clear rollback point.
+- If an alternative contact law introduces negative jacobian, record it as a stability result rather than continuing to tune blindly.
+
+References:
+
+- `docs/febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md`
+- `docs/febio/CELL_DISH_LOAD_BEARING_DIAGNOSTICS.md`
+- `PROGRESS.md`
