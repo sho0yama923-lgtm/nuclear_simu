@@ -38,9 +38,11 @@ const febFiles = fs.readdirSync(runDir)
     return tagged || b.mtimeMs - a.mtimeMs || a.file.localeCompare(b.file);
   });
 const baseName = args.baseName || path.basename(febFiles[0]?.file || "S7_native_baseline.feb", ".feb");
+const nativeModelPath = path.join(runDir, `${baseName}_native_model.json`);
 
 const summary = nativeModule.summarizeNativeFebioRunFiles({
   log: readIfExists(path.join(runDir, `${baseName}.log`)),
+  nativeModel: readIfExists(nativeModelPath),
   xplt: fs.existsSync(path.join(runDir, `${baseName}.xplt`)) ? fs.readFileSync(path.join(runDir, `${baseName}.xplt`)) : null,
   cellDish: readIfExists(path.join(runDir, "febio_interface_cell_dish.csv")),
   pipetteCell: readIfExists(path.join(runDir, "febio_pipette_cell_contact.csv")),

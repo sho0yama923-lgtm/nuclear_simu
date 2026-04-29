@@ -174,6 +174,24 @@ S7-K baseline diagnostics result:
 - Prefer region-specific plotfile surfaces if they become available. Until then, keep S7-M as the cell-dish normal-support candidate and return to the inactive pipette interaction gate.
 - S7-Q splits pipette diagnostics into pressure, rigid reaction, and plotfile force channels. On S7-M all pipette channels are inactive, so S7 closes as diagnostic-complete and carries pipette coupling forward as the next model-side blocker.
 - S8-A adds pre-run pipette coupling readiness diagnostics. The current suction and rigid mouth surfaces have matching `-x` normals and zero normal gap, but are tangentially offset by `8.5 um`; this explains why declared pressure can still fail to reach contact/reaction channels.
+- S8-B adds `S8-B_S8_pipette_aligned`, moving the pipette puncture/tip to `z=17` so `pipette_suction_surface` and `pipette_contact_surface` are colocated. The native model reports `pressureDiagnostics.couplingReadiness.ready=true`, `normalGapMagnitude=0`, and `tangentialOffsetMagnitude=0`.
+- S8-B runs warning-free and preserves S7-M cell-dish support, but every pipette force channel remains inactive. Treat this as evidence that the next blocker is contact/load-transfer activation, not simple surface centroid alignment.
+- S8-C adds `S8-C_S8_pipette_capture_hold`, preserving S8-B geometry while re-enabling `pipette_nucleus_contact` through `contacts.pipetteNucleus.solverActive=true`. The run is warning-free and restores `pipetteRigidReactionActive=true` with `maxRigidReaction=33.5857591825`.
+- S8-C does not activate direct pipette-cell pressure or pipette plotfile force, and it regresses `cellDishGapControlled=false`. Treat it as a useful force-channel comparison, not the final suction model.
+- S8-D adds `S8-D_S8_pipette_capture_hold_gentle`, preserving capture-hold while reducing motion to `liftZ=2`, `inwardX=1`, and `tangentY=0`. It runs warning-free, keeps `pipetteRigidReactionActive=true`, and recovers `cellDishGapControlled=true`.
+- S8-D still has zero direct pipette-cell pressure and zero pipette plotfile force. Treat `S8_pipette_capture_hold_gentle` as the next baseline for isolating direct pipette-cell force channels.
+- S8-E adds `S8-E_S8_pipette_cell_reversed_pair`, preserving S8-D while reversing `pipette_cell_pair` to `primary=pipette_contact_surface` and `secondary=pipette_suction_surface`. It runs warning-free and matches S8-D gates: rigid reaction active, cell-dish gap controlled, and direct pipette-cell pressure / plotfile force still zero.
+- S8-E rules out simple primary/secondary role ordering as the current direct pipette-cell blocker.
+- S8-F adds declared pressure-load resultant diagnostics from the native model JSON. S8-D/S8-E both have `pipetteSuctionPressureLoadActive=true` with `pipette_suction_pressure=-0.7 kPa`, `pipette_suction_surface` area `18 um^2`, and declared resultant `12.6 nN`, while `pipetteDirectContactOutputActive=false`.
+- S8-F rules out missing suction load declaration as the current blocker. The next bounded model change should isolate direct contact output/transfer semantics, with surface overlap or duplication as the first target.
+- S8-G adds `S8-G_S8_pipette_outer_cell_surface`, moving the direct suction surface to the outer right cytoplasm face and the pipette mouth to `x=26`. This separates `pipette_suction_surface` from `nucleus_interface_right_surface` and keeps pre-run coupling readiness true.
+- S8-G initially triggered a FEBioStudio import warning for incorrect facet winding `[69,71,72,70]`. The Studio-compatible outer-right winding is `[69,70,72,71]`.
+- With Studio-compatible winding, S8-G reaches normal termination and activates direct pipette force channels: `pipetteDirectContactOutputActive=true`, `pipetteCellPressureActive=true`, `pipetteRigidReactionActive=true`, and `pipettePlotfileForceActive=true`.
+- S8-G residuals: one solver stiffness-reformation warning and a mode-specific `+x` suction-normal convention exception for the outer-cell comparison.
+- S8-H reduces the S8-G motion to `liftZ=1`, `inwardX=0.25`. It preserves direct pipette force channels and cell-dish support, but still has one stiffness-reformation warning.
+- S8-I softens `pipette_cell_contact` through `contacts.pipetteCell.penaltyScale=0.25`. It lowers force magnitude but increases stiffness-reformation warnings to three, so penalty softening is not the current stabilization fix.
+- S8-J lowers suction pressure to `-0.35 kPa`. It lowers force magnitude further but still increases stiffness-reformation warnings to three, so pressure-amplitude reduction alone is not the current stabilization fix.
+- The next bounded refinement should preserve the S8-G/H outer-cell geometry and target ramp timing, step boundaries, or solver controls around the `t ~= 3.01-3.06` warning window.
 
 Rollback point:
 
@@ -218,6 +236,7 @@ Each refinement step must report:
 The next implementation unit is:
 
 ```text
-Refine the existing S7_native_baseline mesh/model in place,
-starting with cell-dish load-bearing after S7-J shared-node force transfer.
+Start from S8_pipette_outer_cell_surface_gentle,
+skip further amplitude-only pressure/penalty reductions,
+and stabilize the active outer-cell pipette force channel through ramp timing or solver-control comparison.
 ```

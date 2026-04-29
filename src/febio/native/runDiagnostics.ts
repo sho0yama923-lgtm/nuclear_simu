@@ -54,12 +54,18 @@ function countPattern(text = "", pattern) {
   return matches ? matches.length : 0;
 }
 
+function countRegex(text = "", pattern) {
+  const matches = String(text).match(pattern);
+  return matches ? matches.length : 0;
+}
+
 function warningCounts(logText = "") {
   const solverWarnings = countPattern(logText, "Warning:");
+  const solverWarningBlocks = countRegex(logText, /\*\s+WARNING\s+\*/g);
   const platformWarnings = countPattern(logText, "Intel MKL WARNING");
   return {
     normalTermination: countPattern(logText, "N O R M A L   T E R M I N A T I O N"),
-    warning: solverWarnings,
+    warning: solverWarnings + solverWarningBlocks,
     platformWarning: platformWarnings,
     error: countPattern(logText, "ERROR"),
     negativeJacobian: countPattern(logText, "Negative jacobian"),
@@ -107,6 +113,92 @@ function displacementSummary(text = "") {
   };
 }
 
+function parseNativeModel(input) {
+  if (!input) return null;
+  if (typeof input === "object") return input;
+  try {
+    return JSON.parse(String(input));
+  } catch {
+    return null;
+  }
+}
+
+function pointForNode(mesh, id) {
+  const node = (mesh?.nodes || []).find((entry) => entry.id === id);
+  return node ? [node.x || 0, node.y || 0, node.z || 0] : null;
+}
+
+function subtract(a, b) {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+}
+
+function cross(a, b) {
+  return [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+}
+
+function triangleArea(a, b, c) {
+  const vector = cross(subtract(b, a), subtract(c, a));
+  return 0.5 * Math.hypot(vector[0], vector[1], vector[2]);
+}
+
+function facetArea(mesh, facet = {}) {
+  const points = (facet.nodes || []).map((id) => pointForNode(mesh, id)).filter(Boolean);
+  if (points.length < 3) return 0;
+  let area = 0;
+  for (let index = 1; index < points.length - 1; index += 1) {
+    area += triangleArea(points[0], points[index], points[index + 1]);
+  }
+  return area;
+}
+
+function surfaceArea(mesh, surfaceName) {
+  return (mesh?.surfaces?.[surfaceName] || []).reduce((total, facet) => total + facetArea(mesh, facet), 0);
+}
+
+function pressureLoadSummary(nativeModelInput) {
+  const nativeModel = parseNativeModel(nativeModelInput);
+  const mesh = nativeModel?.geometry?.mesh;
+  const pressureLoads = nativeModel?.loads?.pressure || [];
+  const loads = pressureLoads.map((load) => {
+    const area = surfaceArea(mesh, load.surface);
+    const pressure = Math.abs(Number(load.value || 0));
+    const resultant = pressure * area;
+    return {
+      name: load.name || "",
+      surface: load.surface || "",
+      value: Number(load.value || 0),
+      magnitude: pressure,
+      unit: load.unit || nativeModel?.coordinateSystem?.stress || "kPa",
+      area,
+      resultant,
+      resultantUnit: "nN",
+      active: resultant > FORCE_EPSILON,
+      interpretation: "pressure resultant is computed from declared surface_load pressure times native mesh surface area"
+    };
+  });
+  const suction = loads.find((load) => load.surface === "pipette_suction_surface") || null;
+  return {
+    available: Boolean(nativeModel && mesh),
+    loads,
+    pipetteSuction: suction || {
+      name: "",
+      surface: "pipette_suction_surface",
+      value: 0,
+      magnitude: 0,
+      unit: "kPa",
+      area: 0,
+      resultant: 0,
+      resultantUnit: "nN",
+      active: false,
+      interpretation: "pipette suction pressure load was not found in native model"
+    }
+  };
+}
+
 function cellDishForceDiagnostics(cellDish, plotfileContactForce) {
   const hasPressure = cellDish.hasLoadBearingPressure === true;
   const hasContactForce = plotfileContactForce.hasContactForce === true;
@@ -145,11 +237,12 @@ function plotfileSurfaceForce(plotfileContactForce, surfaceName) {
   };
 }
 
-function pipetteInteractionDiagnostics(pipetteCell, pipetteContact, rigidPipette, plotfileContactForce) {
+function pipetteInteractionDiagnostics(pipetteCell, pipetteContact, rigidPipette, plotfileContactForce, pressureLoads) {
   const suctionPlotfileForce = plotfileSurfaceForce(plotfileContactForce, "pipette_suction_surface");
   const mouthPlotfileForce = plotfileSurfaceForce(plotfileContactForce, "pipette_contact_surface");
   const pressureActive = pipetteCell.hasLoadBearingPressure === true;
   const mouthPressureActive = pipetteContact.hasLoadBearingPressure === true;
+  const suctionPressureLoadActive = pressureLoads?.pipetteSuction?.active === true;
   const rigidReactionActive = rigidPipette.hasReaction === true;
   const suctionPlotfileForceActive = suctionPlotfileForce.hasContactForce === true;
   const mouthPlotfileForceActive = mouthPlotfileForce.hasContactForce === true;
@@ -162,9 +255,13 @@ function pipetteInteractionDiagnostics(pipetteCell, pipetteContact, rigidPipette
     suctionPlotfileForceActive,
     mouthPlotfileForceActive,
     plotfileForceActive,
+    suctionPressureLoadActive,
+    directContactOutputActive: pressureActive || mouthPressureActive || plotfileForceActive,
     hasInteraction,
     maxPressure: pipetteCell.maxAbsPressure || 0,
     maxMouthPressure: pipetteContact.maxAbsPressure || 0,
+    suctionPressureLoadResultant: pressureLoads?.pipetteSuction?.resultant || 0,
+    suctionPressureLoad: pressureLoads?.pipetteSuction || null,
     maxRigidReaction: rigidPipette.maxAbsReaction || 0,
     suctionPlotfileForce,
     mouthPlotfileForce,
@@ -183,8 +280,9 @@ export function summarizeNativeFebioRunFiles(files = {}) {
   const nucleus = displacementSummary(files.nucleus || "");
   const cytoplasm = displacementSummary(files.cytoplasm || "");
   const plotfileContactForce = summarizeXpltContactForce(files.xplt);
+  const pressureLoads = pressureLoadSummary(files.nativeModel || files.model || "");
   const cellDishForce = cellDishForceDiagnostics(cellDish, plotfileContactForce);
-  const pipetteInteraction = pipetteInteractionDiagnostics(pipetteCell, pipetteContact, rigidPipette, plotfileContactForce);
+  const pipetteInteraction = pipetteInteractionDiagnostics(pipetteCell, pipetteContact, rigidPipette, plotfileContactForce, pressureLoads);
   return {
     warnings,
     cellDish,
@@ -193,6 +291,7 @@ export function summarizeNativeFebioRunFiles(files = {}) {
     rigidPipette,
     nucleus,
     cytoplasm,
+    pressureLoads,
     plotfileContactForce,
     cellDishForce,
     pipetteInteraction,
@@ -212,6 +311,8 @@ export function summarizeNativeFebioRunFiles(files = {}) {
       pipetteSuctionPlotfileForceActive: pipetteInteraction.suctionPlotfileForceActive,
       pipetteMouthPlotfileForceActive: pipetteInteraction.mouthPlotfileForceActive,
       pipettePlotfileForceActive: pipetteInteraction.plotfileForceActive,
+      pipetteSuctionPressureLoadActive: pipetteInteraction.suctionPressureLoadActive,
+      pipetteDirectContactOutputActive: pipetteInteraction.directContactOutputActive,
       pipetteInteractionActive: pipetteInteraction.hasInteraction,
       nucleusCytoplasmMoved: nucleus.hasDisplacement && cytoplasm.hasDisplacement,
     },

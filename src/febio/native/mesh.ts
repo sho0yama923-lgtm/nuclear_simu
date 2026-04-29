@@ -21,10 +21,14 @@ function geometryForNativeMesh(spec) {
 }
 
 export function buildNativeMesh(spec) {
-  return refineNativeNucleusCytoplasmCoupling(refineNativeCellDishGeometry(applyNativeSolverSurfaceConventions(buildRefinedFebioGeometry(geometryForNativeMesh(spec)))));
+  return refineNativeNucleusCytoplasmCoupling(refineNativeCellDishGeometry(applyNativeSolverSurfaceConventions(buildRefinedFebioGeometry(geometryForNativeMesh(spec)), spec)), spec);
 }
 
-function applyNativeSolverSurfaceConventions(mesh) {
+function applyNativeSolverSurfaceConventions(mesh, spec = {}) {
+  const pipetteCellPair =
+    spec.contacts?.pipetteCell?.pairRole === "rigid-primary"
+      ? { name: "pipette_cell_pair", primary: "pipette_contact_surface", secondary: "pipette_suction_surface" }
+      : { name: "pipette_cell_pair", primary: "pipette_suction_surface", secondary: "pipette_contact_surface" };
   return {
     ...mesh,
     surfaces: {
@@ -45,6 +49,7 @@ function applyNativeSolverSurfaceConventions(mesh) {
       nucleus_cytoplasm_right_pair: { name: "nucleus_cytoplasm_right_pair", primary: "cytoplasm_interface_right_surface", secondary: "nucleus_interface_right_surface" },
       nucleus_cytoplasm_top_pair: { name: "nucleus_cytoplasm_top_pair", primary: "cytoplasm_interface_top_surface", secondary: "nucleus_interface_top_surface" },
       nucleus_cytoplasm_bottom_pair: { name: "nucleus_cytoplasm_bottom_pair", primary: "cytoplasm_interface_bottom_surface", secondary: "nucleus_interface_bottom_surface" },
+      pipette_cell_pair: pipetteCellPair,
     },
   };
 }
@@ -139,7 +144,7 @@ function refineNativeCellDishGeometry(mesh) {
   };
 }
 
-function refineNativeNucleusCytoplasmCoupling(mesh) {
+function refineNativeNucleusCytoplasmCoupling(mesh, spec = {}) {
   const left = mesh.bounds?.cellLeft;
   const right = mesh.bounds?.cellRight;
   const nucleusLeft = mesh.bounds?.nucleusLeft;
@@ -175,6 +180,10 @@ function refineNativeNucleusCytoplasmCoupling(mesh) {
     buildHex(13, "cytoplasm", [50, 71, 72, 51, 37, 38, 39, 40]),
   ];
 
+  const suctionSurface =
+    spec.contacts?.pipetteCell?.suctionSurfaceMode === "cell-outer-right"
+      ? [buildFacet(20, [69, 70, 72, 71])]
+      : [buildFacet(20, [46, 50, 51, 47])];
   return {
     ...mesh,
     refinements: {
@@ -182,6 +191,10 @@ function refineNativeNucleusCytoplasmCoupling(mesh) {
       nucleusCytoplasmCoupling: {
         mode: "in-place-current-native-shared-nodes",
         contactFreeForceTransfer: true,
+      },
+      pipetteSuctionSurface: {
+        mode: spec.contacts?.pipetteCell?.suctionSurfaceMode || "nucleus-right",
+        studioCompatibleWinding: spec.contacts?.pipetteCell?.suctionSurfaceMode === "cell-outer-right",
       },
     },
     nodes: [...existingNodes, ...splitNodes].sort((a, b) => a.id - b.id),
@@ -208,7 +221,7 @@ function refineNativeNucleusCytoplasmCoupling(mesh) {
       cytoplasm_interface_right_surface: [buildFacet(11, [46, 47, 51, 50])],
       cytoplasm_interface_top_surface: [buildFacet(12, [49, 52, 51, 50])],
       cytoplasm_interface_bottom_surface: [buildFacet(13, [45, 46, 47, 48])],
-      pipette_suction_surface: [buildFacet(20, [46, 50, 51, 47])],
+      pipette_suction_surface: suctionSurface,
     },
     nodeSets: {
       ...mesh.nodeSets,
@@ -291,7 +304,7 @@ const PAIR_ALIGNMENT_CHECKS = [
   { name: "cell_dish_left", primary: "cell_dish_left_surface", secondary: "dish_contact_surface", expected: "opposed" },
   { name: "cell_dish_center", primary: "cell_dish_center_surface", secondary: "dish_contact_surface", expected: "opposed" },
   { name: "cell_dish_right", primary: "cell_dish_right_surface", secondary: "dish_contact_surface", expected: "opposed" },
-  { name: "pipette_cell", primary: "pipette_suction_surface", secondary: "pipette_contact_surface", expected: "same" },
+  { name: "pipette_cell", pair: "pipette_cell_pair", expected: "same" },
 ];
 
 function subtract(a, b) {
@@ -372,12 +385,19 @@ function axisLabel(normal) {
   return `${axes[0].value >= 0 ? "+" : "-"}${axes[0].name}`;
 }
 
+function expectedSurfaceNormal(mesh, surfaceName) {
+  if (surfaceName === "pipette_suction_surface" && mesh.refinements?.pipetteSuctionSurface?.mode === "cell-outer-right") {
+    return "+x";
+  }
+  return EXPECTED_SURFACE_NORMALS[surfaceName];
+}
+
 function buildSurfaceNormalDiagnostics(mesh) {
   const entries = Object.fromEntries(
     Object.keys(EXPECTED_SURFACE_NORMALS).map((surfaceName) => {
       const normal = surfaceNormal(mesh, surfaceName);
       const actual = axisLabel(normal);
-      const expected = EXPECTED_SURFACE_NORMALS[surfaceName];
+      const expected = expectedSurfaceNormal(mesh, surfaceName);
       return [
         surfaceName,
         {
@@ -398,10 +418,13 @@ function buildSurfaceNormalDiagnostics(mesh) {
 function buildContactPairDiagnostics(mesh) {
   const checks = Object.fromEntries(
     PAIR_ALIGNMENT_CHECKS.map((check) => {
-      const primaryNormal = surfaceNormal(mesh, check.primary);
-      const secondaryNormal = surfaceNormal(mesh, check.secondary);
-      const primaryCentroid = surfaceCentroid(mesh, check.primary);
-      const secondaryCentroid = surfaceCentroid(mesh, check.secondary);
+      const pair = check.pair ? mesh.surfacePairs?.[check.pair] : null;
+      const primaryName = pair?.primary || check.primary;
+      const secondaryName = pair?.secondary || check.secondary;
+      const primaryNormal = surfaceNormal(mesh, primaryName);
+      const secondaryNormal = surfaceNormal(mesh, secondaryName);
+      const primaryCentroid = surfaceCentroid(mesh, primaryName);
+      const secondaryCentroid = surfaceCentroid(mesh, secondaryName);
       const normalDot = primaryNormal && secondaryNormal ? dot(primaryNormal, secondaryNormal) : null;
       const opposed = normalDot != null && normalDot < -0.75;
       const same = normalDot != null && normalDot > 0.75;
@@ -412,8 +435,11 @@ function buildContactPairDiagnostics(mesh) {
       return [
         check.name,
         {
-          primary: check.primary,
-          secondary: check.secondary,
+          primary: primaryName,
+          secondary: secondaryName,
+          activePrimary: primaryName,
+          activeSecondary: secondaryName,
+          pair: check.pair || null,
           primaryNormal: axisLabel(primaryNormal),
           secondaryNormal: axisLabel(secondaryNormal),
           dot: normalDot,
@@ -439,6 +465,10 @@ function buildContactPairDiagnostics(mesh) {
 function buildPressureDiagnostics(mesh) {
   const suction = surfaceNormal(mesh, COORDINATE_CONVENTION.pressure.suctionSurface);
   const suctionNormal = axisLabel(suction);
+  const suctionSurfaceMode = mesh.refinements?.pipetteSuctionSurface?.mode || "nucleus-right";
+  const expectedSuctionNormal = suctionSurfaceMode === "cell-outer-right"
+    ? "+x"
+    : COORDINATE_CONVENTION.pressure.currentSuctionNormal;
   const suctionCentroid = surfaceCentroid(mesh, COORDINATE_CONVENTION.pressure.suctionSurface);
   const mouthCentroid = surfaceCentroid(mesh, COORDINATE_CONVENTION.pressure.rigidMouthSurface);
   const centroidDelta = suctionCentroid && mouthCentroid ? subtract(mouthCentroid, suctionCentroid) : null;
@@ -448,16 +478,19 @@ function buildPressureDiagnostics(mesh) {
   const tangentialOffsetMagnitude = tangentialOffset ? magnitude(tangentialOffset) : null;
   const maxTangentialOffsetForReady = 0.1;
   const couplingReady =
-    suctionNormal === COORDINATE_CONVENTION.pressure.currentSuctionNormal &&
+    suctionNormal === expectedSuctionNormal &&
     tangentialOffsetMagnitude != null &&
     tangentialOffsetMagnitude <= maxTangentialOffsetForReady;
   return {
     suctionSurface: COORDINATE_CONVENTION.pressure.suctionSurface,
     surfaceOwnership: COORDINATE_CONVENTION.pressure.surfaceOwnership,
     rigidMouthSurface: COORDINATE_CONVENTION.pressure.rigidMouthSurface,
+    suctionSurfaceMode,
     suctionNormal,
-    expectedSuctionNormal: COORDINATE_CONVENTION.pressure.currentSuctionNormal,
-    negativePressureEffect: COORDINATE_CONVENTION.pressure.negativePressureEffect,
+    expectedSuctionNormal,
+    negativePressureEffect: suctionSurfaceMode === "cell-outer-right"
+      ? "diagnostic outer-cell comparison uses FEBioStudio-compatible +x facet winding; pressure sign is not the final S7-E suction convention"
+      : COORDINATE_CONVENTION.pressure.negativePressureEffect,
     couplingReadiness: {
       ready: couplingReady,
       suctionCentroid,
@@ -472,11 +505,41 @@ function buildPressureDiagnostics(mesh) {
         ? "pipette suction surface is normal-aligned and tangentially colocated with the rigid mouth surface"
         : "pipette suction surface is not tangentially colocated with the rigid mouth surface; pressure can be declared while contact/reaction channels remain inactive"
     },
-    valid: suctionNormal === COORDINATE_CONVENTION.pressure.currentSuctionNormal,
+    valid: suctionNormal === expectedSuctionNormal,
     warnings:
-      suctionNormal === COORDINATE_CONVENTION.pressure.currentSuctionNormal
+      suctionNormal === expectedSuctionNormal
         ? []
-        : [`pipette_suction_surface normal is ${suctionNormal}; expected ${COORDINATE_CONVENTION.pressure.currentSuctionNormal}`],
+        : [`pipette_suction_surface normal is ${suctionNormal}; expected ${expectedSuctionNormal}`],
+  };
+}
+
+function surfaceNodeSignature(facets = []) {
+  return facets
+    .map((facet) => [...(facet.nodes || [])].sort((a, b) => a - b).join(","))
+    .sort()
+    .join("|");
+}
+
+function buildSurfaceOverlapDiagnostics(mesh) {
+  const surfaceEntries = Object.entries(mesh.surfaces || {});
+  const signatures = new Map();
+  surfaceEntries.forEach(([name, facets]) => {
+    const signature = surfaceNodeSignature(facets);
+    if (!signature) return;
+    const names = signatures.get(signature) || [];
+    names.push(name);
+    signatures.set(signature, names);
+  });
+  const duplicateNodeSets = [...signatures.entries()]
+    .filter(([, names]) => names.length > 1)
+    .map(([nodeSignature, names]) => ({ nodeSignature, surfaces: names }));
+  const pipetteSuctionOverlaps = duplicateNodeSets
+    .filter((entry) => entry.surfaces.includes("pipette_suction_surface"))
+    .flatMap((entry) => entry.surfaces.filter((name) => name !== "pipette_suction_surface"));
+  return {
+    duplicateNodeSets,
+    pipetteSuctionOverlaps,
+    pipetteSuctionSeparatedFromNucleusRight: !pipetteSuctionOverlaps.includes("nucleus_interface_right_surface"),
   };
 }
 
@@ -485,12 +548,14 @@ export function validateNativeMesh(mesh) {
   const surfaceNormals = buildSurfaceNormalDiagnostics(mesh);
   const contactPairs = buildContactPairDiagnostics(mesh);
   const pressure = buildPressureDiagnostics(mesh);
+  const surfaceOverlaps = buildSurfaceOverlapDiagnostics(mesh);
   return {
     ...base,
     coordinateConvention: COORDINATE_CONVENTION,
     surfaceNormalDiagnostics: surfaceNormals,
     contactPairDiagnostics: contactPairs,
     pressureDiagnostics: pressure,
+    surfaceOverlapDiagnostics: surfaceOverlaps,
     conventionWarnings: [
       ...surfaceNormals.warnings,
       ...contactPairs.warnings,

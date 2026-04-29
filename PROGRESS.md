@@ -11,7 +11,7 @@ Last updated: 2026-04-29
 - Legacy UI / canonical / bridge paths are compatibility-only and must not be used for new solver behavior.
 - S7-E geometry convention is fixed. `pipette_suction_surface` is deformable-side, normal `-x`, and negative pressure pulls toward `+x`.
 - S7-J changed nucleus-cytoplasm force transfer from solver contact to shared-node coupling.
-- Active milestone: S8-A. S7 is complete by diagnostic closure. S8 starts with pipette coupling / suction force capture, beginning from pre-run geometry diagnostics rather than a contact-law rewrite.
+- Active milestone: S8-K. S7 is complete by diagnostic closure. S8 starts with pipette coupling / suction force capture; S8-G restored direct pipette-cell force channels with a Studio-compatible outer-cell suction surface, but S8-H/S8-I/S8-J show that motion, penalty, and pressure amplitude changes alone do not remove the solver stiffness-reformation warning.
 - Current roadmap context: simulation condition advancement / solver-native load/contact activation / pressure/contact load / solver-native pipette coupling. Stage S6 completed, S7 began with Milestone S7-A to make FEBio-native spec JSON the active handoff and completed with diagnostic residuals, and S8 starts from the inactive pipette force channels.
 
 ## Important retained findings
@@ -25,7 +25,7 @@ Last updated: 2026-04-29
 - S7-K shows nonzero `.xplt` contact force on the cell-dish pair and improved gap control, but weak dish-normal support and zero face-data pressure.
 - Cell-dish load-bearing must be evaluated as pressure, plotfile force, normal support, tangential force, and gap control.
 
-## Active milestone: S8-A Pipette Coupling Geometry Diagnostic
+## Active milestone: S8-K Direct Pipette Stabilization / Convention Cleanup
 
 ### Current facts
 
@@ -64,19 +64,61 @@ Last updated: 2026-04-29
 - S8-A adds pre-run pipette coupling readiness diagnostics to mesh validation.
 - On S7-M/S8-A geometry, `pipette_suction_surface` and `pipette_contact_surface` have matching `-x` normals and `normalGapMagnitude=0`, but their centroids are tangentially offset by `8.5 um` in `z`.
 - `pressureDiagnostics.couplingReadiness.ready=false` because `tangentialOffsetMagnitude=8.5` exceeds the current `0.1 um` readiness threshold.
+- S8-B adds `febio_cases/native/S8_pipette_aligned.native.json`, keeping S7-M `0.10 kPa` cell-dish preload while moving the pipette puncture/tip `z` from `8.5` to `17`.
+- S8-B exported and ran `S8-B_S8_pipette_aligned` under `febio_exports/S8_pipette_aligned/` with warning-free normal termination.
+- In the S8-B native model, `pressureDiagnostics.couplingReadiness.ready=true`, suction and rigid mouth centroids are both `[14, 0, 17]`, `normalGapMagnitude=0`, and `tangentialOffsetMagnitude=0`.
+- S8-B preserves the S7-M cell-dish evidence: `cellDishContactForceActive=true`, `cellDishNormalSupportActive=true`, `cellDishGapControlled=true`, max normal force about `8.8468484879`, max tangential force about `25.6783313751`, and `normalToTangentialRatio=0.3445258323`.
+- S8-B does not activate pipette force capture: `pipetteCellPressureActive=false`, `pipetteMouthPressureActive=false`, `pipetteRigidReactionActive=false`, `pipetteSuctionPlotfileForceActive=false`, `pipetteMouthPlotfileForceActive=false`, `pipettePlotfileForceActive=false`, and `pipetteInteractionActive=false`.
+- S8-C adds `febio_cases/native/S8_pipette_capture_hold.native.json`, starting from S8-B geometry and explicitly setting `contacts.pipetteNucleus.solverActive=true` as a bounded capture-hold comparison.
+- S8-C exported and ran `S8-C_S8_pipette_capture_hold` under `febio_exports/S8_pipette_capture_hold/` with warning-free normal termination.
+- S8-C restores one pipette interaction channel: `pipetteRigidReactionActive=true`, final rigid reaction is approximately `Fx=-7.8642668328`, `Fz=33.5857591825`, and `maxRigidReaction=33.5857591825`.
+- S8-C still does not restore direct pipette pressure or pipette plotfile force: `pipetteCellPressureActive=false`, `pipetteMouthPressureActive=false`, `pipetteSuctionPlotfileForceActive=false`, `pipetteMouthPlotfileForceActive=false`, and `pipettePlotfileForceActive=false`.
+- S8-C preserves `cellDishContactForceActive=true` and `cellDishNormalSupportActive=true`, but `cellDishGapControlled=false`; final max cell-dish gap rises to about `0.14864903867 um`.
+- S8-D adds `febio_cases/native/S8_pipette_capture_hold_gentle.native.json`, preserving S8-C capture-hold contact and S8-B geometry while reducing pipette motion to `liftZ=2`, `inwardX=1`, and `tangentY=0`.
+- S8-D exported and ran `S8-D_S8_pipette_capture_hold_gentle` under `febio_exports/S8_pipette_capture_hold_gentle/` with warning-free normal termination.
+- S8-D keeps `pipetteRigidReactionActive=true`, with final rigid reaction approximately `Fx=7.9129367928`, `Fz=10.8173032188`, and `maxRigidReaction=10.8173032188`.
+- S8-D recovers `cellDishGapControlled=true`; final max cell-dish gap is about `0.0690802562 um`, with `cellDishNormalSupportActive=true` and `normalToTangentialRatio=1.2048908280`.
+- S8-D still does not activate direct pipette pressure or pipette plotfile force: `pipetteCellPressureActive=false`, `pipetteMouthPressureActive=false`, `pipetteSuctionPlotfileForceActive=false`, `pipetteMouthPlotfileForceActive=false`, and `pipettePlotfileForceActive=false`.
+- S8-E adds `febio_cases/native/S8_pipette_cell_reversed_pair.native.json`, preserving S8-D motion/capture-hold while setting `contacts.pipetteCell.pairRole="rigid-primary"` so `pipette_cell_pair` serializes as `primary=pipette_contact_surface`, `secondary=pipette_suction_surface`.
+- S8-E exported and ran `S8-E_S8_pipette_cell_reversed_pair` under `febio_exports/S8_pipette_cell_reversed_pair/` with warning-free normal termination.
+- S8-E matches S8-D diagnostics: `pipetteRigidReactionActive=true`, `cellDishGapControlled=true`, `cellDishNormalSupportActive=true`, and direct pipette pressure / plotfile force remains inactive.
+- S8-E result: final rigid reaction is approximately `Fx=7.9129367928`, `Fz=10.8173032188`; final max cell-dish gap is about `0.0690802562 um`; `pipetteCellPressureActive=false` and `pipettePlotfileForceActive=false`.
+- S8-F extends native run diagnostics with declared pressure-load resultants from the native model JSON.
+- S8-F re-diagnosed S8-D and S8-E with `pressureLoads.available=true`: `pipette_suction_pressure` is declared on `pipette_suction_surface`, value `-0.7 kPa`, surface area `18 um^2`, resultant `12.6 nN`, and `pipetteSuctionPressureLoadActive=true`.
+- In the same S8-D/S8-E runs, direct pipette outputs remain inactive: `pipetteDirectContactOutputActive=false`, `pipetteCellPressureActive=false`, `pipetteMouthPressureActive=false`, `pipetteSuctionPlotfileForceActive=false`, `pipetteMouthPlotfileForceActive=false`, and `pipettePlotfileForceActive=false`.
+- S8-F keeps `pipetteInteractionActive=true` for S8-D/S8-E because rigid reaction is active, not because direct suction-contact output is active.
+- S8-G adds `febio_cases/native/S8_pipette_outer_cell_surface.native.json`, moving the pipette mouth/tip to `x=26` and setting `contacts.pipetteCell.suctionSurfaceMode="cell-outer-right"` so `pipette_suction_surface` uses nodes `[69, 70, 72, 71]` on the outer right cytoplasm surface instead of the duplicated nucleus-right face.
+- S8-G adds `surfaceOverlapDiagnostics`; S8-D reports `pipette_suction_surface` overlapping `nucleus_interface_right_surface`, while S8-G reports `pipetteSuctionSeparatedFromNucleusRight=true`.
+- The first S8-G Studio import warned that `[69,71,72,70]` had incorrect winding. S8-G now uses Studio-compatible facet winding `[69,70,72,71]`.
+- S8-G exported and ran `S8-G_S8_pipette_outer_cell_surface` under `febio_exports/S8_pipette_outer_cell_surface/` with normal termination and converted result JSON.
+- S8-G has one solver warning block: `Problem is diverging. Stiffness matrix will now be reformed` at about `t=3.01115`; diagnostics now count this as `warning=1`, so `warningFree=false` even though `normalTermination=1`.
+- S8-G preserves declared suction pressure load (`pipetteSuctionPressureLoadActive=true`, resultant `12.6 nN`) and cell-dish support (`cellDishNormalSupportActive=true`, `cellDishGapControlled=true`, final max gap about `0.0211104848 um`).
+- S8-G restores direct pipette outputs: `pipetteDirectContactOutputActive=true`, `pipetteCellPressureActive=true`, `pipetteRigidReactionActive=true`, `pipetteSuctionPlotfileForceActive=true`, `pipetteMouthPlotfileForceActive=true`, `pipettePlotfileForceActive=true`, and `pipetteInteractionActive=true`.
+- S8-G final pipette values: `maxPressure=1.7858176725`, rigid reaction approximately `Fx=-32.2976727433`, `Fz=-1.67431556344`, and pipette plotfile max force magnitude about `32.3410415232`.
+- S8-H adds `febio_cases/native/S8_pipette_outer_cell_surface_gentle.native.json`, keeping the S8-G Studio-compatible outer-cell surface while reducing pipette motion to `liftZ=1` and `inwardX=0.25`.
+- S8-H exported and ran `S8-H_S8_pipette_outer_cell_surface_gentle` under `febio_exports/S8_pipette_outer_cell_surface_gentle/` with normal termination and one solver warning block at about `t=3.03337`.
+- S8-H preserves direct pipette outputs: `pipetteDirectContactOutputActive=true`, `pipetteCellPressureActive=true`, `pipetteRigidReactionActive=true`, `pipetteSuctionPlotfileForceActive=true`, `pipetteMouthPlotfileForceActive=true`, and `pipettePlotfileForceActive=true`.
+- S8-H lowers response magnitude relative to S8-G: `maxPressure=1.42607752858`, max rigid reaction about `25.6249355634`, final max cell-dish gap about `0.0127162355 um`, and `cellDishNormalSupportActive=true`.
+- S8-I adds `febio_cases/native/S8_pipette_outer_cell_surface_soft_contact.native.json`, preserving S8-H geometry/motion/pressure but setting `contacts.pipetteCell.penaltyScale=0.25`.
+- S8-I exported and ran `S8-I_S8_pipette_outer_cell_surface_soft_contact` under `febio_exports/S8_pipette_outer_cell_surface_soft_contact/` with normal termination but three solver warning blocks.
+- S8-I preserves direct pipette outputs while lowering magnitude: `maxPressure=1.1880290985`, max rigid reaction about `21.1120721884`, final max cell-dish gap about `0.0181850985 um`, and `cellDishNormalSupportActive=true`. Penalty softening is therefore not the stabilization fix.
+- S8-J adds `febio_cases/native/S8_pipette_outer_cell_surface_low_pressure.native.json`, preserving S8-H geometry/motion/default penalty while lowering suction pressure to `-0.35 kPa`.
+- S8-J exported and ran `S8-J_S8_pipette_outer_cell_surface_low_pressure` under `febio_exports/S8_pipette_outer_cell_surface_low_pressure/` with normal termination but three solver warning blocks at about `t=3.01115`, `t=3.03337`, and `t=3.05559`.
+- S8-J preserves direct pipette outputs: `pipetteDirectContactOutputActive=true`, `pipetteCellPressureActive=true`, `pipetteRigidReactionActive=true`, `pipetteSuctionPlotfileForceActive=true`, `pipetteMouthPlotfileForceActive=true`, and `pipettePlotfileForceActive=true`.
+- S8-J values: declared suction resultant `6.3 nN`, `maxPressure=0.772434447697`, max rigid reaction about `13.9167377089`, pipette plotfile max force magnitude about `13.9219446045`, final max cell-dish gap about `0.0128907751 um`, and `cellDishNormalSupportActive=true`.
 
 ### Current interpretation
 
 Cell-dish is no longer simply missing. Contact force, gap control, and dish-normal support are present at `0.10 kPa` preload. Downstream localCd now carries plotfile normal traction from the real `.xplt` output, even though face-data pressure remains zero. The current bridge is explicitly marked as global fan-out, so it cannot be mistaken for region-resolved localCd force.
 
-S7 is complete as a diagnostic stage. It does not claim the physical detachment model is complete. S8-A identifies a concrete pre-run geometry blocker for pipette/cell force capture: the pressure surface and rigid mouth surface are normal-aligned but not tangentially colocated, so declared suction pressure can coexist with zero contact/reaction output.
+S7 is complete as a diagnostic stage. It does not claim the physical detachment model is complete. S8-A identified a concrete pre-run geometry blocker for pipette/cell force capture. S8-B removed that blocker and proved the next blocker is not simple surface colocation. S8-C proves the rigid pipette can receive force again through the capture-hold contact path. S8-D shows the cell-dish gap regression is motion-amplitude dependent, not an unavoidable consequence of capture-hold itself. S8-E shows the direct pipette-cell zero channel is not caused by `pipette_cell_pair` primary/secondary role. S8-F shows the declared suction pressure load is present and nonzero as a model load. S8-G shows direct pipette-cell force capture can be restored with a Studio-compatible outer-cell suction surface. S8-H/S8-I/S8-J show the remaining stiffness-reformation warning is not solved by smaller motion, softer pipette-cell penalty, or lower pressure amplitude alone. The next blocker is stabilization / convention cleanup: test ramp/step/control changes around the `t ~= 3.01-3.06` transition and reconcile the outer-cell comparison's `+x` Studio winding with the final S7-E suction sign convention.
 
 ### Next bounded task
 
-- S8-B: choose the smallest geometry/coupling change that reduces the pipette suction-to-mouth tangential offset while preserving S7-M cell-dish evidence.
+- S8-K: stabilize the S8-G/H outer-cell suction path by changing load/motion ramp timing or solver step controls around the warning window, rather than further reducing pressure or contact penalty.
 - Keep the current S7-M converted result as the cell-dish evidence baseline.
 - Preserve S7-M `0.10 kPa` as the current normal-support candidate.
-- Do not change cell-dish contact law until pipette interaction is active or deliberately deferred.
+- Start from `S8_pipette_capture_hold_gentle`; do not spend more time on primary/secondary role unless a later Studio check contradicts S8-E.
 
 ### Done condition
 
@@ -91,11 +133,20 @@ S7 is complete as a diagnostic stage. It does not claim the physical detachment 
 - `src/febio/native/xpltDiagnostics.ts`
 - `src/febio/native/caseSpec.ts`
 - `src/febio/native/model.ts`
+- `src/febio/native/mesh.ts`
 - `scripts/convert_febio_output.mjs`
 - `src/febio/import/normalizeFebioResult.ts`
 - `scripts/diagnose_febio_native_run.mjs`
 - `febio_cases/native/S7_normal_preload.native.json`
 - `febio_cases/native/S7_normal_preload_high.native.json`
+- `febio_cases/native/S8_pipette_aligned.native.json`
+- `febio_cases/native/S8_pipette_capture_hold.native.json`
+- `febio_cases/native/S8_pipette_capture_hold_gentle.native.json`
+- `febio_cases/native/S8_pipette_cell_reversed_pair.native.json`
+- `febio_cases/native/S8_pipette_outer_cell_surface.native.json`
+- `febio_cases/native/S8_pipette_outer_cell_surface_gentle.native.json`
+- `febio_cases/native/S8_pipette_outer_cell_surface_soft_contact.native.json`
+- `febio_cases/native/S8_pipette_outer_cell_surface_low_pressure.native.json`
 - `febio_exports/S7_native_baseline/S7-K_S7_native_baseline_native_model.json`
 - `febio_exports/S7_native_baseline/jobs/S7-K_S7_native_baseline.log`
 - `febio_exports/S7_native_baseline/jobs/S7-K_S7_native_baseline.xplt`
@@ -103,6 +154,35 @@ S7 is complete as a diagnostic stage. It does not claim the physical detachment 
 - `febio_exports/S7_normal_preload/S7-L_S7_normal_preload.xplt`
 - `febio_exports/S7_normal_preload_high/S7-M_S7_normal_preload_high.log`
 - `febio_exports/S7_normal_preload_high/S7-M_S7_normal_preload_high.xplt`
+- `febio_exports/S8_pipette_aligned/S8-B_S8_pipette_aligned_native_model.json`
+- `febio_exports/S8_pipette_aligned/S8-B_S8_pipette_aligned.log`
+- `febio_exports/S8_pipette_aligned/S8-B_S8_pipette_aligned.xplt`
+- `febio_exports/S8_pipette_aligned/S8-B_S8_pipette_aligned_result.json`
+- `febio_exports/S8_pipette_capture_hold/S8-C_S8_pipette_capture_hold_native_model.json`
+- `febio_exports/S8_pipette_capture_hold/S8-C_S8_pipette_capture_hold.log`
+- `febio_exports/S8_pipette_capture_hold/S8-C_S8_pipette_capture_hold.xplt`
+- `febio_exports/S8_pipette_capture_hold/S8-C_S8_pipette_capture_hold_result.json`
+- `febio_exports/S8_pipette_capture_hold_gentle/S8-D_S8_pipette_capture_hold_gentle_native_model.json`
+- `febio_exports/S8_pipette_capture_hold_gentle/S8-D_S8_pipette_capture_hold_gentle.log`
+- `febio_exports/S8_pipette_capture_hold_gentle/S8-D_S8_pipette_capture_hold_gentle.xplt`
+- `febio_exports/S8_pipette_capture_hold_gentle/S8-D_S8_pipette_capture_hold_gentle_result.json`
+- `febio_exports/S8_pipette_cell_reversed_pair/S8-E_S8_pipette_cell_reversed_pair_native_model.json`
+- `febio_exports/S8_pipette_cell_reversed_pair/S8-E_S8_pipette_cell_reversed_pair.log`
+- `febio_exports/S8_pipette_cell_reversed_pair/S8-E_S8_pipette_cell_reversed_pair.xplt`
+- `febio_exports/S8_pipette_cell_reversed_pair/S8-E_S8_pipette_cell_reversed_pair_result.json`
+- `febio_exports/S8_pipette_outer_cell_surface/S8-G_S8_pipette_outer_cell_surface_native_model.json`
+- `febio_exports/S8_pipette_outer_cell_surface/S8-G_S8_pipette_outer_cell_surface.log`
+- `febio_exports/S8_pipette_outer_cell_surface/S8-G_S8_pipette_outer_cell_surface.xplt`
+- `febio_exports/S8_pipette_outer_cell_surface/S8-G_S8_pipette_outer_cell_surface_result.json`
+- `febio_exports/S8_pipette_outer_cell_surface_gentle/S8-H_S8_pipette_outer_cell_surface_gentle.log`
+- `febio_exports/S8_pipette_outer_cell_surface_gentle/S8-H_S8_pipette_outer_cell_surface_gentle.xplt`
+- `febio_exports/S8_pipette_outer_cell_surface_gentle/S8-H_S8_pipette_outer_cell_surface_gentle_result.json`
+- `febio_exports/S8_pipette_outer_cell_surface_soft_contact/S8-I_S8_pipette_outer_cell_surface_soft_contact.log`
+- `febio_exports/S8_pipette_outer_cell_surface_soft_contact/S8-I_S8_pipette_outer_cell_surface_soft_contact.xplt`
+- `febio_exports/S8_pipette_outer_cell_surface_soft_contact/S8-I_S8_pipette_outer_cell_surface_soft_contact_result.json`
+- `febio_exports/S8_pipette_outer_cell_surface_low_pressure/S8-J_S8_pipette_outer_cell_surface_low_pressure.log`
+- `febio_exports/S8_pipette_outer_cell_surface_low_pressure/S8-J_S8_pipette_outer_cell_surface_low_pressure.xplt`
+- `febio_exports/S8_pipette_outer_cell_surface_low_pressure/S8-J_S8_pipette_outer_cell_surface_low_pressure_result.json`
 - `docs/febio/CELL_DISH_LOAD_BEARING_DIAGNOSTICS.md`
 - `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`
 - `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md`
@@ -136,7 +216,14 @@ S7 is complete as a diagnostic stage. It does not claim the physical detachment 
 - S7-O: converter reads real `.xplt` cell-dish contact force into a global localCd bridge; the converted S7-M result now carries `native-plotfile-contact-traction` for localCd normal/damage/shear.
 - S7-P: converted result and import state now preserve plotfile source details that distinguish global cell-dish fan-out from future region-resolved localCd force.
 - S7-Q: pipette diagnostics now split pressure, rigid reaction, and plotfile force. S7 ends here as diagnostic-complete, with pipette coupling carried forward as the next model-side blocker.
-- S8-A so far: mesh validation now reports pipette coupling readiness; current suction surface and rigid mouth are normal-aligned but tangentially offset by `8.5 um`.
+- S8-A: mesh validation now reports pipette coupling readiness; current suction surface and rigid mouth are normal-aligned but tangentially offset by `8.5 um`.
+- S8-B: added and ran a pipette-aligned comparison case. It closes pre-run coupling readiness (`ready=true`, zero tangential offset) and preserves cell-dish normal support, but pipette pressure / rigid reaction / plotfile force channels remain inactive.
+- S8-C: added and ran a capture-hold comparison case. It restores rigid pipette reaction (`pipetteRigidReactionActive=true`) with warning-free termination, but direct pipette pressure / plotfile force remains inactive and cell-dish gap control regresses.
+- S8-D: added and ran a gentle capture-hold comparison case. It keeps rigid pipette reaction active and recovers cell-dish gap control, but direct pipette pressure / plotfile force remains inactive.
+- S8-E: added and ran a reversed pipette-cell pair-role comparison. Reversing primary/secondary preserves S8-D behavior and does not activate direct pipette pressure / plotfile force.
+- S8-F: native run diagnostics now compute declared pressure-load resultants from native model JSON. S8-D/S8-E both show active declared suction pressure (`12.6 nN`) while direct pipette pressure / plotfile force outputs remain zero, narrowing the blocker to contact-output/transfer semantics.
+- S8-G: added and ran an outer-cell suction-surface comparison. After fixing Studio facet winding to `[69,70,72,71]`, direct pipette pressure, rigid reaction, and pipette plotfile force all become active while cell-dish support remains controlled. Residual: one solver stiffness-reformation warning and a mode-specific `+x` suction-normal convention exception.
+- S8-H/S8-I/S8-J: added and ran gentle-motion, soft-contact, and low-pressure outer-cell comparisons. All preserve direct pipette force channels and cell-dish support, but none removes the stiffness-reformation warning; soft contact and low pressure increase warning count to three.
 - Historical governance anchors retained for regression tests: implemented-infrastructure / output-contract-complete; unit system `um-nN-s`; old blocker `cell-dish solver-active contact が未復帰` is resolved; load/contact/output 成立後に cohesive / detachment solver validation.
 
 ## PROGRESS.md log retirement rule

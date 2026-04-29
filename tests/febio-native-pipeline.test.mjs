@@ -154,7 +154,15 @@ test("native-only normal preload case declares bounded cell-dish preload", async
   const native = await loadNativeModule();
   const cases = [
     { file: "febio_cases/native/S7_normal_preload.native.json", caseName: "S7_normal_preload", tag: "S7-L", value: 0.05, xmlValue: "0\\.050000" },
-    { file: "febio_cases/native/S7_normal_preload_high.native.json", caseName: "S7_normal_preload_high", tag: "S7-M", value: 0.1, xmlValue: "0\\.100000" }
+    { file: "febio_cases/native/S7_normal_preload_high.native.json", caseName: "S7_normal_preload_high", tag: "S7-M", value: 0.1, xmlValue: "0\\.100000" },
+    { file: "febio_cases/native/S8_pipette_aligned.native.json", caseName: "S8_pipette_aligned", tag: "S8-B", value: 0.1, xmlValue: "0\\.100000" },
+    { file: "febio_cases/native/S8_pipette_capture_hold.native.json", caseName: "S8_pipette_capture_hold", tag: "S8-C", value: 0.1, xmlValue: "0\\.100000" },
+    { file: "febio_cases/native/S8_pipette_capture_hold_gentle.native.json", caseName: "S8_pipette_capture_hold_gentle", tag: "S8-D", value: 0.1, xmlValue: "0\\.100000" },
+    { file: "febio_cases/native/S8_pipette_cell_reversed_pair.native.json", caseName: "S8_pipette_cell_reversed_pair", tag: "S8-E", value: 0.1, xmlValue: "0\\.100000" },
+    { file: "febio_cases/native/S8_pipette_outer_cell_surface.native.json", caseName: "S8_pipette_outer_cell_surface", tag: "S8-G", value: 0.1, xmlValue: "0\\.100000" },
+    { file: "febio_cases/native/S8_pipette_outer_cell_surface_gentle.native.json", caseName: "S8_pipette_outer_cell_surface_gentle", tag: "S8-H", value: 0.1, xmlValue: "0\\.100000" },
+    { file: "febio_cases/native/S8_pipette_outer_cell_surface_soft_contact.native.json", caseName: "S8_pipette_outer_cell_surface_soft_contact", tag: "S8-I", value: 0.1, xmlValue: "0\\.100000" },
+    { file: "febio_cases/native/S8_pipette_outer_cell_surface_low_pressure.native.json", caseName: "S8_pipette_outer_cell_surface_low_pressure", tag: "S8-J", value: 0.1, xmlValue: "0\\.100000" }
   ];
   cases.forEach((entry) => {
     const caseSpec = JSON.parse(fs.readFileSync(path.resolve(entry.file), "utf8"));
@@ -176,6 +184,186 @@ test("native-only normal preload case declares bounded cell-dish preload", async
     assert.match(xml, /active-step pressure source=cell_dish_normal_preload/);
     assert.match(xml, /<load_controller id="4" name="cell_dish_normal_preload_curve" type="loadcurve">/);
   });
+});
+
+test("native-only S8 pipette-aligned case closes pre-run coupling readiness", async () => {
+  const native = await loadNativeModule();
+  const baseline = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S7_normal_preload_high.native.json"), "utf8")),
+  );
+  const aligned = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_aligned.native.json"), "utf8")),
+  );
+  const baselineReadiness = baseline.geometry.meshValidation.pressureDiagnostics.couplingReadiness;
+  const alignedReadiness = aligned.geometry.meshValidation.pressureDiagnostics.couplingReadiness;
+
+  assert.equal(baselineReadiness.ready, false);
+  assert.equal(baselineReadiness.tangentialOffsetMagnitude, 8.5);
+  assert.equal(aligned.caseName, "S8_pipette_aligned");
+  assert.equal(aligned.effectiveNativeSpec.outputNameTag, "S8-B");
+  assert.equal(alignedReadiness.ready, true);
+  assert.equal(alignedReadiness.normalGapMagnitude, 0);
+  assert.equal(alignedReadiness.tangentialOffsetMagnitude, 0);
+  assert.equal(aligned.geometry.meshValidation.contactPairDiagnostics.checks.pipette_cell.tangentialOffsetMagnitude, 0);
+  assert.equal(aligned.geometry.meshValidation.conventionWarnings.length, 0);
+});
+
+test("native-only S8 capture-hold comparison re-enables bounded pipette nucleus contact", async () => {
+  const native = await loadNativeModule();
+  const aligned = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_aligned.native.json"), "utf8")),
+  );
+  const captureHold = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_capture_hold.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(captureHold);
+
+  assert.equal(aligned.contact.pipetteNucleus.solverActive, false);
+  assert.equal(captureHold.caseName, "S8_pipette_capture_hold");
+  assert.equal(captureHold.effectiveNativeSpec.outputNameTag, "S8-C");
+  assert.equal(captureHold.contact.pipetteNucleus.solverActive, true);
+  assert.equal(captureHold.contact.pipetteNucleus.status, "solver-active bounded capture-hold comparison");
+  assert.equal(captureHold.geometry.meshValidation.pressureDiagnostics.couplingReadiness.ready, true);
+  assert.match(xml, /<SurfacePair name="pipette_nucleus_pair">/);
+  assert.match(xml, /<contact name="pipette_nucleus_contact" type="sticky" surface_pair="pipette_nucleus_pair">/);
+  assert.match(xml, /solver-active pipette capture-hold contact status=solver-active bounded capture-hold comparison/);
+});
+
+test("native-only S8 gentle capture-hold comparison keeps active contact with reduced manipulation", async () => {
+  const native = await loadNativeModule();
+  const gentle = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_capture_hold_gentle.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(gentle);
+
+  assert.equal(gentle.caseName, "S8_pipette_capture_hold_gentle");
+  assert.equal(gentle.effectiveNativeSpec.outputNameTag, "S8-D");
+  assert.equal(gentle.contact.pipetteNucleus.solverActive, true);
+  assert.equal(gentle.geometry.meshValidation.pressureDiagnostics.couplingReadiness.ready, true);
+  assert.equal(gentle.boundary.prescribed.find((entry) => entry.name === "pipette_lift_z").value, 2);
+  assert.equal(gentle.boundary.prescribed.find((entry) => entry.name === "pipette_inward_x").value, 1);
+  assert.equal(gentle.boundary.prescribed.find((entry) => entry.name === "pipette_tangent_y").value, 0);
+  assert.match(xml, /<contact name="pipette_nucleus_contact" type="sticky" surface_pair="pipette_nucleus_pair">/);
+  assert.match(xml, /<value lc="1">2\.000000<\/value>/);
+  assert.match(xml, /<value lc="2">-0\.450000<\/value>/);
+  assert.match(xml, /<value lc="2">-0\.550000<\/value>/);
+});
+
+test("native-only S8 reversed pipette-cell pair compares rigid-primary contact role", async () => {
+  const native = await loadNativeModule();
+  const reversed = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_cell_reversed_pair.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(reversed);
+  const pair = reversed.geometry.mesh.surfacePairs.pipette_cell_pair;
+  const pairDiagnostics = reversed.geometry.meshValidation.contactPairDiagnostics.checks.pipette_cell;
+
+  assert.equal(reversed.caseName, "S8_pipette_cell_reversed_pair");
+  assert.equal(reversed.effectiveNativeSpec.outputNameTag, "S8-E");
+  assert.equal(reversed.contact.pipetteNucleus.solverActive, true);
+  assert.equal(reversed.effectiveNativeSpec.contacts.pipetteCell.pairRole, "rigid-primary");
+  assert.equal(pair.primary, "pipette_contact_surface");
+  assert.equal(pair.secondary, "pipette_suction_surface");
+  assert.equal(pairDiagnostics.primary, "pipette_contact_surface");
+  assert.equal(pairDiagnostics.secondary, "pipette_suction_surface");
+  assert.equal(pairDiagnostics.aligned, true);
+  assert.equal(reversed.geometry.meshValidation.pressureDiagnostics.couplingReadiness.ready, true);
+  assert.match(xml, /<SurfacePair name="pipette_cell_pair">\n      <primary>pipette_contact_surface<\/primary>\n      <secondary>pipette_suction_surface<\/secondary>/);
+  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_surface" type="pressure">/);
+});
+
+test("native-only S8 outer cell surface comparison separates suction from nucleus-right surface", async () => {
+  const native = await loadNativeModule();
+  const gentle = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_capture_hold_gentle.native.json"), "utf8")),
+  );
+  const outer = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_outer_cell_surface.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(outer);
+  const overlap = outer.geometry.meshValidation.surfaceOverlapDiagnostics;
+
+  assert.equal(gentle.geometry.meshValidation.surfaceOverlapDiagnostics.pipetteSuctionOverlaps.includes("nucleus_interface_right_surface"), true);
+  assert.equal(outer.caseName, "S8_pipette_outer_cell_surface");
+  assert.equal(outer.effectiveNativeSpec.outputNameTag, "S8-G");
+  assert.equal(outer.contact.pipetteNucleus.solverActive, false);
+  assert.equal(outer.effectiveNativeSpec.contacts.pipetteCell.suctionSurfaceMode, "cell-outer-right");
+  assert.deepEqual(outer.geometry.mesh.surfaces.pipette_suction_surface[0].nodes, [69, 70, 72, 71]);
+  assert.equal(outer.geometry.mesh.refinements.pipetteSuctionSurface.studioCompatibleWinding, true);
+  assert.equal(overlap.pipetteSuctionOverlaps.includes("nucleus_interface_right_surface"), false);
+  assert.equal(overlap.pipetteSuctionSeparatedFromNucleusRight, true);
+  assert.equal(outer.geometry.meshValidation.surfaceNormalDiagnostics.entries.pipette_suction_surface.actual, "+x");
+  assert.equal(outer.geometry.meshValidation.pressureDiagnostics.suctionSurfaceMode, "cell-outer-right");
+  assert.equal(outer.geometry.meshValidation.pressureDiagnostics.expectedSuctionNormal, "+x");
+  assert.equal(outer.geometry.meshValidation.pressureDiagnostics.couplingReadiness.ready, true);
+  assert.equal(outer.geometry.meshValidation.contactPairDiagnostics.checks.pipette_cell.normalGapMagnitude, 0);
+  assert.equal(outer.geometry.meshValidation.contactPairDiagnostics.checks.pipette_cell.tangentialOffsetMagnitude, 0);
+  assert.equal(outer.loads.pressure.find((entry) => entry.name === "pipette_suction_pressure").surface, "pipette_suction_surface");
+  assert.match(xml, /<Surface name="pipette_suction_surface">/);
+  assert.match(xml, /<quad4 id="20">69,70,72,71<\/quad4>/);
+  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_surface" type="pressure">/);
+  assert.doesNotMatch(xml, /<contact name="pipette_nucleus_contact"/);
+});
+
+test("native-only S8 outer cell gentle comparison preserves Studio winding with reduced motion", async () => {
+  const native = await loadNativeModule();
+  const gentleOuter = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_outer_cell_surface_gentle.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(gentleOuter);
+
+  assert.equal(gentleOuter.caseName, "S8_pipette_outer_cell_surface_gentle");
+  assert.equal(gentleOuter.effectiveNativeSpec.outputNameTag, "S8-H");
+  assert.equal(gentleOuter.effectiveNativeSpec.contacts.pipetteCell.suctionSurfaceMode, "cell-outer-right");
+  assert.deepEqual(gentleOuter.geometry.mesh.surfaces.pipette_suction_surface[0].nodes, [69, 70, 72, 71]);
+  assert.equal(gentleOuter.geometry.meshValidation.surfaceOverlapDiagnostics.pipetteSuctionSeparatedFromNucleusRight, true);
+  assert.equal(gentleOuter.geometry.meshValidation.pressureDiagnostics.couplingReadiness.ready, true);
+  assert.equal(gentleOuter.boundary.prescribed.find((entry) => entry.name === "pipette_lift_z").value, 1);
+  assert.equal(gentleOuter.boundary.prescribed.find((entry) => entry.name === "pipette_inward_x").value, 0.25);
+  assert.match(xml, /<quad4 id="20">69,70,72,71<\/quad4>/);
+  assert.match(xml, /<value lc="1">1\.000000<\/value>/);
+  assert.match(xml, /<value lc="2">-0\.112500<\/value>/);
+  assert.match(xml, /<value lc="2">-0\.137500<\/value>/);
+});
+
+test("native-only S8 outer cell soft-contact comparison lowers pipette-cell penalty", async () => {
+  const native = await loadNativeModule();
+  const soft = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_outer_cell_surface_soft_contact.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(soft);
+
+  assert.equal(soft.caseName, "S8_pipette_outer_cell_surface_soft_contact");
+  assert.equal(soft.effectiveNativeSpec.outputNameTag, "S8-I");
+  assert.equal(soft.contact.pipetteCell.penaltyScale, 0.25);
+  assert.ok(Math.abs(soft.contact.pipetteCell.penalty - 1.74375) < 1e-12);
+  assert.deepEqual(soft.geometry.mesh.surfaces.pipette_suction_surface[0].nodes, [69, 70, 72, 71]);
+  assert.equal(soft.geometry.meshValidation.pressureDiagnostics.couplingReadiness.ready, true);
+  assert.match(xml, /<quad4 id="20">69,70,72,71<\/quad4>/);
+  assert.match(xml, /<penalty>1\.743750<\/penalty>/);
+});
+
+test("native-only S8 outer cell low-pressure comparison preserves contact geometry", async () => {
+  const native = await loadNativeModule();
+  const lowPressure = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_outer_cell_surface_low_pressure.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(lowPressure);
+
+  assert.equal(lowPressure.caseName, "S8_pipette_outer_cell_surface_low_pressure");
+  assert.equal(lowPressure.effectiveNativeSpec.outputNameTag, "S8-J");
+  assert.equal(lowPressure.effectiveNativeSpec.contacts.pipetteCell.suctionSurfaceMode, "cell-outer-right");
+  assert.equal(lowPressure.effectiveNativeSpec.loads.suctionPressure.value, -0.35);
+  assert.equal(lowPressure.contact.pipetteCell.penaltyScale, 1);
+  assert.ok(Math.abs(lowPressure.contact.pipetteCell.penalty - 6.975) < 1e-12);
+  assert.deepEqual(lowPressure.geometry.mesh.surfaces.pipette_suction_surface[0].nodes, [69, 70, 72, 71]);
+  assert.equal(lowPressure.geometry.meshValidation.surfaceOverlapDiagnostics.pipetteSuctionSeparatedFromNucleusRight, true);
+  assert.equal(lowPressure.geometry.meshValidation.pressureDiagnostics.couplingReadiness.ready, true);
+  assert.equal(lowPressure.boundary.prescribed.find((entry) => entry.name === "pipette_lift_z").value, 1);
+  assert.equal(lowPressure.boundary.prescribed.find((entry) => entry.name === "pipette_inward_x").value, 0.25);
+  assert.match(xml, /<quad4 id="20">69,70,72,71<\/quad4>/);
+  assert.match(xml, /<pressure lc="3">-0\.350000<\/pressure>/);
+  assert.match(xml, /<penalty>6\.975000<\/penalty>/);
 });
 
 test("native-only export script writes FEBio handoff artifacts", () => {
@@ -277,6 +465,25 @@ test("native run diagnostics summarize final contact and reaction gates", async 
   assert.equal(summary.plotfileContactForce.finalState.rows[0].tangentialMagnitude, 25);
 });
 
+test("native run diagnostics count FEBio warning blocks separately from platform notices", async () => {
+  const native = await loadNativeModule();
+  const summary = native.summarizeNativeFebioRunFiles({
+    log: [
+      "Intel MKL WARNING: platform notice",
+      " *************************************************************************",
+      " *                               WARNING                                 *",
+      " * Problem is diverging. Stiffness matrix will now be reformed           *",
+      " *************************************************************************",
+      " N O R M A L   T E R M I N A T I O N"
+    ].join("\n")
+  });
+
+  assert.equal(summary.warnings.normalTermination, 1);
+  assert.equal(summary.warnings.platformWarning, 1);
+  assert.equal(summary.warnings.warning, 1);
+  assert.equal(summary.gates.warningFree, false);
+});
+
 test("native run diagnostics split pipette plotfile force from pressure and rigid reaction", async () => {
   const native = await loadNativeModule();
   const block = (name, rows) => [
@@ -307,6 +514,40 @@ test("native run diagnostics split pipette plotfile force from pressure and rigi
   assert.equal(summary.pipetteInteraction.maxPressure, 0);
   assert.equal(summary.pipetteInteraction.suctionPlotfileForce.maxAbs.x, 3);
   assert.equal(summary.pipetteInteraction.interpretation, "pipette interaction is active in at least one pressure, rigid-reaction, or plotfile-force channel");
+});
+
+test("native run diagnostics separate declared suction pressure resultant from contact outputs", async () => {
+  const native = await loadNativeModule();
+  const block = (name, rows) => [
+    "*Step  = 1",
+    "*Time  = 5",
+    `*Data  = ${name}`,
+    ...rows
+  ].join("\n");
+  const model = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_capture_hold_gentle.native.json"), "utf8")),
+  );
+  const summary = native.summarizeNativeFebioRunFiles({
+    nativeModel: model,
+    log: "N O R M A L   T E R M I N A T I O N",
+    xplt: buildMinimalXpltContactForce([{ time: 0, rows: [{ itemId: 1, x: 0, y: 0, z: 0 }, { itemId: 2, x: 0, y: 0, z: 0 }, { itemId: 3, x: 0, y: 0, z: 0 }, { itemId: 4, x: 0, y: 0, z: 0 }] }]),
+    cellDish: block("cell_dish_interface_surface", ["1,0,0"]),
+    pipetteCell: block("pipette_cell_contact_surface", ["1,0,0"]),
+    pipetteContact: block("pipette_contact_surface", ["1,0,0"]),
+    rigidPipette: block("pipette_rigid_body", ["4 0 0 0 0 0 0"]),
+    nucleus: block("nucleus_nodes", ["1 0 0 0"]),
+    cytoplasm: block("cytoplasm_nodes", ["1 0 0 0"])
+  });
+
+  assert.equal(summary.pressureLoads.available, true);
+  assert.equal(summary.pressureLoads.pipetteSuction.surface, "pipette_suction_surface");
+  assert.equal(summary.pressureLoads.pipetteSuction.area, 18);
+  assert.equal(summary.pressureLoads.pipetteSuction.resultant, 12.6);
+  assert.equal(summary.gates.pipetteSuctionPressureLoadActive, true);
+  assert.equal(summary.gates.pipetteDirectContactOutputActive, false);
+  assert.equal(summary.gates.pipetteCellPressureActive, false);
+  assert.equal(summary.gates.pipettePlotfileForceActive, false);
+  assert.equal(summary.gates.pipetteRigidReactionActive, false);
 });
 
 test("FEBio path ownership docs freeze legacy paths outside the native-only exporter", () => {

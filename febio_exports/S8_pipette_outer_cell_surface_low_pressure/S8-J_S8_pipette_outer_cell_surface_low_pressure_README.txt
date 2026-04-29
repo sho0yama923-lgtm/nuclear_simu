@@ -1,0 +1,17 @@
+FEBio native-only handoff for S8_pipette_outer_cell_surface_low_pressure
+
+Parameter digest: fdig_44d77d5a
+Export ready: true
+
+Run:
+powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/S8-J_S8_pipette_outer_cell_surface_low_pressure.feb"
+
+Artifacts:
+- feb: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/S8-J_S8_pipette_outer_cell_surface_low_pressure.feb
+- effective native spec: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/S8-J_S8_pipette_outer_cell_surface_low_pressure_effective_native_spec.json
+- native model: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/S8-J_S8_pipette_outer_cell_surface_low_pressure_native_model.json
+- manifest: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/S8-J_S8_pipette_outer_cell_surface_low_pressure_manifest.json
+- expected log: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/S8-J_S8_pipette_outer_cell_surface_low_pressure.log
+- expected xplt: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/S8-J_S8_pipette_outer_cell_surface_low_pressure.xplt
+- expected result JSON: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/S8-J_S8_pipette_outer_cell_surface_low_pressure_result.json
+- expected CSV: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/febio_interface_cell_dish.csv, /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/febio_pipette_cell_contact.csv, /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/febio_pipette_contact.csv, /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/febio_rigid_pipette.csv, /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/febio_nucleus_nodes.csv, /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_low_pressure/febio_cytoplasm_nodes.csv

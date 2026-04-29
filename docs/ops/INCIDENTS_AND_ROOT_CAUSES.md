@@ -475,11 +475,25 @@ Cause:
 - Not solved in S7. The current diagnostics show the pipette/cell coupling is inactive across all emitted force channels.
 - Nucleus and cytoplasm displacement can be nonzero while pipette force capture is still absent, so movement alone is not proof of pipette interaction.
 - S8-A pre-run geometry diagnostics show the suction surface and rigid mouth surface are normal-aligned with zero normal gap, but tangentially offset by `8.5 um` in the x-z section.
+- S8-B aligns the surfaces exactly (`pressureDiagnostics.couplingReadiness.ready=true`, zero normal gap, zero tangential offset) and still leaves every pipette force channel inactive.
+- S8-C re-enables bounded `pipette_nucleus_contact` and restores rigid pipette reaction, but pipette-cell pressure and pipette plotfile force remain inactive.
+- S8-D reduces manipulation amplitude while keeping capture-hold active; rigid reaction remains active and cell-dish gap control returns, but pipette-cell pressure and pipette plotfile force are still inactive.
+- S8-E reverses `pipette_cell_pair` primary/secondary role while preserving S8-D conditions; direct pipette-cell pressure and pipette plotfile force remain inactive.
+- S8-F computes declared pressure-load resultants from native model JSON; S8-D/S8-E both have active declared suction pressure (`12.6 nN` on `pipette_suction_surface`) while direct pipette contact output remains inactive.
+- S8-G separates `pipette_suction_surface` from the duplicated nucleus-right face by moving it to the outer right cytoplasm surface. The first winding `[69,71,72,70]` caused a FEBioStudio incorrect-facet warning; changing it to `[69,70,72,71]` makes the comparison Studio-compatible and activates direct pipette pressure, rigid reaction, and pipette plotfile force.
+- S8-H reduces outer-cell pipette motion and preserves direct force channels, but keeps one stiffness-reformation warning.
+- S8-I softens pipette-cell penalty and S8-J lowers suction pressure; both preserve direct force channels but increase stiffness-reformation warnings to three.
 
 Impact:
 
 - Detachment interpretation cannot be considered physically complete until pipette interaction is active or deliberately replaced.
 - S7 can close as a diagnostic stage, but the next model-side phase should start from pipette coupling rather than another cell-dish contact-law change.
+- Rigid reaction alone is not equivalent to pressure-driven pipette-cell suction; S8-C also regresses cell-dish gap control.
+- S8-D shows the S8-C cell-dish gap regression is motion-amplitude dependent, but the direct pipette-cell force-channel issue remains.
+- S8-E shows simple `SurfacePair` primary/secondary ordering is not the active direct pipette-cell force-channel blocker.
+- S8-F shows missing pressure-load declaration is not the active direct pipette-cell force-channel blocker.
+- S8-G shows Studio-compatible facet winding can be decisive for the outer-cell suction comparison: the warning-producing winding kept the interpretation unstable, while the corrected winding activates the direct channel.
+- S8-H/S8-I/S8-J show that smaller motion, softer pipette-cell contact, and lower suction pressure reduce force magnitude but do not solve the solver warning. The remaining issue is a stabilization / transition problem, not simple force-amplitude overload.
 
 Fix or mitigation:
 
@@ -487,11 +501,25 @@ Fix or mitigation:
 - Add `pressureDiagnostics.couplingReadiness` to report suction/mouth centroid delta, normal gap, and tangential offset before running FEBio.
 - Preserve S7-M as the cell-dish normal-support candidate.
 - Carry pipette coupling / suction force capture as the next model-side blocker.
+- After S8-B, prioritize the active pipette contact definition or load-transfer path over additional centroid-only geometry changes.
+- After S8-C, use capture-hold as a diagnostic comparison while isolating direct pipette-cell pressure / plotfile force and cell-dish gap regression.
+- After S8-D, use gentle capture-hold as the comparison baseline for direct `pipette_cell_contact` output/channel work.
+- After S8-E, prioritize contact law/output semantics or direct surface separation over more pair-role-only comparisons.
+- After S8-F, separate declared suction pressure load diagnostics from direct contact output diagnostics; prioritize output/transfer semantics over re-adding the same pressure load.
+- After S8-G, preserve the Studio-compatible outer-right winding and prioritize stabilizing the remaining solver warning / convention exception before treating the path as final.
+- After S8-J, avoid more amplitude-only pressure/penalty reductions as the next move; compare ramp timing, step boundaries, or solver controls around the `t ~= 3.01-3.06` warning window.
 
 Regression guard:
 
 - Do not infer pipette interaction from nucleus/cytoplasm displacement alone.
 - Do not infer pipette readiness from normal alignment or normal gap alone; check tangential offset too.
+- Do not infer pipette force capture from pre-run readiness alone; S8-B proves `ready=true` can still produce zero pipette pressure, rigid reaction, and plotfile force.
+- Do not infer pressure-driven suction from rigid reaction alone; S8-C proves rigid reaction can return while direct pipette pressure / plotfile force remain zero.
+- Do not treat motion tuning as a fix for direct pipette-cell force output; S8-D recovers gap control but leaves direct pipette pressure / plotfile force at zero.
+- Do not assume reversing `pipette_cell_pair` primary/secondary will activate direct pipette force; S8-E preserves the zero direct channel.
+- Do not call the suction load missing when `pipetteSuctionPressureLoadActive=true`; S8-F proves the declared pressure load can be present while direct contact output stays zero.
+- Do not use `[69,71,72,70]` for the S8-G outer-right suction facet; FEBioStudio warns that this winding is incorrect. Use `[69,70,72,71]` for the Studio-compatible comparison.
+- Do not treat reduced reaction magnitude as stabilization by itself; S8-I/S8-J reduce magnitude while worsening the warning count.
 - Require at least one active pipette pressure, rigid reaction, or pipette plotfile force channel before treating suction force capture as established.
 
 References:

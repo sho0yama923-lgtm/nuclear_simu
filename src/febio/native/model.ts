@@ -28,12 +28,18 @@ function buildViscoelasticMaterial(name, domain, source, id) {
 }
 
 function buildContacts(spec, mesh) {
+  const pipetteNucleusSolverActive = spec.contacts.pipetteNucleus.solverActive === true;
+  const pipetteCellPenaltyScale = Number.isFinite(Number(spec.contacts.pipetteCell.penaltyScale))
+    ? Number(spec.contacts.pipetteCell.penaltyScale)
+    : 1;
   return {
     pipetteNucleus: {
       type: spec.contacts.pipetteNucleus.type,
-      status: "omitted after shared-node nucleus-cytoplasm coupling; pipette-cell pressure/contact remains solver-active",
-      solverActive: false,
-      inactiveReason: "shared-node force transfer removed the stabilizer requirement",
+      status: pipetteNucleusSolverActive
+        ? "solver-active bounded capture-hold comparison"
+        : "omitted after shared-node nucleus-cytoplasm coupling; pipette-cell pressure/contact remains solver-active",
+      solverActive: pipetteNucleusSolverActive,
+      inactiveReason: pipetteNucleusSolverActive ? "" : "shared-node force transfer removed the stabilizer requirement",
       mode: "capture-hold",
       tolerance: spec.contacts.pipetteNucleus.tolerance,
       searchTolerance: spec.contacts.pipetteNucleus.searchTolerance,
@@ -59,7 +65,8 @@ function buildContacts(spec, mesh) {
       searchTolerance: spec.contacts.pipetteCell.searchTolerance,
       searchRadius: Math.max(spec.geometry.pipette.radius * 2.5, 1.5),
       surfacePair: mesh.surfacePairs.pipette_cell_pair,
-      penalty: Math.max(spec.contacts.cellDish.normalStiffness * 0.45, 0.25),
+      penalty: Math.max(spec.contacts.cellDish.normalStiffness * 0.45 * pipetteCellPenaltyScale, 0.25),
+      penaltyScale: pipetteCellPenaltyScale,
       symmetricStiffness: 0,
       autoPenalty: 1,
       friction: spec.contacts.pipetteCell.friction
