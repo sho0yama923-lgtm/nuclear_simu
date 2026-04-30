@@ -120,6 +120,13 @@ function buildLoadControllerIdMap(loads = {}) {
   return new Map((loads.controllers || []).map((entry, index) => [entry.id, index + 1]));
 }
 
+function mergeStepMotion(defaultStepMotion, overrides = {}) {
+  return new Map([...defaultStepMotion].map(([name, defaults]) => {
+    const override = overrides[name] || {};
+    return [name, { ...defaults, ...override }];
+  }));
+}
+
 function serializeLoadsToXml(loads = {}) {
   const controllerIdMap = buildLoadControllerIdMap(loads);
   return [
@@ -329,13 +336,14 @@ export function serializeNativeModelToFebioXml(model) {
   const plotfileSurfaceTractionXml = (outputs.plotfileSurfaceData || []).map((entry) => `      <var type="${entry.variable}" surface="${entry.surface}"/>`).join("\n");
   const lift = model.boundary?.prescribed?.find((entry) => entry.name === "pipette_lift_z")?.value || 0;
   const inward = model.boundary?.prescribed?.find((entry) => entry.name === "pipette_inward_x")?.value || 0;
-  const stepMotion = new Map([
+  const defaultStepMotion = new Map([
     ["approach", { x: 0, z: -0.35, steps: 60 }],
     ["hold", { x: 0, z: 0, steps: 1 }],
     ["lift", { x: 0, z: lift, steps: 60, zController: 101 }],
     ["manipulation-1", { x: -(inward * 0.45), z: 0, steps: 90, xController: 102 }],
     ["manipulation-2", { x: -(inward * 0.55), z: 0, steps: 1, xController: 102 }]
   ]);
+  const stepMotion = mergeStepMotion(defaultStepMotion, model.effectiveNativeSpec?.solverControls?.stepMotion);
   const stepXml = (model.steps || []).flatMap((step, index) => {
     const motion = stepMotion.get(step.name) || { x: 0, z: 0, steps: 25 };
     const stepSize = motion.steps ? 1 / motion.steps : 0.04;

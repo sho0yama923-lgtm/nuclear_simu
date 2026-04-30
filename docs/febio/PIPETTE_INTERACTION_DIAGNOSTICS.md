@@ -1,10 +1,12 @@
 # Pipette Interaction Diagnostics
 
-This document stores the durable S7-Q diagnostic rules for pipette-cell interaction.
+This document stores the durable S7-Q and S8 diagnostic rules for pipette interaction.
 
 ## Current interpretation
 
-S7-Q completes the diagnostic split for the remaining pipette interaction gate.
+S7-Q completed the diagnostic split for the remaining pipette interaction gate. S8-M is now the target-geometry reference for the active physical direction.
+
+The target physical model applies suction pressure to a nucleus-side capture surface. S8-G through S8-L outer-cell cases are diagnostic bridges: they prove that force channels, Studio-compatible winding, `.xplt` force extraction, and direct pipette diagnostics can become active, but they are not the intended final suction geometry. S8-M returns to the nucleus-side pressure path and shows that declared pressure load and direct contact-output channels must be interpreted separately.
 
 The active S7-M candidate is warning-free and has cell-dish normal support, but the pipette interaction channels are inactive:
 
@@ -16,7 +18,7 @@ The active S7-M candidate is warning-free and has cell-dish normal support, but 
 - `pipettePlotfileForceActive=false`
 - `pipetteInteractionActive=false`
 
-This means the current run is diagnostically explainable, not physically complete for detachment interpretation. S7 ends at diagnostic completion; pipette coupling changes move to the next model-side phase.
+This means the older S7 run is diagnostically explainable, not physically complete for detachment interpretation. S7 ends at diagnostic completion; S8 keeps the target pressure on the nucleus-side capture surface and separates pressure-load evidence from direct contact-output evidence.
 
 ## Diagnostic gates
 
@@ -229,7 +231,7 @@ S8-G FEBio result:
 - max rigid reaction: `32.2976727433`
 - max pipette plotfile force magnitude: about `32.3410415232`
 
-Interpretation: the direct pipette force channel can be activated by moving suction to the outer right cell surface with Studio-compatible winding. The remaining issue is not force-channel absence; it is stabilization and convention cleanup. S8-H should reduce or explain the stiffness-reformation warning and decide whether this outer-cell `+x` normal comparison becomes the final suction convention or remains a diagnostic bridge.
+Interpretation: the direct pipette force channel can be activated by moving suction to the outer right cell surface with Studio-compatible winding. This is diagnostic bridge evidence, not the target physical model. The target remains nucleus-side pressure; future comparisons should use the S8-G evidence to separate output-channel limitations from true force-transfer absence rather than accepting the outer-cell `+x` normal as the final suction convention.
 
 ## S8-H/I/J outer-cell stabilization comparisons
 
@@ -266,4 +268,133 @@ S8-J low pressure:
 - max pipette-cell pressure: `0.772434447697`
 - max rigid reaction: about `13.9167377089`
 
-Interpretation: reducing motion, softening pipette-cell penalty, and lowering suction pressure reduce force magnitude but do not remove the stiffness-reformation warning. Do not spend the next milestone on more amplitude-only reductions. The next stabilization comparison should target ramp timing, step boundaries, or solver controls near the warning window while preserving the S8-G/S8-H outer-cell force-channel geometry.
+## S8-K fine inward timestep comparison
+
+S8-K keeps the S8-H Studio-compatible outer-cell suction surface and direct force-channel geometry, then refines the manipulation timestep schedule without changing pressure, motion amplitude, or pipette-cell penalty.
+
+S8-K fine inward controls:
+
+- case: `febio_cases/native/S8_pipette_outer_cell_surface_fine_inward.native.json`
+- motion/pressure/contact penalty: same as S8-H
+- `manipulation-1` steps: `360` instead of `90`
+- `manipulation-2` steps: `90` instead of `1`
+- result: normal termination with seven stiffness-reformation warning blocks
+- direct force gates remain active: `pipetteDirectContactOutputActive=true`, `pipetteCellPressureActive=true`, `pipetteRigidReactionActive=true`, `pipettePlotfileForceActive=true`
+- cell-dish gates remain active: `cellDishNormalSupportActive=true`, `cellDishGapControlled=true`
+- max pipette-cell pressure: `1.41425105523`
+- max rigid reaction: about `25.4650692211`
+- max pipette plotfile force magnitude: about `25.7914232226`
+
+Interpretation: timestep-only refinement preserves the direct-force path but worsens the warning count. Do not spend the next milestone on more substep-only refinement. The next stabilization comparison should change the inward controller/ramp onset near the warning window while preserving the S8-G/S8-H/S8-K outer-cell force-channel geometry.
+
+## S8-L delayed inward-ramp comparison
+
+S8-L keeps the S8-H/S8-K Studio-compatible outer-cell suction surface and direct force-channel geometry, then delays the inward ramp onset without changing pressure, motion amplitude, or pipette-cell penalty.
+
+S8-L delayed inward controls:
+
+- case: `febio_cases/native/S8_pipette_outer_cell_surface_delayed_inward.native.json`
+- motion/pressure/contact penalty: same as S8-H
+- inward controller: `[[0,0], [3.2,0], [4.4,1], [5,1]]`
+- result: normal termination with four stiffness-reformation warning blocks
+- warning times: about `t=3.05559`, `3.06671`, `3.07782`, and `3.08893`
+- direct force gates remain active: `pipetteDirectContactOutputActive=true`, `pipetteCellPressureActive=true`, `pipetteRigidReactionActive=true`, `pipettePlotfileForceActive=true`
+- cell-dish gates remain active: `cellDishNormalSupportActive=true`, `cellDishGapControlled=true`
+- max pipette-cell pressure: `1.41034606676`
+- max rigid reaction: about `25.3257569855`
+- max pipette plotfile force magnitude: about `25.3281849045`
+
+Interpretation: delaying the inward controller reduces S8-K's warning count but does not beat S8-G/H. Because all four warnings occur before the delayed inward ramp begins at `t=3.2`, the warning is not caused by immediate inward displacement amplitude. Since the user clarified that the real physical model applies pressure to the nucleus, do not continue optimizing this outer-cell bridge as the main path. The next comparison should return to nucleus-side pressure and use the S8-G/L bridge results only to interpret output-channel behavior.
+
+## S8-M nucleus-pressure return comparison
+
+S8-M adds `febio_cases/native/S8_pipette_nucleus_pressure_return.native.json` as the bounded return to the intended pressure-on-nucleus model.
+
+S8-M setup:
+
+- `contacts.pipetteCell.suctionSurfaceMode="nucleus-right"`
+- `pipette_suction_surface` uses the nucleus-side capture surface with normal `-x`
+- `contacts.pipetteNucleus.solverActive=false`
+- suction pressure: `-0.7 kPa`
+- declared suction resultant: `12.6 nN`
+- motion: `liftZ=1`, `inwardX=0.25`, `tangentY=0`
+- cell-dish normal preload remains enabled
+
+S8-M FEBio result:
+
+- warning-free normal termination
+- `pipetteSuctionPressureLoadActive=true`
+- `nucleusCytoplasmMoved=true`
+- nucleus max displacement: about `3.148 um`
+- cytoplasm max displacement: about `3.361 um`
+- `cellDishNormalSupportActive=true`
+- `cellDishGapControlled=true`
+- `pipetteCellPressureActive=false`
+- `pipetteMouthPressureActive=false`
+- `pipetteRigidReactionActive=false`
+- `pipetteSuctionPlotfileForceActive=false`
+- `pipetteMouthPlotfileForceActive=false`
+- `pipettePlotfileForceActive=false`
+- `pipetteDirectContactOutputActive=false`
+
+Interpretation: S8-M is the current target-geometry evidence point. The nucleus-side pressure load is declared, nonzero, warning-free, and associated with tissue motion. The remaining zero is specific to direct pipette contact / rigid-reaction / plotfile contact-force output channels. Do not read this as a missing suction pressure load, and do not solve it by moving the pressure back to the outer cell surface. The next comparison should instrument or summarize pressure-load response on the nucleus-side `pipette_suction_surface` separately from contact outputs.
+
+## S8-N pressure-load response instrumentation
+
+S8-N adds `pressureLoadResponse` diagnostics to summarize final displacement on nodes belonging to declared pressure-load surfaces.
+
+S8-N diagnostic additions:
+
+- `pressureLoadResponse.loads[]`
+- `pressureLoadResponse.pipetteSuction`
+- `pipetteSuctionPressureResponseActive`
+- `pipetteSuctionNormalDisplacementActive`
+
+Re-diagnosed S8-M result:
+
+- `pressureLoadResponse.pipetteSuction.nodeIds=[46,47,50,51]`
+- `observedNodeCount=2`
+- `missingNodeIds=[50,51]`
+- observed source: `cytoplasm`
+- surface normal: `[-1,0,0]`
+- max suction-surface displacement: about `3.134 um`
+- mean normal displacement along the suction normal: about `3.083 um`
+- `pipetteSuctionPressureResponseActive=true`
+- `pipetteSuctionNormalDisplacementActive=true`
+- direct pipette contact-output gates remain false
+
+Interpretation: this closes the first S8-N instrumentation need. The nucleus-side pressure load has an observable displacement response on available suction-surface nodes even when contact pressure, rigid reaction, and pipette contact-force plotfile outputs are zero.
+
+S8-O update: the dedicated suction-node output is not wrong; FEBio logfile node rows use compact internal node ordinals based on the `<Nodes>` order, not the exported node ids. The rows `38,39,42,43` map back to native node ids `46,47,50,51`.
+
+Re-diagnosed S8-M after S8-O:
+
+- `pressureLoadResponse.pipetteSuction.nodeIds=[46,47,50,51]`
+- `observedNodeCount=4`
+- `missingNodeIds=[]`
+- raw FEBio row ids: `[38,39,42,43]`
+- max suction-surface displacement: about `3.148 um`
+- mean normal displacement along the suction normal: about `2.482 um`
+- `pipetteSuctionPressureResponseActive=true`
+- `pipetteSuctionNormalDisplacementActive=true`
+
+Interpretation: the nucleus-side pressure path now has full four-node suction-surface displacement evidence. Direct pipette contact-output gates remain zero and should stay separated from pressure-load response.
+
+## S8-P converted result integration
+
+S8-P carries the S8-O pressure response into converted FEBio result JSON.
+
+Converted S8-M result:
+
+- `suctionPressureResponse.available=true`
+- `suctionPressureResponse.active=true`
+- `suctionPressureResponse.normalDisplacementActive=true`
+- `suctionPressureResponse.surface="pipette_suction_surface"`
+- `suctionPressureResponse.nodeIds=[46,47,50,51]`
+- `suctionPressureResponse.observedNodeCount=4`
+- `suctionPressureResponse.missingNodeIds=[]`
+- `suctionPressureResponse.maxDisplacement=3.1480948892317233`
+- `suctionPressureResponse.meanNormalDisplacement=2.48161278158`
+- `resultProvenance.dataSources.suctionPressureResponse="native-pressure-load-response"`
+
+Manifest-based conversion now hydrates the exported native model, so the converted S8-M result preserves the native spec and `fdig_598cde20` digest. This makes the nucleus-pressure response available to downstream interpretation without pretending that direct contact pressure, rigid reaction, or pipette contact-force plotfile outputs are active.

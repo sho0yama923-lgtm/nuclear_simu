@@ -89,6 +89,7 @@ export function buildNativeLogOutputs(outputs) {
     nodeData: [
       { name: "nucleus_nodes", file: "febio_nucleus_nodes.csv", nodeSet: "nucleus", data: "ux;uy;uz" },
       { name: "cytoplasm_nodes", file: "febio_cytoplasm_nodes.csv", nodeSet: "cytoplasm", data: "ux;uy;uz" },
+      { name: "pipette_suction_nodes", file: "febio_pipette_suction_nodes.csv", nodeSet: "pipette_suction_nodes", data: "ux;uy;uz" },
       { name: "pipette_contact_nodes", file: "febio_pipette_contact_nodes.csv", nodeSet: "pipette_contact_nodes", data: "ux;uy;uz" }
     ],
     rigidBodyData: [

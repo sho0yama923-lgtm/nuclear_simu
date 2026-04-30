@@ -233,6 +233,7 @@ function refineNativeNucleusCytoplasmCoupling(mesh, spec = {}) {
       nc_right_cytoplasm_nodes: [46, 47, 50, 51],
       nc_top_cytoplasm_nodes: [49, 50, 51, 52],
       nc_bottom_cytoplasm_nodes: [45, 46, 47, 48],
+      pipette_suction_nodes: [...new Set(suctionSurface.flatMap((facet) => facet.nodes || []))].sort((a, b) => a - b),
     },
     elementSets: {
       ...mesh.elementSets,

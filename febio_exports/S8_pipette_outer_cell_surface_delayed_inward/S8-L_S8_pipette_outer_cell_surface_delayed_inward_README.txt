@@ -1,0 +1,17 @@
+FEBio native-only handoff for S8_pipette_outer_cell_surface_delayed_inward
+
+Parameter digest: fdig_ef07150d
+Export ready: true
+
+Run:
+powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile "/Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/S8-L_S8_pipette_outer_cell_surface_delayed_inward.feb"
+
+Artifacts:
+- feb: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/S8-L_S8_pipette_outer_cell_surface_delayed_inward.feb
+- effective native spec: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/S8-L_S8_pipette_outer_cell_surface_delayed_inward_effective_native_spec.json
+- native model: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/S8-L_S8_pipette_outer_cell_surface_delayed_inward_native_model.json
+- manifest: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/S8-L_S8_pipette_outer_cell_surface_delayed_inward_manifest.json
+- expected log: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/S8-L_S8_pipette_outer_cell_surface_delayed_inward.log
+- expected xplt: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/S8-L_S8_pipette_outer_cell_surface_delayed_inward.xplt
+- expected result JSON: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/S8-L_S8_pipette_outer_cell_surface_delayed_inward_result.json
+- expected CSV: /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/febio_interface_cell_dish.csv, /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/febio_pipette_cell_contact.csv, /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/febio_pipette_contact.csv, /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/febio_rigid_pipette.csv, /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/febio_nucleus_nodes.csv, /Users/yamaoxiogo/Desktop/GitHub/nuclear_simu/febio_exports/S8_pipette_outer_cell_surface_delayed_inward/febio_cytoplasm_nodes.csv

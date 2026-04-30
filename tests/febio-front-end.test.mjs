@@ -8,6 +8,7 @@ import {
   attachExplicitDetachmentEvents,
   buildDetachmentMetricsFromLocalState,
   buildOutputMappingSummary,
+  buildSuctionPressureResponse,
   buildXpltPlotfileBridgePayload,
   computeCellDishRegionStateWithFace,
   computeNormalTractionFromPlotfileBridge,
@@ -922,6 +923,39 @@ test("external FEBio converter builds native-first detachment metrics from local
   assert.equal(detachmentMetrics.provenance, "native-face-data-preferred");
 });
 
+test("external FEBio converter carries nucleus-pressure response separately from contact outputs", () => {
+  const response = buildSuctionPressureResponse({
+    pressureLoadResponse: {
+      available: true,
+      pipetteSuction: {
+        surface: "pipette_suction_surface",
+        nodeIds: [46, 47, 50, 51],
+        observedNodeCount: 4,
+        missingNodeIds: [],
+        sources: ["pipetteSuction"],
+        surfaceNormal: [-1, 0, 0],
+        maxDisplacement: 3.148,
+        meanDisplacement: 3.12,
+        maxAbsNormalDisplacement: 3.11,
+        meanNormalDisplacement: 2.482,
+        hasDisplacement: true,
+        hasNormalDisplacement: true,
+        rows: [{ id: 46, rawId: 38, normalDisplacement: 3.0 }],
+      },
+    },
+  });
+
+  assert.equal(response.available, true);
+  assert.equal(response.active, true);
+  assert.equal(response.normalDisplacementActive, true);
+  assert.equal(response.surface, "pipette_suction_surface");
+  assert.deepEqual(response.nodeIds, [46, 47, 50, 51]);
+  assert.equal(response.observedNodeCount, 4);
+  assert.equal(response.meanNormalDisplacement, 2.482);
+  assert.equal(response.rows[0].rawId, 38);
+  assert.equal(response.source, "native-pressure-load-response");
+});
+
 test("external FEBio converter reads native tangential traction from face snapshots when available", () => {
   const shear = computeTangentialTractionFromFaceSnapshot({
     records: [
@@ -1314,18 +1348,21 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(agent, /FEBio-native direct parameter path/);
   assert.match(agent, /docs\/ops\/ROADMAP\.md/);
 
-  assert.match(progress, /Stage S6 completed/);
-  assert.match(progress, /simulation condition advancement/);
-  assert.match(progress, /solver-native load\/contact activation/);
-  assert.match(progress, /pressure\/contact load/);
-  assert.match(progress, /Milestone S7-A/);
-  assert.match(progress, /FEBio-native spec JSON/);
-  assert.match(progress, /implemented-infrastructure \/ output-contract-complete/);
-  assert.match(progress, /um-s-kPa-nN|um-nN-s|µm-s-kPa-nN/);
+  assert.match(progress, /Active milestone: S8-Q Nucleus-Pressure Detachment Interpretation/);
+  assert.match(progress, /target physical suction model applies pressure to the nucleus-side capture surface/);
+  assert.match(progress, /native-only path/);
+  assert.match(progress, /diagnostic closure/);
+  assert.match(progress, /pressure \/ orientation convention/);
+  assert.match(progress, /S7-D: added native-only FEBio export path/);
+  assert.match(progress, /febio_cases\/native\/\*\.native\.json/);
+  assert.match(progress, /S8-G: outer-cell suction surface/);
+  assert.match(progress, /0\.10 kPa|12\.6 nN|8\.5 um/);
 
   assert.match(roadmap, /Simulation Condition Advancement/);
   assert.match(roadmap, /Stage S1: Solver-active mesh completeness/);
   assert.match(roadmap, /Stage S7: FEBio-native direct parameter path and load\/contact activation validation/);
+  assert.match(roadmap, /Stage S8: Nucleus-pressure pipette suction force capture/);
+  assert.match(roadmap, /outer-cell suction cases are diagnostic bridges, not final physics/);
   assert.match(roadmap, /After S7 Review Gates/);
   assert.match(roadmap, /Compatibility Retirement/);
   assert.match(roadmap, /FEBio-native spec first policy/);
@@ -1337,11 +1374,12 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(codebase, /generated\/dist\/browser\/main\.js/);
   assert.match(nativeSpecDoc, /FEBio-native spec JSON/);
   assert.match(nativeSpecDoc, /force-transfer \/ contact activation/);
-  assert.match(progress, /cell-dish solver-active contact が未復帰/);
+  assert.match(nativeSpecDoc, /本命の物理モデルでは、この surface は nucleus-side capture face/);
+  assert.match(progress, /cell-dish normal-support candidate/);
   assert.match(roadmap, /Stage S6: True cohesive\/failure preparation \| completed-with-residual/);
   assert.match(roadmap, /native interface traction \/ damage output/);
   assert.match(roadmap, /CLI\/backend export/);
-  assert.match(progress, /load\/contact\/output 成立後に cohesive \/ detachment solver validation/);
+  assert.match(progress, /detachment from cytoplasm through solver-active outputs/);
   assert.match(febioMapping, /native 接線成分の更新|Native Tangential Update/);
   assert.match(febioMapping, /rows that start directly with face values/);
   assert.doesNotMatch(exportScript, /simulation\.js|simulation-febio|node:vm|vm\.runInContext/);

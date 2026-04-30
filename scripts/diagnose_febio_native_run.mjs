@@ -50,6 +50,8 @@ const summary = nativeModule.summarizeNativeFebioRunFiles({
   rigidPipette: readIfExists(path.join(runDir, "febio_rigid_pipette.csv")),
   nucleus: readIfExists(path.join(runDir, "febio_nucleus_nodes.csv")),
   cytoplasm: readIfExists(path.join(runDir, "febio_cytoplasm_nodes.csv")),
+  pipetteSuctionNodes: readIfExists(path.join(runDir, "febio_pipette_suction_nodes.csv")),
+  pipetteContactNodes: readIfExists(path.join(runDir, "febio_pipette_contact_nodes.csv")),
 });
 
 console.log(JSON.stringify(summary, null, 2));

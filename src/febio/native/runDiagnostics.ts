@@ -113,6 +113,29 @@ function displacementSummary(text = "") {
   };
 }
 
+function buildLogNodeIdMap(mesh) {
+  return new Map((mesh?.nodes || []).map((node, index) => [index + 1, node.id]));
+}
+
+function finalNodeDisplacements(text = "", nodeIdMap = new Map()) {
+  const record = finalRecord(text);
+  return {
+    time: record.time,
+    rowsById: new Map((record.rows || []).map((row) => {
+      const rawId = row[0];
+      const id = nodeIdMap.get(rawId) || rawId;
+      return [id, {
+        id,
+        rawId,
+        ux: row[1] || 0,
+        uy: row[2] || 0,
+        uz: row[3] || 0,
+        magnitude: Math.hypot(row[1] || 0, row[2] || 0, row[3] || 0)
+      }];
+    }))
+  };
+}
+
 function parseNativeModel(input) {
   if (!input) return null;
   if (typeof input === "object") return input;
@@ -140,6 +163,23 @@ function cross(a, b) {
   ];
 }
 
+function dot(a, b) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+function add(a, b) {
+  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+
+function scale(a, value) {
+  return [a[0] * value, a[1] * value, a[2] * value];
+}
+
+function normalize(a) {
+  const length = Math.hypot(a[0], a[1], a[2]);
+  return length > FORCE_EPSILON ? [a[0] / length, a[1] / length, a[2] / length] : [0, 0, 0];
+}
+
 function triangleArea(a, b, c) {
   const vector = cross(subtract(b, a), subtract(c, a));
   return 0.5 * Math.hypot(vector[0], vector[1], vector[2]);
@@ -157,6 +197,27 @@ function facetArea(mesh, facet = {}) {
 
 function surfaceArea(mesh, surfaceName) {
   return (mesh?.surfaces?.[surfaceName] || []).reduce((total, facet) => total + facetArea(mesh, facet), 0);
+}
+
+function surfaceNodeIds(mesh, surfaceName) {
+  const ids = new Set();
+  (mesh?.surfaces?.[surfaceName] || []).forEach((facet) => {
+    (facet.nodes || []).forEach((id) => ids.add(id));
+  });
+  return [...ids].sort((a, b) => a - b);
+}
+
+function surfaceNormal(mesh, surfaceName) {
+  const normal = (mesh?.surfaces?.[surfaceName] || []).reduce((total, facet) => {
+    const points = (facet.nodes || []).map((id) => pointForNode(mesh, id)).filter(Boolean);
+    if (points.length < 3) return total;
+    let facetNormal = [0, 0, 0];
+    for (let index = 1; index < points.length - 1; index += 1) {
+      facetNormal = add(facetNormal, cross(subtract(points[index], points[0]), subtract(points[index + 1], points[0])));
+    }
+    return add(total, facetNormal);
+  }, [0, 0, 0]);
+  return normalize(normal);
 }
 
 function pressureLoadSummary(nativeModelInput) {
@@ -194,6 +255,88 @@ function pressureLoadSummary(nativeModelInput) {
       resultant: 0,
       resultantUnit: "nN",
       active: false,
+      interpretation: "pipette suction pressure load was not found in native model"
+    }
+  };
+}
+
+function pressureLoadResponseSummary(nativeModelInput, displacementOutputs = {}) {
+  const nativeModel = parseNativeModel(nativeModelInput);
+  const mesh = nativeModel?.geometry?.mesh;
+  const pressureLoads = nativeModel?.loads?.pressure || [];
+  const nodeIdMap = buildLogNodeIdMap(mesh);
+  const outputRecords = Object.entries(displacementOutputs).map(([name, text]) => ({
+    name,
+    ...finalNodeDisplacements(text || "", nodeIdMap)
+  }));
+  const loads = pressureLoads.map((load) => {
+    const nodeIds = surfaceNodeIds(mesh, load.surface);
+    const normal = surfaceNormal(mesh, load.surface);
+    const sourceCandidates = load.surface === "pipette_suction_surface"
+      ? outputRecords
+      : outputRecords.filter((record) => record.name !== "pipetteSuction");
+    const rows = [];
+    const missingNodeIds = [];
+    nodeIds.forEach((id) => {
+      const source = sourceCandidates.find((record) => record.rowsById.has(id));
+      if (source) {
+        const row = source.rowsById.get(id);
+        const displacement = [row.ux, row.uy, row.uz];
+        rows.push({
+          id,
+          rawId: row.rawId,
+          source: source.name,
+          displacement,
+          magnitude: row.magnitude,
+          normalDisplacement: dot(displacement, normal)
+        });
+      } else {
+        missingNodeIds.push(id);
+      }
+    });
+    const magnitudes = rows.map((row) => row.magnitude);
+    const normalDisplacements = rows.map((row) => row.normalDisplacement);
+    const maxDisplacement = Math.max(0, ...magnitudes);
+    const maxAbsNormalDisplacement = Math.max(0, ...normalDisplacements.map((value) => Math.abs(value)));
+    return {
+      name: load.name || "",
+      surface: load.surface || "",
+      nodeIds,
+      observedNodeCount: rows.length,
+      missingNodeIds,
+      sources: [...new Set(rows.map((row) => row.source))],
+      surfaceNormal: normal,
+      rows,
+      maxDisplacement,
+      meanDisplacement: rows.length ? magnitudes.reduce((total, value) => total + value, 0) / rows.length : 0,
+      maxAbsNormalDisplacement,
+      meanNormalDisplacement: rows.length ? normalDisplacements.reduce((total, value) => total + value, 0) / rows.length : 0,
+      hasDisplacement: maxDisplacement > FORCE_EPSILON,
+      hasNormalDisplacement: maxAbsNormalDisplacement > FORCE_EPSILON,
+      interpretation: rows.length
+        ? "pressure-load response is computed from final displacement of nodes on the declared pressure surface"
+        : "pressure-load surface nodes were not found in final displacement outputs"
+    };
+  });
+  const suction = loads.find((load) => load.surface === "pipette_suction_surface") || null;
+  return {
+    available: Boolean(nativeModel && mesh),
+    loads,
+    pipetteSuction: suction || {
+      name: "",
+      surface: "pipette_suction_surface",
+      nodeIds: [],
+      observedNodeCount: 0,
+      missingNodeIds: [],
+      sources: [],
+      surfaceNormal: [0, 0, 0],
+      rows: [],
+      maxDisplacement: 0,
+      meanDisplacement: 0,
+      maxAbsNormalDisplacement: 0,
+      meanNormalDisplacement: 0,
+      hasDisplacement: false,
+      hasNormalDisplacement: false,
       interpretation: "pipette suction pressure load was not found in native model"
     }
   };
@@ -281,6 +424,12 @@ export function summarizeNativeFebioRunFiles(files = {}) {
   const cytoplasm = displacementSummary(files.cytoplasm || "");
   const plotfileContactForce = summarizeXpltContactForce(files.xplt);
   const pressureLoads = pressureLoadSummary(files.nativeModel || files.model || "");
+  const pressureLoadResponse = pressureLoadResponseSummary(files.nativeModel || files.model || "", {
+    pipetteSuction: files.pipetteSuctionNodes || "",
+    pipetteContact: files.pipetteContactNodes || "",
+    nucleus: files.nucleus || "",
+    cytoplasm: files.cytoplasm || ""
+  });
   const cellDishForce = cellDishForceDiagnostics(cellDish, plotfileContactForce);
   const pipetteInteraction = pipetteInteractionDiagnostics(pipetteCell, pipetteContact, rigidPipette, plotfileContactForce, pressureLoads);
   return {
@@ -292,6 +441,7 @@ export function summarizeNativeFebioRunFiles(files = {}) {
     nucleus,
     cytoplasm,
     pressureLoads,
+    pressureLoadResponse,
     plotfileContactForce,
     cellDishForce,
     pipetteInteraction,
@@ -312,6 +462,8 @@ export function summarizeNativeFebioRunFiles(files = {}) {
       pipetteMouthPlotfileForceActive: pipetteInteraction.mouthPlotfileForceActive,
       pipettePlotfileForceActive: pipetteInteraction.plotfileForceActive,
       pipetteSuctionPressureLoadActive: pipetteInteraction.suctionPressureLoadActive,
+      pipetteSuctionPressureResponseActive: pressureLoadResponse.pipetteSuction.hasDisplacement,
+      pipetteSuctionNormalDisplacementActive: pressureLoadResponse.pipetteSuction.hasNormalDisplacement,
       pipetteDirectContactOutputActive: pipetteInteraction.directContactOutputActive,
       pipetteInteractionActive: pipetteInteraction.hasInteraction,
       nucleusCytoplasmMoved: nucleus.hasDisplacement && cytoplasm.hasDisplacement,

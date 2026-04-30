@@ -44,6 +44,63 @@ function parseArgs(argv) {
   return args;
 }
 
+function readIfExists(filePath, encoding = "utf8") {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, encoding) : "";
+}
+
+function inferFebioBaseName(runDir, payload = {}) {
+  const manifestBase = payload.baseName || payload.exportBundle?.baseName || payload.nativeModel?.baseName;
+  if (manifestBase) return manifestBase;
+  const febPath = payload.files?.feb || payload.expectedArtifacts?.febPath || payload.studioConfirmation?.febPath;
+  if (febPath) return path.basename(febPath, ".feb");
+  const candidates = fs.existsSync(runDir)
+    ? fs.readdirSync(runDir)
+      .filter((file) => file.endsWith(".feb"))
+      .map((file) => ({ file, mtimeMs: fs.statSync(path.join(runDir, file)).mtimeMs }))
+      .sort((a, b) => b.mtimeMs - a.mtimeMs || a.file.localeCompare(b.file))
+    : [];
+  return path.basename(candidates[0]?.file || "S7_native_baseline.feb", ".feb");
+}
+
+async function buildNativeRunDiagnostics(projectRoot, runDir, payload = {}) {
+  const nativeModulePath = path.join(projectRoot, "src", "febio", "native", "index.ts");
+  if (!fs.existsSync(nativeModulePath)) return null;
+  const nativeModule = await import(pathToFileURL(nativeModulePath).href);
+  if (typeof nativeModule.summarizeNativeFebioRunFiles !== "function") return null;
+  const baseName = inferFebioBaseName(runDir, payload);
+  const nativeModelPath = payload.files?.nativeModel || path.join(runDir, `${baseName}_native_model.json`);
+  const xpltPath = fs.existsSync(path.join(runDir, `${baseName}.xplt`))
+    ? path.join(runDir, `${baseName}.xplt`)
+    : "";
+  return nativeModule.summarizeNativeFebioRunFiles({
+    log: readIfExists(path.join(runDir, `${baseName}.log`)),
+    nativeModel: readIfExists(nativeModelPath),
+    xplt: xpltPath ? fs.readFileSync(xpltPath) : null,
+    cellDish: readIfExists(path.join(runDir, "febio_interface_cell_dish.csv")),
+    pipetteCell: readIfExists(path.join(runDir, "febio_pipette_cell_contact.csv")),
+    pipetteContact: readIfExists(path.join(runDir, "febio_pipette_contact.csv")),
+    rigidPipette: readIfExists(path.join(runDir, "febio_rigid_pipette.csv")),
+    nucleus: readIfExists(path.join(runDir, "febio_nucleus_nodes.csv")),
+    cytoplasm: readIfExists(path.join(runDir, "febio_cytoplasm_nodes.csv")),
+    pipetteSuctionNodes: readIfExists(path.join(runDir, "febio_pipette_suction_nodes.csv")),
+    pipetteContactNodes: readIfExists(path.join(runDir, "febio_pipette_contact_nodes.csv")),
+  });
+}
+
+function hydrateManifestPayload(payload = {}) {
+  const nativeModelPath = payload.files?.nativeModel;
+  if (!nativeModelPath || !fs.existsSync(nativeModelPath)) return payload;
+  const nativeModel = JSON.parse(fs.readFileSync(nativeModelPath, "utf8"));
+  return {
+    ...payload,
+    nativeModel,
+    effectiveNativeSpec: payload.effectiveNativeSpec || nativeModel.effectiveNativeSpec,
+    nativeSpec: payload.nativeSpec || nativeModel.effectiveNativeSpec,
+    templateData: payload.templateData || nativeModel,
+    parameterDigest: payload.parameterDigest || nativeModel.parameterDigest,
+  };
+}
+
 async function loadCanonicalPublicApi(projectRoot) {
   const sourceApiPath = path.join(projectRoot, "src", "public-api.ts");
   if (fs.existsSync(sourceApiPath)) {
@@ -1630,6 +1687,35 @@ function buildLegacyParamsFromNativeSpec(nativeSpec = {}) {
   };
 }
 
+function buildSuctionPressureResponse(nativeRunDiagnostics = null) {
+  const suction = nativeRunDiagnostics?.pressureLoadResponse?.pipetteSuction || null;
+  if (!suction) {
+    return {
+      available: false,
+      active: false,
+      normalDisplacementActive: false,
+      source: "native-run-diagnostics-unavailable",
+    };
+  }
+  return {
+    available: nativeRunDiagnostics.pressureLoadResponse?.available === true,
+    active: suction.hasDisplacement === true,
+    normalDisplacementActive: suction.hasNormalDisplacement === true,
+    surface: suction.surface,
+    nodeIds: suction.nodeIds || [],
+    observedNodeCount: suction.observedNodeCount || 0,
+    missingNodeIds: suction.missingNodeIds || [],
+    sources: suction.sources || [],
+    surfaceNormal: suction.surfaceNormal || [],
+    maxDisplacement: suction.maxDisplacement || 0,
+    meanDisplacement: suction.meanDisplacement || 0,
+    maxAbsNormalDisplacement: suction.maxAbsNormalDisplacement || 0,
+    meanNormalDisplacement: suction.meanNormalDisplacement || 0,
+    rows: suction.rows || [],
+    source: "native-pressure-load-response",
+  };
+}
+
 function buildResultFromLogs(sandbox, payload, runDir) {
   const nativeSpec =
     payload.nativeSpec ||
@@ -1662,6 +1748,8 @@ function buildResultFromLogs(sandbox, payload, runDir) {
   const xpltPath = inferXpltPath(runDir, payload);
   const xpltBridge = xpltPath ? buildXpltPlotfileBridgePayload(fs.readFileSync(xpltPath)) : {};
   const outputMapping = buildOutputMappingSummary(templateData);
+  const nativeRunDiagnostics = payload.nativeRunDiagnostics || null;
+  const suctionPressureResponse = buildSuctionPressureResponse(nativeRunDiagnostics);
 
   const nucleusSeries = logs.nucleus_nodes || [];
   const cellSeries = logs.cytoplasm_nodes || [];
@@ -1800,6 +1888,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     membraneRegions,
     displacements,
     detachmentMetrics,
+    suctionPressureResponse,
     aspiration,
     captureEstablished: maxContactForce > 0.05,
     captureMaintained: maxContactForce > 0.05,
@@ -1840,6 +1929,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
       dataSources: {
         localNc: localNcSourceSummary,
         localCd: localCdSourceSummary,
+        suctionPressureResponse: suctionPressureResponse.source,
         aspiration: aspiration.source,
         membrane: "proxy-from-localNc",
         detachment: detachmentMetrics.provenance,
@@ -1888,8 +1978,9 @@ async function runCli(argv = process.argv.slice(2)) {
   const projectRoot = path.resolve(scriptDir, "..");
   const sandbox = await loadCanonicalRuntime(projectRoot);
   const runDir = path.resolve(args.runDir);
-  const inputPayload = JSON.parse(fs.readFileSync(path.resolve(args.inputJson), "utf8"));
-  const normalizedResult = buildResultFromLogs(sandbox, inputPayload, runDir);
+  const inputPayload = hydrateManifestPayload(JSON.parse(fs.readFileSync(path.resolve(args.inputJson), "utf8")));
+  const nativeRunDiagnostics = await buildNativeRunDiagnostics(projectRoot, runDir, inputPayload);
+  const normalizedResult = buildResultFromLogs(sandbox, { ...inputPayload, nativeRunDiagnostics }, runDir);
   const outputPath =
     args.outFile || path.join(runDir, `case_${normalizedResult.caseName}_result.json`);
 
@@ -1933,6 +2024,7 @@ export {
   assessDetachmentSnapshot,
   buildDetachmentMetricsFromLocalState,
   buildOutputMappingSummary,
+  buildSuctionPressureResponse,
   buildXpltPlotfileBridgePayload,
   computeCellDishRegionStateWithFace,
   computeNormalTractionFromPlotfileBridge,

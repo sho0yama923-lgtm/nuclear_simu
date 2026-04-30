@@ -27,8 +27,9 @@ The active native path reports this direction through `validateNativeMesh().surf
 
 - `pipette_suction_surface` is the deformable-side capture surface.
 - `pipette_contact_surface` is the rigid pipette mouth surface.
-- The current `pipette_suction_surface` normal is expected to be `-x`.
+- The target physical `pipette_suction_surface` is the nucleus-side capture face, with normal expected to be `-x`.
 - Negative suction pressure is intended to pull toward `+x`, into the pipette / barrel side.
+- S8-G and later outer-cell suction surfaces are diagnostic bridges for force-channel activation and Studio winding checks. They must not be promoted to the final suction convention without an explicit model decision.
 
 ## Contact Pair Convention
 
@@ -38,7 +39,7 @@ The active native path reports this direction through `validateNativeMesh().surf
 
 Local paired surfaces should generally have opposed normals. The active validator records pair alignment through `validateNativeMesh().contactPairDiagnostics`.
 
-`pipette_nucleus_pair` remains solver-active as a capture-hold stabilizer for the coarse debug mesh. The pressure-driven pipette coupling to inspect in Studio remains `pipette_cell_contact` on `pipette_cell_pair`, with pressure on `pipette_suction_surface`.
+`pipette_nucleus_pair` remains a model-side reference path for capture-hold comparisons in the coarse debug mesh. The pressure-driven pipette coupling to inspect in Studio remains `pipette_cell_contact` on `pipette_cell_pair`, with pressure on the nucleus-side `pipette_suction_surface` for the target physical model.
 
 `cell_dish_pair` is kept with corrected opposed winding and remains available for diagnostics and output surfaces. The current coarse debug mesh omits solver-active `cell_dish_interface`, because activating the corrected tied contact causes negative-jacobian instability during lift. Re-enable it only with a refined cell-dish mesh.
 

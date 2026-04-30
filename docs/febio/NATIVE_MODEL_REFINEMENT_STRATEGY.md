@@ -203,8 +203,8 @@ Rollback point:
 
 The active meaning of each contact path is:
 
-- `pipette_cell_contact`: the pressure-driven suction inspection contact. It uses `pipette_cell_pair`, with pressure on `pipette_suction_surface`.
-- `pipette_nucleus_contact`: omitted in the active XML after shared-node nucleus-cytoplasm coupling. It remains a model-side reference path, not the primary physical suction surface.
+- `pipette_cell_contact`: the pressure-driven suction inspection contact. In the target physical model it uses a nucleus-side `pipette_suction_surface`; outer-cell suction variants are diagnostic bridges only.
+- `pipette_nucleus_contact`: omitted in the active XML after shared-node nucleus-cytoplasm coupling unless a bounded comparison explicitly re-enables it. It remains a model-side reference path, not a reason to move suction pressure away from the nucleus.
 - `nucleus_cytoplasm_interface`: currently conformal/shared-node force-transfer coupling. It is not emitted as a FEBio contact; cohesive law is deferred until the mesh/load path is stable.
 - `cell_dish_interface`: solver-active, warning-free, but not yet load-bearing in pressure output.
 
@@ -230,13 +230,14 @@ Each refinement step must report:
 - whether `febio_pipette_cell_contact.csv` is nonzero;
 - whether `febio_rigid_pipette.csv` reaction is nonzero;
 - whether `.xplt` contact force is nonzero on `pipette_suction_surface` or `pipette_contact_surface`;
+- whether declared pressure-load surface nodes have observable displacement response;
 - whether `pressureDiagnostics.couplingReadiness.ready` is true before expecting nonzero pipette force channels;
 - whether nucleus and cytoplasm displacement outputs are nonzero.
 
 The next implementation unit is:
 
 ```text
-Start from S8_pipette_outer_cell_surface_gentle,
-skip further amplitude-only pressure/penalty reductions,
-and stabilize the active outer-cell pipette force channel through ramp timing or solver-control comparison.
+Keep S8-M as the nucleus-side pressure comparison,
+update detachment interpretation to consume `suctionPressureResponse`,
+and use S8-G/L only as diagnostic bridge evidence that direct output channels can activate under outer-cell geometry.
 ```

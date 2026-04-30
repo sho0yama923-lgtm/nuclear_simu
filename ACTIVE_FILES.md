@@ -14,6 +14,9 @@ febio_cases/native/S8_pipette_outer_cell_surface.native.json
 febio_cases/native/S8_pipette_outer_cell_surface_gentle.native.json
 febio_cases/native/S8_pipette_outer_cell_surface_soft_contact.native.json
 febio_cases/native/S8_pipette_outer_cell_surface_low_pressure.native.json
+febio_cases/native/S8_pipette_outer_cell_surface_fine_inward.native.json
+febio_cases/native/S8_pipette_outer_cell_surface_delayed_inward.native.json
+febio_cases/native/S8_pipette_nucleus_pressure_return.native.json
 scripts/export_febio_native_case.mjs
 scripts/diagnose_febio_native_run.mjs
 src/febio/native/
@@ -27,6 +30,9 @@ febio_exports/S8_pipette_outer_cell_surface/
 febio_exports/S8_pipette_outer_cell_surface_gentle/
 febio_exports/S8_pipette_outer_cell_surface_soft_contact/
 febio_exports/S8_pipette_outer_cell_surface_low_pressure/
+febio_exports/S8_pipette_outer_cell_surface_fine_inward/
+febio_exports/S8_pipette_outer_cell_surface_delayed_inward/
+febio_exports/S8_pipette_nucleus_pressure_return/
 ```
 
 Use this path for new solver-facing work, pressure/contact changes, `.feb` serialization, output declarations, manifests, and Studio handoff artifacts.

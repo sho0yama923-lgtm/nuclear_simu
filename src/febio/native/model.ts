@@ -129,6 +129,8 @@ function buildLoads(spec) {
   const loadController = spec.loads.suctionPressure.loadController;
   const holdController = spec.loads.holdForceProxy.loadController;
   const preload = spec.loads.cellDishNormalPreload || {};
+  const controllerOverrides = spec.solverControls?.loadControllers || {};
+  const controllerPoints = (name, fallback) => clone(controllerOverrides[name]?.points || fallback);
   const pressureLoads = [
     {
       name: spec.loads.suctionPressure.name,
@@ -142,8 +144,8 @@ function buildLoads(spec) {
     }
   ];
   const controllers = [
-    { id: 101, name: "lift_ramp", points: [[0, 0], [2, 0], [3, 1], [5, 1]] },
-    { id: 102, name: "inward_ramp", points: [[0, 0], [3, 0], [4, 1], [5, 1]] },
+    { id: 101, name: "lift_ramp", points: controllerPoints("liftRamp", [[0, 0], [2, 0], [3, 1], [5, 1]]) },
+    { id: 102, name: "inward_ramp", points: controllerPoints("inwardRamp", [[0, 0], [3, 0], [4, 1], [5, 1]]) },
     { id: loadController, name: "suction_pressure_curve", unit: spec.loads.suctionPressure.unit, points: clone(spec.loads.suctionPressure.curve) }
   ];
   if (preload.enabled) {

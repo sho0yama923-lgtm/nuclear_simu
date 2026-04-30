@@ -93,7 +93,6 @@ References:
 
 - `docs/febio/FEBIO_OUTPUT_MAPPING.md`
 - `src/febio/native/runDiagnostics.ts`
-- `scripts/diagnose_febio_native_run.mjs`
 
 ### 5. Output-channel mismatch
 
@@ -483,6 +482,9 @@ Cause:
 - S8-G separates `pipette_suction_surface` from the duplicated nucleus-right face by moving it to the outer right cytoplasm surface. The first winding `[69,71,72,70]` caused a FEBioStudio incorrect-facet warning; changing it to `[69,70,72,71]` makes the comparison Studio-compatible and activates direct pipette pressure, rigid reaction, and pipette plotfile force.
 - S8-H reduces outer-cell pipette motion and preserves direct force channels, but keeps one stiffness-reformation warning.
 - S8-I softens pipette-cell penalty and S8-J lowers suction pressure; both preserve direct force channels but increase stiffness-reformation warnings to three.
+- S8-K timestep-only refinement preserves direct force channels but increases stiffness-reformation warnings to seven.
+- S8-L delayed inward-ramp onset preserves direct force channels but warnings remain before the delayed ramp becomes nonzero.
+- S8-M returns to nucleus-side pressure and reaches warning-free normal termination with an active declared suction pressure load (`12.6 nN`) and tissue displacement, while direct pipette contact pressure, rigid reaction, and pipette plotfile contact-force channels remain zero.
 
 Impact:
 
@@ -494,6 +496,8 @@ Impact:
 - S8-F shows missing pressure-load declaration is not the active direct pipette-cell force-channel blocker.
 - S8-G shows Studio-compatible facet winding can be decisive for the outer-cell suction comparison: the warning-producing winding kept the interpretation unstable, while the corrected winding activates the direct channel.
 - S8-H/S8-I/S8-J show that smaller motion, softer pipette-cell contact, and lower suction pressure reduce force magnitude but do not solve the solver warning. The remaining issue is a stabilization / transition problem, not simple force-amplitude overload.
+- User correction after S8-L: the intended physical model applies pressure to the nucleus-side capture surface. Therefore S8-G/L outer-cell activation is diagnostic bridge evidence, not the final suction geometry.
+- S8-M shows the nucleus-side pressure path is solver-stable and load-declared, but direct pipette contact-output channels are not the right sole evidence channel for pressure applied directly to a deformable nucleus-side surface.
 
 Fix or mitigation:
 
@@ -506,8 +510,10 @@ Fix or mitigation:
 - After S8-D, use gentle capture-hold as the comparison baseline for direct `pipette_cell_contact` output/channel work.
 - After S8-E, prioritize contact law/output semantics or direct surface separation over more pair-role-only comparisons.
 - After S8-F, separate declared suction pressure load diagnostics from direct contact output diagnostics; prioritize output/transfer semantics over re-adding the same pressure load.
-- After S8-G, preserve the Studio-compatible outer-right winding and prioritize stabilizing the remaining solver warning / convention exception before treating the path as final.
+- After S8-G, preserve the Studio-compatible outer-right winding as diagnostic bridge evidence only; do not treat the outer-cell path as final physics.
 - After S8-J, avoid more amplitude-only pressure/penalty reductions as the next move; compare ramp timing, step boundaries, or solver controls around the `t ~= 3.01-3.06` warning window.
+- After the nucleus-pressure clarification, pivot the next bounded comparison back to nucleus-side pressure instead of continuing to optimize the outer-cell bridge.
+- After S8-M, instrument pressure-load response on the nucleus-side surface separately from contact pressure, rigid reaction, and plotfile contact-force outputs before changing geometry again.
 
 Regression guard:
 
@@ -519,8 +525,10 @@ Regression guard:
 - Do not assume reversing `pipette_cell_pair` primary/secondary will activate direct pipette force; S8-E preserves the zero direct channel.
 - Do not call the suction load missing when `pipetteSuctionPressureLoadActive=true`; S8-F proves the declared pressure load can be present while direct contact output stays zero.
 - Do not use `[69,71,72,70]` for the S8-G outer-right suction facet; FEBioStudio warns that this winding is incorrect. Use `[69,70,72,71]` for the Studio-compatible comparison.
+- Do not promote the S8-G/L outer-cell surface to the final model just because it activates direct force channels. The final target is nucleus-side pressure unless a later explicit model decision changes that.
 - Do not treat reduced reaction magnitude as stabilization by itself; S8-I/S8-J reduce magnitude while worsening the warning count.
-- Require at least one active pipette pressure, rigid reaction, or pipette plotfile force channel before treating suction force capture as established.
+- Do not require a direct pipette contact pressure, rigid reaction, or contact-force plotfile channel before acknowledging an active declared pressure load. S8-M proves these can diverge for the nucleus-side pressure path.
+- Do require a separate pressure-load response diagnostic before treating the nucleus-side suction model as complete for detachment interpretation.
 
 References:
 
@@ -529,3 +537,223 @@ References:
 - `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`
 - `docs/febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md`
 - `PROGRESS.md`
+
+### INC-010: Nucleus-side pressure load and direct contact outputs diverge
+
+Status:
+
+- diagnosed / next instrumentation axis active
+
+Discovered in:
+
+- S8-M nucleus-pressure return comparison
+
+Symptom:
+
+- S8-M reaches warning-free normal termination.
+- The declared `pipette_suction_pressure` load on `pipette_suction_surface` is active with a `12.6 nN` native surface-area resultant.
+- Nucleus and cytoplasm displacement are nonzero.
+- Direct pipette channels remain zero: contact pressure, rigid reaction, suction plotfile contact force, mouth plotfile contact force, and aggregate direct-contact output.
+
+Cause:
+
+- The target model applies a pressure load directly to the nucleus-side capture surface, not through an outer-cell contact pair.
+- FEBio contact pressure / rigid reaction / contact-force plotfile channels report contact-style force transfer, so they can remain zero while a declared surface pressure load is present and affects the deformable bodies.
+
+Impact:
+
+- A zero direct pipette contact output is not sufficient evidence that the nucleus-side suction pressure is missing.
+- Moving pressure back to the outer cell surface would optimize an easier diagnostic channel, not the intended physical model.
+
+Fix or mitigation:
+
+- Keep S8-M as the target-geometry evidence point.
+- Add or refine diagnostics that report pressure-load response separately from contact outputs.
+- Preserve S8-G/L only as diagnostic bridge evidence proving that direct output channels can activate under different geometry.
+
+Regression guard:
+
+- Before changing physical geometry, classify pipette evidence into declared pressure load, tissue displacement, contact pressure, rigid reaction, and plotfile contact force.
+- Do not collapse `pipetteSuctionPressureLoadActive=true` and `pipetteDirectContactOutputActive=false` into a single failure verdict.
+
+References:
+
+- `febio_cases/native/S8_pipette_nucleus_pressure_return.native.json`
+- `febio_exports/S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.log`
+- `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`
+- `scripts/diagnose_febio_native_run.mjs`
+
+### INC-011: FEBio logfile node rows use compact internal node ids
+
+Status:
+
+- fixed / guardrail active
+
+Discovered in:
+
+- S8-N pressure-load response instrumentation
+
+Symptom:
+
+- The generated `.feb` declares `<NodeSet name="pipette_suction_nodes">46,47,50,51</NodeSet>`.
+- The logfile request uses `node_set="pipette_suction_nodes"`.
+- FEBio writes `38,39,42,43` to `febio_pipette_suction_nodes.csv` instead of `46,47,50,51`.
+
+Cause:
+
+- FEBio logfile node rows use compact internal node ordinals based on the order of `<Nodes>`, not the exported node ids.
+- The native mesh has missing id ranges, so native node ids `46,47,50,51` become compact logfile row ids `38,39,42,43`.
+
+Impact:
+
+- Any diagnostic that matches logfile node rows directly to native node ids can silently read the wrong nodes when mesh ids have gaps.
+- Pressure-load response could be partial or wrong unless row ids are remapped back to native mesh node ids.
+
+Fix or mitigation:
+
+- `pressureLoadResponse` builds a compact-id to native-id map from `geometry.mesh.nodes` order.
+- Final node displacement rows are stored with both remapped `id` and raw FEBio `rawId`.
+- S8-M now reports all four suction-surface native node ids observed after remapping.
+
+Regression guard:
+
+- When adding a dedicated logfile NodeSet, verify the row ids in the generated CSV against the exported `<NodeSet>`.
+- Do not compare logfile node row ids directly to native mesh node ids without compact-id remapping.
+
+References:
+
+- `src/febio/native/outputs.ts`
+- `src/febio/native/runDiagnostics.ts`
+- `febio_exports/S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.feb`
+- `febio_exports/S8_pipette_nucleus_pressure_return/febio_pipette_suction_nodes.csv`
+
+### INC-012: Manifest conversion must hydrate native model for native diagnostics
+
+Status:
+
+- fixed / guardrail active
+
+Discovered in:
+
+- S8-P converted result integration
+
+Symptom:
+
+- Converting an S8-M export using the manifest successfully produced `suctionPressureResponse`.
+- The converted result initially lost `nativeSpec` and used a canonical `pdig_*` digest instead of the native `fdig_*` digest.
+
+Cause:
+
+- The manifest points to `files.nativeModel`, but `convert_febio_output.mjs` treated the manifest itself as the full input payload.
+- Native diagnostics could read `files.nativeModel`, while the main conversion path did not hydrate the native model/spec before building the normalized result.
+
+Impact:
+
+- A physically native FEBio run could look like a canonical parameter conversion in downstream metadata.
+- Digest/provenance checks could become misleading even when the solver artifacts were native-only.
+
+Fix or mitigation:
+
+- Manifest-based conversion now loads `files.nativeModel` and hydrates `nativeModel`, `nativeSpec`, `effectiveNativeSpec`, `templateData`, and `parameterDigest`.
+- S8-M converted result preserves `nativeSpec=true` and `parameterDigest=fdig_598cde20`.
+
+Regression guard:
+
+- When converting from a manifest, verify that native outputs preserve the native spec and `fdig_*` digest.
+- Do not use the manifest alone as a substitute for the native model payload when building normalized results.
+
+References:
+
+- `scripts/convert_febio_output.mjs`
+- `febio_exports/S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return_manifest.json`
+- `febio_exports/S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return_result.json`
+
+### INC-008: Pipette stiffness warning is not fixed by timestep-only refinement
+
+Status:
+
+- diagnosed / guardrail active
+
+Discovered in:
+
+- S8-K direct pipette stabilization comparison
+
+Symptom:
+
+- S8-G/H restored direct pipette-cell pressure, rigid reaction, and pipette plotfile-force channels, but retained stiffness-reformation warning blocks.
+- S8-K refined `manipulation-1` from 90 to 360 steps and `manipulation-2` from 1 to 90 steps while preserving S8-H geometry, pressure, motion amplitude, and pipette-cell penalty.
+- The run still reached normal termination and preserved direct force channels, but stiffness-reformation warnings increased to seven.
+
+Cause:
+
+- The warning is not explained by the coarse manipulation timestep size alone.
+- The warning remains tied to the inward manipulation onset / controller behavior around the `t ~= 3.01-3.06` window, or to contact state changes triggered there, rather than to simple output geometry or pressure-channel absence.
+
+Impact:
+
+- More substep-only refinement can increase runtime and warning count without improving physical interpretability.
+- A warning-free direct pipette baseline should not be pursued by repeatedly increasing `time_steps` while leaving the same controller onset intact.
+
+Fix or mitigation:
+
+- Keep the S8-G/H/K outer-cell direct-force geometry when testing stabilization.
+- Prefer the next bounded comparison on inward controller/ramp onset shape, step boundary placement, or a solver-control setting with a concrete warning-window hypothesis.
+- Superseded by the later nucleus-pressure clarification for mainline planning: outer-cell stabilization remains diagnostic only.
+
+Regression guard:
+
+- Do not treat `time_steps` increases as a default stabilization fix for the S8 outer-cell pipette case.
+- Every stabilization comparison must report warning count, direct pipette force gates, cell-dish support/gap gates, and whether the outer-cell direct-force path is preserved.
+
+References:
+
+- `febio_cases/native/S8_pipette_outer_cell_surface_fine_inward.native.json`
+- `febio_exports/S8_pipette_outer_cell_surface_fine_inward/S8-K_S8_pipette_outer_cell_surface_fine_inward.log`
+- `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`
+- `scripts/diagnose_febio_native_run.mjs`
+
+### INC-009: Delayed inward ramp does not remove pipette stiffness warning
+
+Status:
+
+- diagnosed / next isolation axis identified
+
+Discovered in:
+
+- S8-L inward ramp onset comparison
+
+Symptom:
+
+- S8-L delayed the inward controller from `t=3.0` to `t=3.2` while preserving S8-H geometry, pressure, motion amplitude, and pipette-cell penalty.
+- The run reached normal termination and preserved direct pipette force channels.
+- Stiffness-reformation warnings remained, with four warning blocks at about `t=3.05559`, `3.06671`, `3.07782`, and `3.08893`.
+
+Cause:
+
+- The warning starts before the delayed inward ramp begins.
+- Immediate inward displacement amplitude is therefore not the direct cause.
+- The remaining trigger is more likely the `manipulation-1` step boundary itself, such as activating the x-prescribed rigid boundary with a zero controller value or re-declaring step loads/contact state at the transition.
+
+Impact:
+
+- Delaying or reshaping the inward load curve alone can preserve force channels but does not solve stabilization.
+- The next comparison should isolate the step-boundary activation path instead of continuing to move the inward-ramp onset.
+- Because the target physical model is nucleus-side pressure, this outer-cell step-boundary result should guide diagnostics but not remain the mainline physical path.
+
+Fix or mitigation:
+
+- Keep the S8-G/H/K/L outer-cell direct-force geometry.
+- Compare a boundary-activation case that enters `manipulation-1` without adding the x-prescribed rigid boundary, or with an explicit zero-motion transition step, before changing force amplitude again.
+- For mainline model work, return to nucleus-side pressure first and use this result only to interpret transition warnings if they recur.
+
+Regression guard:
+
+- When a controller is delayed, compare warning times against the controller's first nonzero point before attributing warnings to the ramp value.
+- Every stabilization comparison must report whether warnings occur before, during, or after the changed controller interval.
+
+References:
+
+- `febio_cases/native/S8_pipette_outer_cell_surface_delayed_inward.native.json`
+- `febio_exports/S8_pipette_outer_cell_surface_delayed_inward/S8-L_S8_pipette_outer_cell_surface_delayed_inward.log`
+- `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`
+- `scripts/diagnose_febio_native_run.mjs`
