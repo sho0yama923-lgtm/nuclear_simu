@@ -200,8 +200,9 @@ Purpose:
 Rules:
 
 - `docs/ops/ROADMAP.md` owns broad policy, roadmap stage structure, current stage purpose, review gates, later/deferred work, and auxiliary roadmap positioning.
-- `PROGRESS.md` owns current operating state, next bounded milestone, target files, fine-grained implementation notes, done conditions, blockers, and resume position.
-- Fine-grained implementation bullets belong in `PROGRESS.md`, not `docs/ops/ROADMAP.md`.
+- `PROGRESS.md` owns current operating state, active milestone, next bounded task, target files, done conditions, blockers, and resume position.
+- `PROGRESS.md` does not own long result histories, repeated scan tables, run-by-run artifact inventories, or detailed comparison narratives.
+- Fine-grained current implementation bullets belong in `PROGRESS.md`, not `docs/ops/ROADMAP.md`, but only while they are part of the active milestone.
 - Broad priority changes, current stage changes, stage completion, stage scope changes, later/deferred changes, or auxiliary roadmap changes belong in `docs/ops/ROADMAP.md`.
 - If a change only updates the current milestone, target files, done condition, blocker, or resume position, update `PROGRESS.md` only.
 - If a change alters the broad stage plan or direction, update both `docs/ops/ROADMAP.md` and `PROGRESS.md` in the same change set.
@@ -217,16 +218,17 @@ Purpose:
 
 Rules:
 
-- When the user asks to "proceed according to the policy", "方針通りに進めて", "進めて", or equivalent, the agent should complete one bounded milestone.
+- When the user asks to "proceed according to the policy", "方針通りに進めて", "進めて", or equivalent, the agent must complete one bounded milestone unless a real blocker, unavailable tool/runtime, or human confirmation gate prevents completion.
 - A bounded milestone is the smallest coherent unit that leaves the repository in a useful reviewable state.
-- A bounded milestone is larger than a placeholder, TODO, isolated helper, or doc-only note when implementation work is clearly implied.
+- A bounded milestone is larger than a placeholder, TODO, isolated helper, isolated docs note, or case JSON that has not been exported / diagnosed when tooling is available.
 - A bounded milestone is smaller than a broad migration, final cleanup, UI integration, or deletion of old paths unless explicitly requested.
 - The agent should infer the milestone from `PROGRESS.md` and `docs/ops/ROADMAP.md`, not from chat history.
 - The milestone should normally include all directly adjacent work needed for coherence:
-  - implementation
-  - tests or diagnostics
-  - generated / inspection instructions when applicable
-  - docs / `PROGRESS.md` updates when status changes
+  - implementation or case/spec/model change;
+  - tests, diagnostics, export, conversion, or run review when applicable and available;
+  - generated / inspection instructions when external software is required;
+  - docs / `PROGRESS.md` update when status changes;
+  - incident / root-cause update when a reusable problem is solved or disproved.
 - The agent should stop at the first natural review boundary where the user can inspect, test, run, or decide the next step.
 - If the next step requires human confirmation, external software, FEBio Studio inspection, or unavailable runtime execution, stop there and provide the exact confirmation request.
 - Do not split one coherent milestone into many tiny changes just because each file can be edited independently.
@@ -235,23 +237,26 @@ Rules:
 
 ### Practical completion bar
 
-A normal implementation milestone should not end after only one of these actions:
+A normal implementation milestone must not end after only one of these actions:
 
 - creating or editing a placeholder;
 - adding only a helper;
-- adding only a case JSON without export / diagnostic follow-through;
+- adding only a case JSON without export / diagnostic follow-through when tooling is available;
 - adding only docs while directly implied implementation or diagnostics remain pending;
-- updating `PROGRESS.md` without moving the actual active task forward.
+- updating `PROGRESS.md` without moving the actual active task forward;
+- running only one partial check when the same bounded comparison requires export, diagnosis, and status interpretation.
 
-When the task is a FEBio comparison or stabilization pass, the expected review boundary is usually:
+When the task is a FEBio comparison, calibration, or stabilization pass, the expected review boundary is usually:
 
 1. case/spec/model change;
 2. export or generated artifact update, when tooling is available;
-3. run / diagnostic / test update, when tooling is available;
-4. concise status update in `PROGRESS.md`;
-5. detailed comparison notes in the relevant diagnostic doc, not in `PROGRESS.md`.
+3. run / diagnostic / conversion / test update, when tooling is available;
+4. interpretation of whether the comparison solved, narrowed, or disproved the active hypothesis;
+5. concise status update in `PROGRESS.md`;
+6. detailed comparison notes in the relevant diagnostic doc, not in `PROGRESS.md`;
+7. incident/root-cause update if the result produced a reusable lesson.
 
-Stop earlier only for a real blocker, unavailable runtime/tooling, or human confirmation gate.
+Stop earlier only for a real blocker, unavailable runtime/tooling, or human confirmation gate. When stopping early, state exactly what remains to reach the review boundary.
 
 ## PROGRESS Compression Rule
 
@@ -259,17 +264,22 @@ Purpose:
 
 - keep `PROGRESS.md` readable as the current-state file;
 - prevent completed comparison logs from accumulating there;
-- keep detailed evidence in the correct diagnostic / incident documents.
+- keep detailed evidence in the correct diagnostic / incident documents;
+- force milestone retirement to happen before stale details become the default working state.
 
 Rules:
 
 - Only the active milestone may keep detailed facts, interpretation, next task, and done condition.
 - Completed milestones and comparison runs must be compressed to 1-3 line summaries in `PROGRESS.md`.
-- Do not append every run artifact, numeric table, or failed comparison to `PROGRESS.md`.
+- `PROGRESS.md` should contain at most the current decision boundary, not the full path that produced it.
+- Do not append every run artifact, numeric table, pressure scan row, failed comparison, or generated file list to `PROGRESS.md`.
 - Put detailed comparison evidence in the owning diagnostic doc, for example `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`.
 - Put causes, prevention rules, misleading diagnostics, and recurring failure patterns in `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md`.
-- If `PROGRESS.md` grows because a milestone produced many comparisons, immediately retire the older comparison details in the same change set.
-- A `PROGRESS.md` update that advances the active milestone should also remove stale details from inactive milestones.
+- If `PROGRESS.md` grows because a milestone produced many comparisons, retire older comparison details in the same change set before or together with the new status update.
+- A `PROGRESS.md` update that advances the active milestone must also remove stale details from inactive milestones.
+- Do not leave more than one completed milestone's detailed facts in `PROGRESS.md`. Once a milestone stops being active, keep only the durable conclusion, the next decision boundary, and references to diagnostic / incident docs.
+- If a scan table or run series is still needed for reasoning, move it to the relevant diagnostic doc and keep only the current bound or accepted result in `PROGRESS.md`.
+- Before every commit that edits `PROGRESS.md`, check whether the file is accumulating retired facts. If yes, compress it in the same commit.
 
 ## Studio Confirmation Gate Rule
 
@@ -389,6 +399,7 @@ Also:
 - do not put immediate implementation checklists in `docs/ops/ROADMAP.md`; keep them in `PROGRESS.md`
 - write `PROGRESS.md` in Japanese unless a specific exception is requested
 - keep `README.md`, `docs/CODEBASE_STRUCTURE.md`, and `PROGRESS.md` aligned
+- apply the `PROGRESS Compression Rule` whenever this sync rule is triggered
 
 ## Detachment-Oriented Design
 
@@ -414,6 +425,7 @@ Also:
 - adding new solver behavior only to UI parameter conversion files instead of defining it in FEBio-native spec first
 - treating legacy UI parameter conversion files as active physics source-of-truth after FEBio-native migration
 - stopping after a trivial partial edit when a coherent reviewable milestone is available
+- stopping a FEBio comparison after case creation without export / run / diagnosis when tooling is available
 - treating policy-driven work as permission for an unbounded migration
 - mixing independent milestones in one pass without an explicit request
 - leaving the repository in a state where the next reviewer cannot run, inspect, or evaluate the change
