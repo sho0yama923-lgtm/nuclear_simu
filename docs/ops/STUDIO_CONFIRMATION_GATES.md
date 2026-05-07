@@ -10,6 +10,8 @@
 
 agent はコード・XML・テスト・ログから機械的に確認できる項目を進める。
 
+FEBio solver / FEBio Studio の実行確認は Windows 環境で行う。WSL Ubuntu 側では Node/npm test、native export、static diagnostics までを扱い、solver run の成否や Studio view は Windows 側の FEBio / FEBioStudio で確認する。
+
 ただし、以下のような Studio の可視確認が物理的判断に直結する項目では、agent は推測で修正を重ねず、確認依頼を出してユーザーの観察結果を待つ。
 
 - 接触面が実際に向かい合っているか

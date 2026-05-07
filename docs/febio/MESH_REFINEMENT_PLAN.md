@@ -4,7 +4,7 @@ This document owns the plan for moving from the current debug / provisional nati
 
 ## Positioning
 
-Current S9 work is pipeline validation, not final pressure-threshold calibration.
+S9 closed as pipeline validation, not final pressure-threshold calibration. S10 starts the physical mesh refinement path.
 
 The current coarse / debug mesh can prove that:
 
@@ -31,6 +31,20 @@ Priority order:
 ## 1. Local pipette suction patch
 
 The target suction model is local pressure on a small nucleus-side patch, not pressure over a broad cell or NC face.
+
+Current implementation status:
+
+- S10-A (`febio_cases/native/S10_local_suction_patch.native.json`) adds `meshMode="s10-local-suction-patch"`.
+- The exported solver pressure surface is `pipette_suction_patch`.
+- The historical broad `pipette_suction_surface` remains available as a legacy / comparison surface.
+- Static export diagnostics for `febio_exports/S10_local_suction_patch/` report:
+  - area `6.5 um^2`;
+  - centroid `[14, 0, 17]`;
+  - normal `-x`;
+  - node ids `[82, 83, 86, 87]`;
+  - face id `[24]`;
+  - pressure resultant `4.55 nN` for `-0.7 kPa`.
+- Windows FEBio CLI solver confirmation is complete for S10-A: normal termination, warning-free, active `pipette_suction_patch` pressure-load response. Studio visual confirmation remains useful for pressure-arrow and surface-orientation review.
 
 Add a mesh construct with explicit diagnostics:
 
@@ -144,7 +158,7 @@ Before pressure thresholds are interpreted physically, the model should report:
 
 ## Roadmap implication
 
-S9 should close as native NC failure pipeline validation. S10 should begin mesh refinement for the physical suction model.
+S9 is closed as native NC failure pipeline validation. S10 begins mesh refinement for the physical suction model.
 
 Suggested next stages:
 

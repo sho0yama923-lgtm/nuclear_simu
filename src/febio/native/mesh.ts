@@ -200,7 +200,7 @@ function refineNativeNucleusCytoplasmCoupling(mesh, spec = {}) {
     spec.contacts?.pipetteCell?.suctionSurfaceMode === "cell-outer-right"
       ? [buildFacet(20, [69, 70, 72, 71])]
       : [buildFacet(20, [46, 50, 51, 47])];
-  return {
+  const coupledMesh = {
     ...mesh,
     refinements: {
       ...(mesh.refinements || {}),
@@ -258,6 +258,89 @@ function refineNativeNucleusCytoplasmCoupling(mesh, spec = {}) {
       nucleus: [2],
     },
   };
+  return applyLocalSuctionPatchRefinement(coupledMesh, spec);
+}
+
+function applyLocalSuctionPatchRefinement(mesh, spec = {}) {
+  if (spec.geometry?.meshMode !== "s10-local-suction-patch") return mesh;
+  if (spec.contacts?.pipetteCell?.suctionSurfaceMode === "cell-outer-right") return mesh;
+
+  const nucleusLeft = mesh.bounds?.nucleusLeft;
+  const nucleusRight = mesh.bounds?.nucleusRight;
+  const nucleusBottom = mesh.bounds?.nucleusBottom;
+  const nucleusTop = mesh.bounds?.nucleusTop;
+  const pipetteZ = spec.geometry?.pipette?.tip?.z ?? mesh.bounds?.pipetteBottom;
+  if (![nucleusLeft, nucleusRight, nucleusBottom, nucleusTop, pipetteZ].every(Number.isFinite)) return mesh;
+
+  const yMin = -0.5;
+  const yMax = 0.5;
+  const nucleusHeight = nucleusTop - nucleusBottom;
+  const patchHeight = Math.min(Math.max((spec.geometry?.pipette?.radius || 0) * 1.0, nucleusHeight * 0.25), nucleusHeight * 0.5);
+  const patchBottom = Math.max(nucleusBottom, Math.min(pipetteZ - patchHeight / 2, nucleusTop - patchHeight));
+  const patchTop = Math.min(nucleusTop, patchBottom + patchHeight);
+  const patchNodes = [
+    buildNode(81, nucleusLeft, yMin, patchBottom),
+    buildNode(82, nucleusRight, yMin, patchBottom),
+    buildNode(83, nucleusRight, yMax, patchBottom),
+    buildNode(84, nucleusLeft, yMax, patchBottom),
+    buildNode(85, nucleusLeft, yMin, patchTop),
+    buildNode(86, nucleusRight, yMin, patchTop),
+    buildNode(87, nucleusRight, yMax, patchTop),
+    buildNode(88, nucleusLeft, yMax, patchTop),
+  ];
+  const nucleusElements = [
+    buildHex(2, "nucleus", [45, 46, 47, 48, 81, 82, 83, 84]),
+    buildHex(14, "nucleus", [81, 82, 83, 84, 85, 86, 87, 88]),
+    buildHex(15, "nucleus", [85, 86, 87, 88, 49, 50, 51, 52]),
+  ];
+  const rightBottomFacet = buildFacet(20, [46, 82, 83, 47]);
+  const suctionPatchFacet = buildFacet(24, [82, 86, 87, 83]);
+  const rightTopFacet = buildFacet(25, [86, 50, 51, 87]);
+  const existingNodes = (mesh.nodes || []).filter((node) => !patchNodes.some((patchNode) => patchNode.id === node.id));
+  const elements = (mesh.elements || []).filter((element) => ![2, 14, 15].includes(element.id));
+  const pressureValue = Number(spec.loads?.suctionPressure?.value);
+
+  return {
+    ...mesh,
+    refinements: {
+      ...(mesh.refinements || {}),
+      localSuctionPatch: {
+        mode: "s10-local-suction-patch",
+        pressureSurface: "pipette_suction_patch",
+        legacySurface: "pipette_suction_surface",
+        centeredOnPipetteAxis: true,
+        patchZRange: [patchBottom, patchTop],
+        patchHeight,
+        declaredPressure: Number.isFinite(pressureValue) ? pressureValue : null,
+      },
+      pipetteSuctionSurface: {
+        ...(mesh.refinements?.pipetteSuctionSurface || {}),
+        mode: "local-nucleus-side-patch",
+        pressureSurface: "pipette_suction_patch",
+        legacySurface: "pipette_suction_surface",
+        studioCompatibleWinding: false,
+      },
+    },
+    nodes: [...existingNodes, ...patchNodes].sort((a, b) => a.id - b.id),
+    elements: [...elements, ...nucleusElements].sort((a, b) => a.id - b.id),
+    surfaces: {
+      ...mesh.surfaces,
+      nucleus_interface_right_surface: [rightBottomFacet, suctionPatchFacet, rightTopFacet],
+      pipette_suction_surface: [rightBottomFacet, suctionPatchFacet, rightTopFacet],
+      pipette_suction_patch: [suctionPatchFacet],
+    },
+    nodeSets: {
+      ...mesh.nodeSets,
+      nucleus: [45, 46, 47, 48, 49, 50, 51, 52, 81, 82, 83, 84, 85, 86, 87, 88],
+      nc_right_nucleus_nodes: [46, 47, 50, 51, 82, 83, 86, 87],
+      pipette_suction_nodes: [82, 83, 86, 87],
+      pipette_suction_patch_nodes: [82, 83, 86, 87],
+    },
+    elementSets: {
+      ...mesh.elementSets,
+      nucleus: [2, 14, 15],
+    },
+  };
 }
 
 const COORDINATE_CONVENTION = {
@@ -280,6 +363,7 @@ const COORDINATE_CONVENTION = {
   },
   pressure: {
     suctionSurface: "pipette_suction_surface",
+    localSuctionPatch: "pipette_suction_patch",
     surfaceOwnership: "deformable-side capture surface",
     rigidMouthSurface: "pipette_contact_surface",
     currentSuctionNormal: "-x",
@@ -311,6 +395,7 @@ const EXPECTED_SURFACE_NORMALS = {
   cell_dish_right_surface: "-z",
   dish_contact_surface: "+z",
   pipette_suction_surface: "-x",
+  pipette_suction_patch: "-x",
   pipette_contact_surface: "-x",
 };
 
@@ -376,6 +461,21 @@ function facetCentroid(facet, points) {
   return scale(total, 1 / nodes.length);
 }
 
+function facetArea(facet, points) {
+  const nodes = (facet?.nodes || []).map((id) => points.get(id)).filter(Boolean);
+  if (nodes.length < 3) return 0;
+  const firstTriangle = magnitude(cross(subtract(nodes[1], nodes[0]), subtract(nodes[2], nodes[0]))) / 2;
+  const secondTriangle = nodes.length > 3
+    ? magnitude(cross(subtract(nodes[2], nodes[0]), subtract(nodes[3], nodes[0]))) / 2
+    : 0;
+  return firstTriangle + secondTriangle;
+}
+
+function surfaceArea(mesh, surfaceName) {
+  const points = nodePointMap(mesh);
+  return (mesh.surfaces?.[surfaceName] || []).reduce((total, facet) => total + facetArea(facet, points), 0);
+}
+
 function surfaceNormal(mesh, surfaceName) {
   const points = nodePointMap(mesh);
   const facets = mesh.surfaces?.[surfaceName] || [];
@@ -411,8 +511,10 @@ function expectedSurfaceNormal(mesh, surfaceName) {
 }
 
 function buildSurfaceNormalDiagnostics(mesh) {
+  const surfaceNames = Object.keys(EXPECTED_SURFACE_NORMALS)
+    .filter((surfaceName) => surfaceName !== "pipette_suction_patch" || mesh.surfaces?.pipette_suction_patch?.length);
   const entries = Object.fromEntries(
-    Object.keys(EXPECTED_SURFACE_NORMALS).map((surfaceName) => {
+    surfaceNames.map((surfaceName) => {
       const normal = surfaceNormal(mesh, surfaceName);
       const actual = axisLabel(normal);
       const expected = expectedSurfaceNormal(mesh, surfaceName);
@@ -481,13 +583,14 @@ function buildContactPairDiagnostics(mesh) {
 }
 
 function buildPressureDiagnostics(mesh) {
-  const suction = surfaceNormal(mesh, COORDINATE_CONVENTION.pressure.suctionSurface);
+  const activeSuctionSurface = mesh.refinements?.pipetteSuctionSurface?.pressureSurface || COORDINATE_CONVENTION.pressure.suctionSurface;
+  const suction = surfaceNormal(mesh, activeSuctionSurface);
   const suctionNormal = axisLabel(suction);
   const suctionSurfaceMode = mesh.refinements?.pipetteSuctionSurface?.mode || "nucleus-right";
   const expectedSuctionNormal = suctionSurfaceMode === "cell-outer-right"
     ? "+x"
     : COORDINATE_CONVENTION.pressure.currentSuctionNormal;
-  const suctionCentroid = surfaceCentroid(mesh, COORDINATE_CONVENTION.pressure.suctionSurface);
+  const suctionCentroid = surfaceCentroid(mesh, activeSuctionSurface);
   const mouthCentroid = surfaceCentroid(mesh, COORDINATE_CONVENTION.pressure.rigidMouthSurface);
   const centroidDelta = suctionCentroid && mouthCentroid ? subtract(mouthCentroid, suctionCentroid) : null;
   const signedNormalGap = centroidDelta && suction ? dot(centroidDelta, suction) : null;
@@ -499,8 +602,32 @@ function buildPressureDiagnostics(mesh) {
     suctionNormal === expectedSuctionNormal &&
     tangentialOffsetMagnitude != null &&
     tangentialOffsetMagnitude <= maxTangentialOffsetForReady;
+  const localPatchSurface = mesh.refinements?.localSuctionPatch?.pressureSurface || null;
+  const localPatchFacets = localPatchSurface ? mesh.surfaces?.[localPatchSurface] || [] : [];
+  const localPatchNodeIds = [...new Set(localPatchFacets.flatMap((facet) => facet.nodes || []))].sort((a, b) => a - b);
+  const localPatchArea = localPatchSurface ? surfaceArea(mesh, localPatchSurface) : null;
+  const declaredPressure = Number(mesh.refinements?.localSuctionPatch?.declaredPressure);
+  const localPatch = localPatchSurface ? {
+    surface: localPatchSurface,
+    legacySurface: mesh.refinements?.localSuctionPatch?.legacySurface || COORDINATE_CONVENTION.pressure.suctionSurface,
+    area: localPatchArea,
+    centroid: surfaceCentroid(mesh, localPatchSurface),
+    normal: surfaceNormal(mesh, localPatchSurface),
+    normalAxis: axisLabel(surfaceNormal(mesh, localPatchSurface)),
+    nodeCount: localPatchNodeIds.length,
+    faceCount: localPatchFacets.length,
+    nodeIds: localPatchNodeIds,
+    faceIds: localPatchFacets.map((facet) => facet.id).sort((a, b) => a - b),
+    pressure: Number.isFinite(declaredPressure) ? declaredPressure : null,
+    pressureResultant: Number.isFinite(declaredPressure) && Number.isFinite(localPatchArea)
+      ? Math.abs(declaredPressure) * localPatchArea
+      : null,
+    relationToPipetteMouth: "centered on pipette axis and evaluated against pipette_contact_surface centroid",
+  } : null;
   return {
-    suctionSurface: COORDINATE_CONVENTION.pressure.suctionSurface,
+    suctionSurface: activeSuctionSurface,
+    legacySuctionSurface: COORDINATE_CONVENTION.pressure.suctionSurface,
+    localSuctionPatch: localPatch,
     surfaceOwnership: COORDINATE_CONVENTION.pressure.surfaceOwnership,
     rigidMouthSurface: COORDINATE_CONVENTION.pressure.rigidMouthSurface,
     suctionSurfaceMode,
@@ -520,14 +647,14 @@ function buildPressureDiagnostics(mesh) {
       tangentialOffsetMagnitude,
       maxTangentialOffsetForReady,
       interpretation: couplingReady
-        ? "pipette suction surface is normal-aligned and tangentially colocated with the rigid mouth surface"
-        : "pipette suction surface is not tangentially colocated with the rigid mouth surface; pressure can be declared while contact/reaction channels remain inactive"
+        ? "active pipette suction pressure surface is normal-aligned and tangentially colocated with the rigid mouth surface"
+        : "active pipette suction pressure surface is not tangentially colocated with the rigid mouth surface; pressure can be declared while contact/reaction channels remain inactive"
     },
     valid: suctionNormal === expectedSuctionNormal,
     warnings:
       suctionNormal === expectedSuctionNormal
         ? []
-        : [`pipette_suction_surface normal is ${suctionNormal}; expected ${expectedSuctionNormal}`],
+        : [`${activeSuctionSurface} normal is ${suctionNormal}; expected ${expectedSuctionNormal}`],
   };
 }
 

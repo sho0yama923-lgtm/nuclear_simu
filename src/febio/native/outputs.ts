@@ -32,6 +32,7 @@ function buildPlotfileSurfaceTractionSpec(name, surface, interfaceGroup, region,
 
 export function buildNativeOutputs(spec, mesh) {
   const mouthPlaneX = mesh.bounds?.pipetteContactX ?? mesh.bounds?.pipetteLeft ?? spec.geometry.pipette.tip.x;
+  const pressureSurface = spec.loads?.suctionPressure?.surface || "pipette_suction_surface";
   return {
     faceData: [
       buildFaceDataOutputSpec("nucleus_cytoplasm_interface_surface", "febio_interface_nucleus_cytoplasm.csv", "nucleus_interface_surface"),
@@ -43,7 +44,7 @@ export function buildNativeOutputs(spec, mesh) {
       buildFaceDataOutputSpec("cell_dish_left_surface", "febio_interface_cd_left.csv", "cell_dish_left_surface"),
       buildFaceDataOutputSpec("cell_dish_center_surface", "febio_interface_cd_center.csv", "cell_dish_center_surface"),
       buildFaceDataOutputSpec("cell_dish_right_surface", "febio_interface_cd_right.csv", "cell_dish_right_surface"),
-      buildFaceDataOutputSpec("pipette_cell_contact_surface", "febio_pipette_cell_contact.csv", "pipette_suction_surface", {
+      buildFaceDataOutputSpec("pipette_cell_contact_surface", "febio_pipette_cell_contact.csv", pressureSurface, {
         damage: "proxy-fallback-explicit",
         shear: "proxy-fallback-explicit"
       }),
@@ -84,7 +85,7 @@ export function buildNativeOutputs(spec, mesh) {
   };
 }
 
-export function buildNativeLogOutputs(outputs) {
+export function buildNativeLogOutputs(outputs, mesh = {}) {
   const sharedNodeNcRegionNodeData = [
     { name: "nc_left_nucleus_nodes", file: "febio_nc_left_nucleus_nodes.csv", nodeSet: "nc_left_nucleus_nodes", data: "ux;uy;uz", interfaceGroup: "localNc", region: "left", side: "nucleus", evidence: "shared-node-nc-displacement" },
     { name: "nc_left_cytoplasm_nodes", file: "febio_nc_left_cytoplasm_nodes.csv", nodeSet: "nc_left_cytoplasm_nodes", data: "ux;uy;uz", interfaceGroup: "localNc", region: "left", side: "cytoplasm", evidence: "shared-node-nc-displacement" },
@@ -96,11 +97,16 @@ export function buildNativeLogOutputs(outputs) {
     { name: "nc_bottom_cytoplasm_nodes", file: "febio_nc_bottom_cytoplasm_nodes.csv", nodeSet: "nc_bottom_cytoplasm_nodes", data: "ux;uy;uz", interfaceGroup: "localNc", region: "bottom", side: "cytoplasm", evidence: "shared-node-nc-displacement" },
   ];
 
+  const suctionPatchNodeData = mesh.nodeSets?.pipette_suction_patch_nodes
+    ? [{ name: "pipette_suction_patch_nodes", file: "febio_pipette_suction_patch_nodes.csv", nodeSet: "pipette_suction_patch_nodes", data: "ux;uy;uz" }]
+    : [];
+
   return {
     nodeData: [
       { name: "nucleus_nodes", file: "febio_nucleus_nodes.csv", nodeSet: "nucleus", data: "ux;uy;uz" },
       { name: "cytoplasm_nodes", file: "febio_cytoplasm_nodes.csv", nodeSet: "cytoplasm", data: "ux;uy;uz" },
       { name: "pipette_suction_nodes", file: "febio_pipette_suction_nodes.csv", nodeSet: "pipette_suction_nodes", data: "ux;uy;uz" },
+      ...suctionPatchNodeData,
       { name: "pipette_contact_nodes", file: "febio_pipette_contact_nodes.csv", nodeSet: "pipette_contact_nodes", data: "ux;uy;uz" },
       ...sharedNodeNcRegionNodeData
     ],

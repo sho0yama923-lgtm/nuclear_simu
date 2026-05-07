@@ -241,7 +241,7 @@ function pressureLoadSummary(nativeModelInput) {
       interpretation: "pressure resultant is computed from declared surface_load pressure times native mesh surface area"
     };
   });
-  const suction = loads.find((load) => load.surface === "pipette_suction_surface") || null;
+  const suction = loads.find((load) => load.name === "pipette_suction_pressure" || load.surface === "pipette_suction_surface" || load.surface === "pipette_suction_patch") || null;
   return {
     available: Boolean(nativeModel && mesh),
     loads,
@@ -272,7 +272,8 @@ function pressureLoadResponseSummary(nativeModelInput, displacementOutputs = {})
   const loads = pressureLoads.map((load) => {
     const nodeIds = surfaceNodeIds(mesh, load.surface);
     const normal = surfaceNormal(mesh, load.surface);
-    const sourceCandidates = load.surface === "pipette_suction_surface"
+    const isSuctionPressureLoad = load.name === "pipette_suction_pressure" || load.surface === "pipette_suction_surface" || load.surface === "pipette_suction_patch";
+    const sourceCandidates = isSuctionPressureLoad
       ? outputRecords
       : outputRecords.filter((record) => record.name !== "pipetteSuction");
     const rows = [];
@@ -318,7 +319,7 @@ function pressureLoadResponseSummary(nativeModelInput, displacementOutputs = {})
         : "pressure-load surface nodes were not found in final displacement outputs"
     };
   });
-  const suction = loads.find((load) => load.surface === "pipette_suction_surface") || null;
+  const suction = loads.find((load) => load.name === "pipette_suction_pressure" || load.surface === "pipette_suction_surface" || load.surface === "pipette_suction_patch") || null;
   return {
     available: Boolean(nativeModel && mesh),
     loads,
@@ -426,6 +427,7 @@ export function summarizeNativeFebioRunFiles(files = {}) {
   const pressureLoads = pressureLoadSummary(files.nativeModel || files.model || "");
   const pressureLoadResponse = pressureLoadResponseSummary(files.nativeModel || files.model || "", {
     pipetteSuction: files.pipetteSuctionNodes || "",
+    pipetteSuctionPatch: files.pipetteSuctionPatchNodes || "",
     pipetteContact: files.pipetteContactNodes || "",
     nucleus: files.nucleus || "",
     cytoplasm: files.cytoplasm || ""

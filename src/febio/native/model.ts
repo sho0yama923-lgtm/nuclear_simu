@@ -74,8 +74,8 @@ function buildContacts(spec, mesh) {
   };
 }
 
-function buildSolverFacingLogOutputs(outputs, interfaces = {}) {
-  const logOutputs = buildNativeLogOutputs(outputs);
+function buildSolverFacingLogOutputs(outputs, interfaces = {}, mesh = {}) {
+  const logOutputs = buildNativeLogOutputs(outputs, mesh);
   const activeFaceData = new Set([
     "cell_dish_interface_surface",
     "pipette_cell_contact_surface",
@@ -203,7 +203,7 @@ export function buildNativeFebioModel(nativeCaseSpec = {}) {
   const meshValidation = validateNativeMesh(mesh);
   const interfaces = buildNativeInterfaces(spec, mesh);
   const outputs = buildNativeOutputs(spec, mesh);
-  const logOutputs = buildSolverFacingLogOutputs(outputs, interfaces);
+  const logOutputs = buildSolverFacingLogOutputs(outputs, interfaces, mesh);
   const parameterDigest = digestNativeCaseSpec(spec);
 
   return {

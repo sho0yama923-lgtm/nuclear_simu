@@ -26,8 +26,11 @@ export function buildNativeFebioExport(caseSpec = {}, options = {}) {
     expectedXplt: `${outDir}/${baseName}.xplt`,
     expectedResultJson: `${outDir}/${baseName}_result.json`
   };
-  const expectedCsv = (model.logOutputs?.faceData || []).map((entry) => `${outDir}/${entry.file}`);
-  expectedCsv.push(`${outDir}/febio_rigid_pipette.csv`, `${outDir}/febio_nucleus_nodes.csv`, `${outDir}/febio_cytoplasm_nodes.csv`);
+  const expectedCsv = [
+    ...(model.logOutputs?.faceData || []),
+    ...(model.logOutputs?.nodeData || []),
+    ...(model.logOutputs?.rigidBodyData || []),
+  ].map((entry) => `${outDir}/${entry.file}`);
   const manifest = {
     caseName: model.caseName,
     outputNameTag: model.effectiveNativeSpec?.outputNameTag || "",

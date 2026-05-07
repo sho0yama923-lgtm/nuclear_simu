@@ -493,6 +493,50 @@ test("native-only S8 separated NC comparison duplicates cytoplasm interface node
   assert.doesNotMatch(xml, /<face_data name="nucleus_cytoplasm_top_surface"/);
 });
 
+test("native-only S10 local suction patch exports solver-facing patch diagnostics", async () => {
+  const native = await loadNativeModule();
+  const localPatch = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S10_local_suction_patch.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(localPatch);
+  const pressure = localPatch.geometry.meshValidation.pressureDiagnostics;
+  const patch = pressure.localSuctionPatch;
+
+  assert.equal(localPatch.caseName, "S10_local_suction_patch");
+  assert.equal(localPatch.effectiveNativeSpec.outputNameTag, "S10-A");
+  assert.equal(localPatch.effectiveNativeSpec.geometry.meshMode, "s10-local-suction-patch");
+  assert.equal(localPatch.effectiveNativeSpec.loads.suctionPressure.surface, "pipette_suction_patch");
+  assert.equal(localPatch.geometry.mesh.refinements.localSuctionPatch.mode, "s10-local-suction-patch");
+  assert.equal(localPatch.geometry.mesh.refinements.pipetteSuctionSurface.pressureSurface, "pipette_suction_patch");
+  assert.equal(pressure.suctionSurface, "pipette_suction_patch");
+  assert.equal(pressure.legacySuctionSurface, "pipette_suction_surface");
+  assert.equal(pressure.suctionSurfaceMode, "local-nucleus-side-patch");
+  assert.equal(pressure.couplingReadiness.ready, true);
+  assert.equal(patch.surface, "pipette_suction_patch");
+  assert.equal(patch.legacySurface, "pipette_suction_surface");
+  assert.deepEqual(patch.nodeIds, [82, 83, 86, 87]);
+  assert.deepEqual(patch.faceIds, [24]);
+  assert.equal(patch.nodeCount, 4);
+  assert.equal(patch.faceCount, 1);
+  assert.equal(patch.normalAxis, "-x");
+  assert.deepEqual(patch.centroid, [14, 0, 17]);
+  assert.equal(patch.area, 6.5);
+  assert.equal(patch.pressure, -0.7);
+  assert.equal(patch.pressureResultant, 4.55);
+  assert.deepEqual(localPatch.geometry.mesh.nodeSets.pipette_suction_patch_nodes, [82, 83, 86, 87]);
+  assert.deepEqual(localPatch.geometry.mesh.nodeSets.pipette_suction_nodes, [82, 83, 86, 87]);
+  assert.equal(localPatch.geometry.mesh.surfaces.pipette_suction_surface.length, 3);
+  assert.equal(localPatch.geometry.mesh.surfaces.pipette_suction_patch.length, 1);
+  assert.equal(localPatch.loads.pressure.find((entry) => entry.name === "pipette_suction_pressure").surface, "pipette_suction_patch");
+  assert.equal(localPatch.logOutputs.nodeData.find((entry) => entry.name === "pipette_suction_patch_nodes").nodeSet, "pipette_suction_patch_nodes");
+  assert.equal(localPatch.logOutputs.faceData.find((entry) => entry.name === "pipette_cell_contact_surface").surface, "pipette_suction_patch");
+  assert.match(xml, /<Surface name="pipette_suction_patch">\n      <quad4 id="24">82,86,87,83<\/quad4>/);
+  assert.match(xml, /<NodeSet name="pipette_suction_patch_nodes">82,83,86,87<\/NodeSet>/);
+  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_patch" type="pressure">/);
+  assert.match(xml, /<node_data name="pipette_suction_patch_nodes" file="febio_pipette_suction_patch_nodes\.csv" data="ux;uy;uz" delim="," node_set="pipette_suction_patch_nodes" \/>/);
+  assert.match(xml, /<face_data name="pipette_cell_contact_surface" file="febio_pipette_cell_contact\.csv" data="contact gap;contact pressure" delim="," surface="pipette_suction_patch" \/>/);
+});
+
 test("native-only export script writes FEBio handoff artifacts", () => {
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "nuclear-simu-native-export-"));
   const printed = execFileSync(
@@ -677,6 +721,39 @@ test("native run diagnostics separate declared suction pressure resultant from c
   assert.equal(summary.gates.pipetteCellPressureActive, false);
   assert.equal(summary.gates.pipettePlotfileForceActive, false);
   assert.equal(summary.gates.pipetteRigidReactionActive, false);
+});
+
+test("native run diagnostics recognize S10 local suction patch as suction pressure load", async () => {
+  const native = await loadNativeModule();
+  const block = (name, rows) => [
+    "*Step  = 1",
+    "*Time  = 5",
+    `*Data  = ${name}`,
+    ...rows
+  ].join("\n");
+  const model = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S10_local_suction_patch.native.json"), "utf8")),
+  );
+  const summary = native.summarizeNativeFebioRunFiles({
+    nativeModel: model,
+    log: "N O R M A L   T E R M I N A T I O N",
+    pipetteSuctionPatchNodes: block("pipette_suction_patch_nodes", [
+      "82 -0.2 0 0",
+      "83 -0.2 0 0",
+      "86 -0.3 0 0",
+      "87 -0.3 0 0"
+    ]),
+  });
+
+  assert.equal(summary.pressureLoads.pipetteSuction.surface, "pipette_suction_patch");
+  assert.equal(summary.pressureLoads.pipetteSuction.area, 6.5);
+  assert.equal(summary.pressureLoads.pipetteSuction.resultant, 4.55);
+  assert.deepEqual(summary.pressureLoadResponse.pipetteSuction.nodeIds, [82, 83, 86, 87]);
+  assert.deepEqual(summary.pressureLoadResponse.pipetteSuction.sources, ["pipetteSuctionPatch"]);
+  assert.equal(summary.pressureLoadResponse.pipetteSuction.observedNodeCount, 4);
+  assert.equal(summary.pressureLoadResponse.pipetteSuction.hasNormalDisplacement, true);
+  assert.equal(summary.gates.pipetteSuctionPressureLoadActive, true);
+  assert.equal(summary.gates.pipetteSuctionPressureResponseActive, true);
 });
 
 test("native run diagnostics instrument nucleus-side pressure-load surface displacement separately", async () => {

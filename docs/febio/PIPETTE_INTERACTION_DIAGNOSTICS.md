@@ -611,7 +611,7 @@ S8-Y high-pressure bound result:
 
 Conclusion:
 
-The implementation path is now proven end to end. S8-M could not show native NC failure because it was shared-node and failure-output unavailable. S8-W made native NC output available but still had no relative failure-driving kinematics. S8-X introduced separated NC kinematics and is now warning-free at baseline pressure. S8-Y crossed the pressure bound and produced native NC interface failure without the invalid-facet setup warnings. S9 should calibrate the physical failure boundary and reduce or justify the remaining high-pressure stiffness-reformation warnings.
+The implementation path is now proven end to end. S8-M could not show native NC failure because it was shared-node and failure-output unavailable. S8-W made native NC output available but still had no relative failure-driving kinematics. S8-X introduced separated NC kinematics and is now warning-free at baseline pressure. S8-Y crossed the pressure bound and produced native NC interface failure without the invalid-facet setup warnings. S9 then replaced that high-pressure warning case with a warning-free pressure-boundary scan. Treat the S9 boundary as pipeline evidence only; physical failure-boundary calibration waits for S10 mesh refinement.
 
 ## S9 native NC pressure-boundary scan
 
@@ -633,3 +633,47 @@ S9 also fixed a classification interpretation issue exposed by S9-A: proxy-only 
 Conclusion:
 
 The useful warning-free native NC failure transition is now bounded between S9-D `-1.55 kPa` and S9-E `-1.7 kPa`. S9-D has partial right-side native damage but stays below the detachment-start threshold; S9-E crosses into active right-side normal native failure. This makes S8-Y a high-pressure stress test rather than the primary evidence case.
+
+## S10 local suction patch export
+
+S10-A starts the physical mesh-refinement path. It changes the pressure-load surface from the historical broad `pipette_suction_surface` to a local nucleus-side `pipette_suction_patch`, while keeping S8-M and S9 as comparison baselines.
+
+S10-A static export diagnostics:
+
+- case: `febio_cases/native/S10_local_suction_patch.native.json`
+- export: `febio_exports/S10_local_suction_patch/`
+- mesh mode: `s10-local-suction-patch`
+- pressure surface: `pipette_suction_patch`
+- legacy / comparison surface: `pipette_suction_surface`
+- patch area: `6.5 um^2`
+- patch centroid: `[14, 0, 17]`
+- patch normal: `-x`
+- patch node ids: `[82, 83, 86, 87]`
+- patch face id: `[24]`
+- declared pressure: `-0.7 kPa`
+- declared pressure resultant: `4.55 nN`
+
+Windows FEBio CLI result:
+
+- run directory: `febio_exports/S10_local_suction_patch/febio_runs/S10-A_S10_local_suction_patch/`
+- termination: normal
+- solver warnings / errors / negative jacobian / no-force / no-contact-pair messages: `0`
+- pressure-load response: active on `pipette_suction_patch`
+- observed patch nodes: `4 / 4`
+- max patch displacement: `1.1628959591041037 um`
+- max patch normal displacement: `1.1518070494 um`
+- direct pipette contact output: inactive
+  - pipette-cell pressure `0`
+  - pipette mouth pressure `0`
+  - rigid reaction `0`
+  - pipette plotfile force inactive
+- cell-dish support: active through plotfile contact force
+  - max normal force `10.198174476623535 nN`
+  - max tangential force `9.159760475158691 nN`
+  - face-data pressure remains `0`
+- converted classification: proxy-derived `nucleus_detached`
+- native NC interface failure: unavailable / inactive because S10-A keeps conformal shared-node NC coupling
+
+Interpretation:
+
+S10-A is now the warning-free local-patch pressure-response baseline. It proves that the local nucleus-side pressure patch is solver-facing and produces nonzero patch displacement response. It still does not prove native NC failure or direct pipette contact capture. The next S10 increment should refine the NC right-region interface around the local suction patch while preserving S10-A as the pressure-response baseline.

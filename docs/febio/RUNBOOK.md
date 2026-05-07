@@ -18,11 +18,21 @@ node scripts/export_febio_native_case.mjs --case febio_cases/native/S7_baseline.
 
 ## FEBio CLI / Studio 確認
 
+FEBio solver / FEBio Studio の実行確認は Windows 環境で行う。WSL Ubuntu は native case JSON の編集、export、static diagnostics、Node/npm test に使い、FEBio solver 実行そのものには使わない。
+
 manifest の `commands.febioCli` と `studioConfirmation` を確認対象にする。
 
 実行補助として残すもの:
 
 - `scripts/run_febio_case.ps1`
+
+Windows 側での基本手順:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile febio_exports/S10_local_suction_patch/S10-A_S10_local_suction_patch.feb
+```
+
+FEBioStudio で確認する場合も、同じ `febio_exports/<case>/...feb` を Windows 側から開く。
 
 旧 UI bridge / canonical export / converter は legacy / compatibility 扱い。必要なときだけ `legacy/` と `docs/febio/FEBIO_PATH_OWNERSHIP.md` を確認する。
 

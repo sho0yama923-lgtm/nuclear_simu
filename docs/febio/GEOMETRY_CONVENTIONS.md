@@ -26,8 +26,10 @@ The active native path reports this direction through `validateNativeMesh().surf
 ## Pressure Convention
 
 - `pipette_suction_surface` is the deformable-side capture surface.
+- `pipette_suction_patch` is the S10 local nucleus-side pressure-load patch. It is solver-facing only for cases that explicitly set `loads.suctionPressure.surface` to `pipette_suction_patch`.
 - `pipette_contact_surface` is the rigid pipette mouth surface.
 - The target physical `pipette_suction_surface` is the nucleus-side capture face, with normal expected to be `-x`.
+- In S10-A, the broad `pipette_suction_surface` remains as a legacy / comparison surface, while pressure is applied to `pipette_suction_patch`.
 - Negative suction pressure is intended to pull toward `+x`, into the pipette / barrel side.
 - S8-G and later outer-cell suction surfaces are diagnostic bridges for force-channel activation and Studio winding checks. They must not be promoted to the final suction convention without an explicit model decision.
 
