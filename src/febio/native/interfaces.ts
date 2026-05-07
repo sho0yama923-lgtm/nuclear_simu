@@ -40,24 +40,29 @@ function validateNucleusCytoplasm(spec) {
 export function buildNativeInterfaces(spec, mesh) {
   const nc = spec.contacts.nucleusCytoplasm;
   const pipetteNucleus = spec.contacts.pipetteNucleus;
+  const ncSolverActive = nc.solverActive === true;
+  const ncSolverType = ncSolverActive ? (nc.solverType || nc.type || "tied-elastic") : "conformal-shared-node";
+  const ncContactRegions = mesh.refinements?.nucleusCytoplasmCoupling?.separatedContactComparison
+    ? ["left", "right"]
+    : ["left", "right", "top", "bottom"];
   const normalPenalty = clamp(Math.max(buildPenalty(nc.normalStiffness, nc.criticalNormalStress, nc.fractureEnergy), nc.normalStiffness * 0.85), 0.35, 2.5);
   const tangentialPenalty = clamp(Math.max(buildPenalty(nc.tangentialStiffness, nc.criticalShearStress, nc.fractureEnergy), nc.tangentialStiffness * 0.65), 0.2, 1.8);
   const frictionProxy = clamp(0.12 + (pipetteNucleus.friction || 0) * 0.25, 0.12, 0.28);
   const maxTraction = clamp(Math.max(nc.criticalNormalStress * 2.5, nc.criticalShearStress * 2.5, normalPenalty * 1.4), 1.0, 4.0);
   const snapTolerance = clamp((nc.fractureEnergy / Math.max(nc.criticalNormalStress, 0.05)) * 0.8, 0.18, 0.6);
   const nucleusCytoplasm = {
-    type: "conformal-shared-node",
+    type: ncSolverType,
     requestedType: nc.type,
-    solverActive: false,
-    status: "force-transfer-shared-node / cohesive-law-deferred",
-    mode: "mesh-conformal force-transfer coupling",
+    solverActive: ncSolverActive,
+    status: ncSolverActive
+      ? "solver-active NC comparison / shared-node baseline preserved separately"
+      : "force-transfer-shared-node / cohesive-law-deferred",
+    mode: ncSolverActive ? "solver-active NC comparison coupling" : "mesh-conformal force-transfer coupling",
     surfacePair: mesh.surfacePairs.nucleus_cytoplasm_pair,
-    localSurfacePairs: {
-      left: mesh.surfacePairs.nucleus_cytoplasm_left_pair,
-      right: mesh.surfacePairs.nucleus_cytoplasm_right_pair,
-      top: mesh.surfacePairs.nucleus_cytoplasm_top_pair,
-      bottom: mesh.surfacePairs.nucleus_cytoplasm_bottom_pair,
-    },
+    localSurfacePairs: Object.fromEntries(
+      ncContactRegions.map((region) => [region, mesh.surfacePairs[`nucleus_cytoplasm_${region}_pair`]]),
+    ),
+    contactRegions: ncContactRegions,
     normalStiffness: nc.normalStiffness,
     tangentialStiffness: nc.tangentialStiffness,
     criticalNormalStress: nc.criticalNormalStress,

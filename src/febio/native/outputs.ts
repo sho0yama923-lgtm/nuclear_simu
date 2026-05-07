@@ -85,12 +85,24 @@ export function buildNativeOutputs(spec, mesh) {
 }
 
 export function buildNativeLogOutputs(outputs) {
+  const sharedNodeNcRegionNodeData = [
+    { name: "nc_left_nucleus_nodes", file: "febio_nc_left_nucleus_nodes.csv", nodeSet: "nc_left_nucleus_nodes", data: "ux;uy;uz", interfaceGroup: "localNc", region: "left", side: "nucleus", evidence: "shared-node-nc-displacement" },
+    { name: "nc_left_cytoplasm_nodes", file: "febio_nc_left_cytoplasm_nodes.csv", nodeSet: "nc_left_cytoplasm_nodes", data: "ux;uy;uz", interfaceGroup: "localNc", region: "left", side: "cytoplasm", evidence: "shared-node-nc-displacement" },
+    { name: "nc_right_nucleus_nodes", file: "febio_nc_right_nucleus_nodes.csv", nodeSet: "nc_right_nucleus_nodes", data: "ux;uy;uz", interfaceGroup: "localNc", region: "right", side: "nucleus", evidence: "shared-node-nc-displacement" },
+    { name: "nc_right_cytoplasm_nodes", file: "febio_nc_right_cytoplasm_nodes.csv", nodeSet: "nc_right_cytoplasm_nodes", data: "ux;uy;uz", interfaceGroup: "localNc", region: "right", side: "cytoplasm", evidence: "shared-node-nc-displacement" },
+    { name: "nc_top_nucleus_nodes", file: "febio_nc_top_nucleus_nodes.csv", nodeSet: "nc_top_nucleus_nodes", data: "ux;uy;uz", interfaceGroup: "localNc", region: "top", side: "nucleus", evidence: "shared-node-nc-displacement" },
+    { name: "nc_top_cytoplasm_nodes", file: "febio_nc_top_cytoplasm_nodes.csv", nodeSet: "nc_top_cytoplasm_nodes", data: "ux;uy;uz", interfaceGroup: "localNc", region: "top", side: "cytoplasm", evidence: "shared-node-nc-displacement" },
+    { name: "nc_bottom_nucleus_nodes", file: "febio_nc_bottom_nucleus_nodes.csv", nodeSet: "nc_bottom_nucleus_nodes", data: "ux;uy;uz", interfaceGroup: "localNc", region: "bottom", side: "nucleus", evidence: "shared-node-nc-displacement" },
+    { name: "nc_bottom_cytoplasm_nodes", file: "febio_nc_bottom_cytoplasm_nodes.csv", nodeSet: "nc_bottom_cytoplasm_nodes", data: "ux;uy;uz", interfaceGroup: "localNc", region: "bottom", side: "cytoplasm", evidence: "shared-node-nc-displacement" },
+  ];
+
   return {
     nodeData: [
       { name: "nucleus_nodes", file: "febio_nucleus_nodes.csv", nodeSet: "nucleus", data: "ux;uy;uz" },
       { name: "cytoplasm_nodes", file: "febio_cytoplasm_nodes.csv", nodeSet: "cytoplasm", data: "ux;uy;uz" },
       { name: "pipette_suction_nodes", file: "febio_pipette_suction_nodes.csv", nodeSet: "pipette_suction_nodes", data: "ux;uy;uz" },
-      { name: "pipette_contact_nodes", file: "febio_pipette_contact_nodes.csv", nodeSet: "pipette_contact_nodes", data: "ux;uy;uz" }
+      { name: "pipette_contact_nodes", file: "febio_pipette_contact_nodes.csv", nodeSet: "pipette_contact_nodes", data: "ux;uy;uz" },
+      ...sharedNodeNcRegionNodeData
     ],
     rigidBodyData: [
       { name: "pipette_rigid_body", file: "febio_rigid_pipette.csv", data: "x;y;z;Fx;Fy;Fz", item: "pipette" }

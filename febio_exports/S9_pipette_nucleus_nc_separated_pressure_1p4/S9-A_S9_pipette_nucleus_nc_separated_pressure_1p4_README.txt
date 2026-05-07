@@ -1,0 +1,17 @@
+FEBio native-only handoff for S9_pipette_nucleus_nc_separated_pressure_1p4
+
+Parameter digest: fdig_8c02915c
+Export ready: true
+
+Run:
+powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile "C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/S9-A_S9_pipette_nucleus_nc_separated_pressure_1p4.feb"
+
+Artifacts:
+- feb: C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/S9-A_S9_pipette_nucleus_nc_separated_pressure_1p4.feb
+- effective native spec: C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/S9-A_S9_pipette_nucleus_nc_separated_pressure_1p4_effective_native_spec.json
+- native model: C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/S9-A_S9_pipette_nucleus_nc_separated_pressure_1p4_native_model.json
+- manifest: C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/S9-A_S9_pipette_nucleus_nc_separated_pressure_1p4_manifest.json
+- expected log: C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/S9-A_S9_pipette_nucleus_nc_separated_pressure_1p4.log
+- expected xplt: C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/S9-A_S9_pipette_nucleus_nc_separated_pressure_1p4.xplt
+- expected result JSON: C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/S9-A_S9_pipette_nucleus_nc_separated_pressure_1p4_result.json
+- expected CSV: C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/febio_interface_nc_left.csv, C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/febio_interface_nc_right.csv, C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/febio_interface_cell_dish.csv, C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/febio_pipette_cell_contact.csv, C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/febio_pipette_contact.csv, C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/febio_rigid_pipette.csv, C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/febio_nucleus_nodes.csv, C:\Users\xiogo\projects\nuclear_simu\febio_exports\S9_pipette_nucleus_nc_separated_pressure_1p4/febio_cytoplasm_nodes.csv

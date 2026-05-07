@@ -433,6 +433,8 @@ test("native-only S8 nucleus-pressure return uses the target nucleus-side suctio
   assert.equal(nucleusPressure.geometry.meshValidation.pressureDiagnostics.couplingReadiness.ready, true);
   assert.deepEqual(nucleusPressure.geometry.mesh.nodeSets.pipette_suction_nodes, [46, 47, 50, 51]);
   assert.equal(nucleusPressure.logOutputs.nodeData.find((entry) => entry.name === "pipette_suction_nodes").nodeSet, "pipette_suction_nodes");
+  assert.equal(nucleusPressure.logOutputs.nodeData.find((entry) => entry.name === "nc_right_nucleus_nodes").file, "febio_nc_right_nucleus_nodes.csv");
+  assert.equal(nucleusPressure.logOutputs.nodeData.find((entry) => entry.name === "nc_right_cytoplasm_nodes").evidence, "shared-node-nc-displacement");
   assert.equal(overlap.pipetteSuctionOverlaps.includes("nucleus_interface_right_surface"), true);
   assert.equal(overlap.pipetteSuctionSeparatedFromNucleusRight, false);
   assert.equal(nucleusPressure.contact.pipetteNucleus.solverActive, false);
@@ -441,8 +443,54 @@ test("native-only S8 nucleus-pressure return uses the target nucleus-side suctio
   assert.match(xml, /<quad4 id="20">46,50,51,47<\/quad4>/);
   assert.match(xml, /<NodeSet name="pipette_suction_nodes">46,47,50,51<\/NodeSet>/);
   assert.match(xml, /<node_data name="pipette_suction_nodes" file="febio_pipette_suction_nodes\.csv" data="ux;uy;uz" delim="," node_set="pipette_suction_nodes" \/>/);
+  assert.match(xml, /<NodeSet name="nc_right_nucleus_nodes">46,47,50,51<\/NodeSet>/);
+  assert.match(xml, /<node_data name="nc_right_nucleus_nodes" file="febio_nc_right_nucleus_nodes\.csv" data="ux;uy;uz" delim="," node_set="nc_right_nucleus_nodes" \/>/);
+  assert.match(xml, /<node_data name="nc_right_cytoplasm_nodes" file="febio_nc_right_cytoplasm_nodes\.csv" data="ux;uy;uz" delim="," node_set="nc_right_cytoplasm_nodes" \/>/);
   assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_surface" type="pressure">/);
   assert.doesNotMatch(xml, /<contact name="pipette_nucleus_contact"/);
+});
+
+test("native-only S8 NC failure comparison emits solver-active NC outputs", async () => {
+  const native = await loadNativeModule();
+  const comparison = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_nucleus_nc_failure_compare.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(comparison);
+
+  assert.equal(comparison.caseName, "S8_pipette_nucleus_nc_failure_compare");
+  assert.equal(comparison.effectiveNativeSpec.outputNameTag, "S8-W");
+  assert.equal(comparison.interfaces.nucleusCytoplasm.solverActive, true);
+  assert.equal(comparison.interfaces.nucleusCytoplasm.type, "tied-elastic");
+  assert.match(comparison.interfaces.nucleusCytoplasm.status, /solver-active NC comparison/);
+  assert.equal(comparison.logOutputs.faceData.some((entry) => entry.name === "nucleus_cytoplasm_right_surface"), true);
+  assert.equal(comparison.logOutputs.plotfileSurfaceData.some((entry) => entry.interfaceGroup === "localNc"), true);
+  assert.match(xml, /<SurfacePair name="nucleus_cytoplasm_right_pair">/);
+  assert.match(xml, /<contact name="nucleus_cytoplasm_right_interface" type="tied-elastic" surface_pair="nucleus_cytoplasm_right_pair">/);
+  assert.match(xml, /<face_data name="nucleus_cytoplasm_right_surface" file="febio_interface_nc_right\.csv" data="contact gap;contact pressure" delim="," surface="nucleus_interface_right_surface" \/>/);
+  assert.match(xml, /<var type="contact traction" surface="nucleus_interface_right_surface"\/>/);
+  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_surface" type="pressure">/);
+  assert.doesNotMatch(xml, /<contact name="pipette_nucleus_contact"/);
+});
+
+test("native-only S8 separated NC comparison duplicates cytoplasm interface nodes", async () => {
+  const native = await loadNativeModule();
+  const separated = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S8_pipette_nucleus_nc_separated_failure.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(separated);
+
+  assert.equal(separated.caseName, "S8_pipette_nucleus_nc_separated_failure");
+  assert.equal(separated.effectiveNativeSpec.outputNameTag, "S8-X");
+  assert.equal(separated.geometry.mesh.refinements.nucleusCytoplasmCoupling.mode, "separated-contact-native-comparison");
+  assert.deepEqual(separated.interfaces.nucleusCytoplasm.contactRegions, ["left", "right"]);
+  assert.deepEqual(separated.geometry.mesh.nodeSets.nc_right_nucleus_nodes, [46, 47, 50, 51]);
+  assert.deepEqual(separated.geometry.mesh.nodeSets.nc_right_cytoplasm_nodes, [74, 75, 78, 79]);
+  assert.deepEqual(separated.geometry.mesh.surfaces.cytoplasm_interface_right_surface[0].nodes, [74, 75, 79, 78]);
+  assert.match(xml, /<NodeSet name="nc_right_cytoplasm_nodes">74,75,78,79<\/NodeSet>/);
+  assert.match(xml, /<Surface name="cytoplasm_interface_right_surface">\n      <quad4 id="11">74,75,79,78<\/quad4>/);
+  assert.match(xml, /<contact name="nucleus_cytoplasm_right_interface" type="tied-elastic" surface_pair="nucleus_cytoplasm_right_pair">/);
+  assert.doesNotMatch(xml, /<contact name="nucleus_cytoplasm_top_interface"/);
+  assert.doesNotMatch(xml, /<face_data name="nucleus_cytoplasm_top_surface"/);
 });
 
 test("native-only export script writes FEBio handoff artifacts", () => {

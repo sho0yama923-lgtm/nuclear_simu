@@ -48,6 +48,15 @@ function readIfExists(filePath, encoding = "utf8") {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, encoding) : "";
 }
 
+function resolveArtifactPath(filePath, baseDir = "") {
+  if (!filePath) return "";
+  const directPath = path.resolve(filePath);
+  if (fs.existsSync(directPath)) return directPath;
+  if (!baseDir) return directPath;
+  const localPath = path.join(baseDir, path.basename(String(filePath)));
+  return fs.existsSync(localPath) ? localPath : directPath;
+}
+
 function inferFebioBaseName(runDir, payload = {}) {
   const manifestBase = payload.baseName || payload.exportBundle?.baseName || payload.nativeModel?.baseName;
   if (manifestBase) return manifestBase;
@@ -68,13 +77,15 @@ async function buildNativeRunDiagnostics(projectRoot, runDir, payload = {}) {
   const nativeModule = await import(pathToFileURL(nativeModulePath).href);
   if (typeof nativeModule.summarizeNativeFebioRunFiles !== "function") return null;
   const baseName = inferFebioBaseName(runDir, payload);
-  const nativeModelPath = payload.files?.nativeModel || path.join(runDir, `${baseName}_native_model.json`);
+  const nativeModelPath = payload.files?.nativeModel
+    ? resolveArtifactPath(payload.files.nativeModel, runDir)
+    : path.join(runDir, `${baseName}_native_model.json`);
   const xpltPath = fs.existsSync(path.join(runDir, `${baseName}.xplt`))
     ? path.join(runDir, `${baseName}.xplt`)
     : "";
   return nativeModule.summarizeNativeFebioRunFiles({
     log: readIfExists(path.join(runDir, `${baseName}.log`)),
-    nativeModel: readIfExists(nativeModelPath),
+    nativeModel: payload.nativeModel || readIfExists(nativeModelPath),
     xplt: xpltPath ? fs.readFileSync(xpltPath) : null,
     cellDish: readIfExists(path.join(runDir, "febio_interface_cell_dish.csv")),
     pipetteCell: readIfExists(path.join(runDir, "febio_pipette_cell_contact.csv")),
@@ -87,8 +98,8 @@ async function buildNativeRunDiagnostics(projectRoot, runDir, payload = {}) {
   });
 }
 
-function hydrateManifestPayload(payload = {}) {
-  const nativeModelPath = payload.files?.nativeModel;
+function hydrateManifestPayload(payload = {}, baseDir = "") {
+  const nativeModelPath = resolveArtifactPath(payload.files?.nativeModel, baseDir);
   if (!nativeModelPath || !fs.existsSync(nativeModelPath)) return payload;
   const nativeModel = JSON.parse(fs.readFileSync(nativeModelPath, "utf8"));
   return {
@@ -320,10 +331,29 @@ function hasNativeFaceRegionObservation(localNc = {}) {
   );
 }
 
+function isNativeFaceRegionState(state = {}) {
+  return (
+    String(state.provenance || "").includes("native") ||
+    String(state.sourceNormal || "").includes("native") ||
+    String(state.sourceDamage || "").includes("native") ||
+    String(state.sourceShear || "").includes("native")
+  );
+}
+
+function pickNcFailureStatesForNativePreferredTimeline(localNc = {}) {
+  const failedStates = Object.values(localNc).filter((state) => state?.firstFailureTime !== null);
+  const nativeFailedStates = failedStates.filter((state) => isNativeFaceRegionState(state));
+  return nativeFailedStates.length ? nativeFailedStates : failedStates;
+}
+
 function buildDetachmentMetricsFromLocalState(localNc = {}, displacements = {}) {
   const regions = Object.values(localNc);
+  const observedContactRegions = regions.filter((state) =>
+    String(state?.sourceDamage || "").includes("native-face") ||
+    String(state?.sourceDamage || "").includes("explicit")
+  );
   const contactAreaRatio =
-    averageFinite(regions.map((state) => state?.contactFraction)) ??
+    averageFinite(observedContactRegions.map((state) => state?.contactFraction)) ??
     averageFinite(regions.map((state) => (state ? clamp01(1 - (state.damage ?? 0)) : null))) ??
     1;
 
@@ -587,7 +617,9 @@ function inferXpltPath(runDir, payload = {}) {
   const tag = nativeSpec?.outputNameTag ? `${nativeSpec.outputNameTag}_` : "";
   if (nativeSpec?.caseName) candidates.push(path.join(runDir, `${tag}${nativeSpec.caseName}.xplt`));
   if (payload.baseName) candidates.push(path.join(runDir, `${payload.baseName}.xplt`));
-  const found = candidates.map((candidate) => path.resolve(candidate)).find((candidate) => fs.existsSync(candidate));
+  const found = candidates
+    .map((candidate) => resolveArtifactPath(candidate, runDir))
+    .find((candidate) => fs.existsSync(candidate));
   if (found) return found;
   return fs.readdirSync(runDir).find((file) => file.endsWith(".xplt"))
     ? path.join(runDir, fs.readdirSync(runDir).filter((file) => file.endsWith(".xplt")).sort()[0])
@@ -1237,6 +1269,7 @@ function computeFaceDrivenInterfaceState(region, faceSeries, fallbackState, crit
 
   const state = {
     ...fallbackState.state,
+    provenance: "native-face-data-preferred",
     sourceNormal: "native-face-pressure",
     sourceDamage: "native-face-gap-pressure",
     sourceShear: "node-displacement-proxy",
@@ -1716,6 +1749,150 @@ function buildSuctionPressureResponse(nativeRunDiagnostics = null) {
   };
 }
 
+function buildCaptureEvidence(maxContactForce, suctionPressureResponse = {}) {
+  const directContactCapture = maxContactForce > 0.05;
+  const pressureDrivenSuctionResponse =
+    suctionPressureResponse.active === true || suctionPressureResponse.normalDisplacementActive === true;
+  return {
+    directContactCapture,
+    pressureDrivenSuctionResponse,
+    established: directContactCapture || pressureDrivenSuctionResponse,
+    maintained: directContactCapture || pressureDrivenSuctionResponse,
+    contactForceThreshold: 0.05,
+    peakContactForce: maxContactForce,
+    pressureResponseSource: suctionPressureResponse.source || "unavailable",
+    interpretation: pressureDrivenSuctionResponse && !directContactCapture
+      ? "nucleus-side pressure response establishes pressure-driven capture evidence while direct contact outputs remain separate"
+      : directContactCapture
+        ? "direct pipette contact or rigid reaction establishes contact-capture evidence"
+        : "no direct contact-capture or pressure-driven suction-response evidence",
+  };
+}
+
+function buildNativeNcInterfaceEvidence(templateData = {}) {
+  const ncInterface = templateData.interfaces?.nucleusCytoplasm || {};
+  const faceData = templateData.logOutputs?.faceData || templateData.outputs?.faceData || [];
+  const plotfileSurfaceData = templateData.logOutputs?.plotfileSurfaceData || templateData.outputs?.plotfileSurfaceData || [];
+  const nodeData = templateData.logOutputs?.nodeData || [];
+  const ncFaceOutputs = faceData.filter((entry) => String(entry.name || "").startsWith("nucleus_cytoplasm_"));
+  const ncPlotfileOutputs = plotfileSurfaceData.filter((entry) => entry.interfaceGroup === "localNc");
+  const ncNodeOutputs = nodeData.filter((entry) => entry.interfaceGroup === "localNc" || String(entry.name || "").startsWith("nc_"));
+  const solverActive = ncInterface.solverActive !== false && ncInterface.type !== "conformal-shared-node";
+  const available = solverActive && (ncFaceOutputs.length > 0 || ncPlotfileOutputs.length > 0);
+  const reason = available
+    ? "native nucleus-cytoplasm interface outputs are solver-facing"
+    : ncInterface.type === "conformal-shared-node" || ncInterface.solverActive === false
+      ? "nucleus-cytoplasm interface uses conformal shared-node force transfer; no solver-active NC contact face data is emitted"
+      : "native nucleus-cytoplasm face/plotfile outputs are not present in solver-facing outputs";
+  return {
+    available,
+    source: "native-model-output-contract",
+    reason,
+    details: {
+      interfaceType: ncInterface.type || "",
+      solverActive: ncInterface.solverActive !== false,
+      status: ncInterface.status || "",
+      mode: ncInterface.mode || "",
+      faceDataOutputs: ncFaceOutputs.map((entry) => entry.name),
+      plotfileSurfaceOutputs: ncPlotfileOutputs.map((entry) => entry.name),
+      sharedNodeRegionNodeOutputs: ncNodeOutputs.map((entry) => entry.name),
+    },
+  };
+}
+
+function recordsById(snapshot = {}) {
+  return new Map((snapshot.records || []).map((record, index) => [String(record[0] ?? index), record]));
+}
+
+function computePairedRegionDisplacement(region, leftSnapshot, rightSnapshot) {
+  const leftRecords = leftSnapshot?.records || [];
+  const rightRecords = rightSnapshot?.records || [];
+  const rightById = recordsById(rightSnapshot);
+  let observedNodeCount = 0;
+  let maxRelativeNormalDisplacement = 0;
+  let maxRelativeShearDisplacement = 0;
+  let maxSharedDisplacement = 0;
+
+  leftRecords.forEach((leftRecord, index) => {
+    const rightRecord = rightById.get(String(leftRecord[0])) || rightRecords[index];
+    if (!rightRecord) return;
+    observedNodeCount += 1;
+    const deltaUx = Math.abs((Number(leftRecord[1]) || 0) - (Number(rightRecord[1]) || 0));
+    const deltaUz = Math.abs((Number(leftRecord[3]) || 0) - (Number(rightRecord[3]) || 0));
+    const normalDisplacement = region === "top" || region === "bottom" ? deltaUz : deltaUx;
+    const shearDisplacement = region === "top" || region === "bottom" ? deltaUx : deltaUz;
+    const sharedUx = Math.max(Math.abs(Number(leftRecord[1]) || 0), Math.abs(Number(rightRecord[1]) || 0));
+    const sharedUy = Math.max(Math.abs(Number(leftRecord[2]) || 0), Math.abs(Number(rightRecord[2]) || 0));
+    const sharedUz = Math.max(Math.abs(Number(leftRecord[3]) || 0), Math.abs(Number(rightRecord[3]) || 0));
+    maxRelativeNormalDisplacement = Math.max(maxRelativeNormalDisplacement, normalDisplacement);
+    maxRelativeShearDisplacement = Math.max(maxRelativeShearDisplacement, shearDisplacement);
+    maxSharedDisplacement = Math.max(maxSharedDisplacement, Math.hypot(sharedUx, sharedUy, sharedUz));
+  });
+
+  return {
+    observedNodeCount,
+    maxRelativeNormalDisplacement,
+    maxRelativeShearDisplacement,
+    maxSharedDisplacement,
+  };
+}
+
+function buildSharedNodeNcEvidence(templateData = {}, logs = {}) {
+  const ncInterface = templateData.interfaces?.nucleusCytoplasm || {};
+  const compatibleWithSharedNodeCoupling = ncInterface.type === "conformal-shared-node";
+  const source = compatibleWithSharedNodeCoupling ? "shared-node-region-node-data" : "separated-nc-region-node-data";
+  const regions = {};
+  let available = false;
+  let maxRelativeNormalDisplacement = 0;
+  let maxRelativeShearDisplacement = 0;
+  let maxSharedDisplacement = 0;
+  let observedNodeCount = 0;
+
+  for (const region of ["left", "right", "top", "bottom"]) {
+    const mapped = templateData.interfaceRegions?.localNc?.[region] || {};
+    const leftSeries = logs[mapped.nucleusNodeSet] || [];
+    const rightSeries = logs[mapped.cytoplasmNodeSet] || [];
+    const times = Array.from(new Set([...leftSeries.map((entry) => entry.time), ...rightSeries.map((entry) => entry.time)])).sort((a, b) => a - b);
+    const regionSummary = {
+      available: leftSeries.length > 0 && rightSeries.length > 0,
+      observedNodeCount: 0,
+      maxRelativeNormalDisplacement: 0,
+      maxRelativeShearDisplacement: 0,
+      maxSharedDisplacement: 0,
+      source,
+    };
+    times.forEach((time) => {
+      const paired = computePairedRegionDisplacement(region, nearestSnapshot(leftSeries, time), nearestSnapshot(rightSeries, time));
+      regionSummary.observedNodeCount = Math.max(regionSummary.observedNodeCount, paired.observedNodeCount);
+      regionSummary.maxRelativeNormalDisplacement = Math.max(regionSummary.maxRelativeNormalDisplacement, paired.maxRelativeNormalDisplacement);
+      regionSummary.maxRelativeShearDisplacement = Math.max(regionSummary.maxRelativeShearDisplacement, paired.maxRelativeShearDisplacement);
+      regionSummary.maxSharedDisplacement = Math.max(regionSummary.maxSharedDisplacement, paired.maxSharedDisplacement);
+    });
+    available = available || regionSummary.available;
+    observedNodeCount += regionSummary.observedNodeCount;
+    maxRelativeNormalDisplacement = Math.max(maxRelativeNormalDisplacement, regionSummary.maxRelativeNormalDisplacement);
+    maxRelativeShearDisplacement = Math.max(maxRelativeShearDisplacement, regionSummary.maxRelativeShearDisplacement);
+    maxSharedDisplacement = Math.max(maxSharedDisplacement, regionSummary.maxSharedDisplacement);
+    regions[region] = regionSummary;
+  }
+
+  return {
+    available,
+    compatibleWithSharedNodeCoupling,
+    source,
+    observedNodeCount,
+    maxRelativeNormalDisplacement,
+    maxRelativeShearDisplacement,
+    maxSharedDisplacement,
+    interpretation: available && compatibleWithSharedNodeCoupling
+      ? "shared-node NC evidence observes region displacement continuity; it is not solver-active contact failure evidence"
+      : available
+        ? "separated NC region node data observes relative interface displacement alongside solver-active NC failure outputs"
+      : "shared-node NC region node-data outputs are not available in this run",
+    regions,
+  };
+}
+
 function buildResultFromLogs(sandbox, payload, runDir) {
   const nativeSpec =
     payload.nativeSpec ||
@@ -1750,6 +1927,8 @@ function buildResultFromLogs(sandbox, payload, runDir) {
   const outputMapping = buildOutputMappingSummary(templateData);
   const nativeRunDiagnostics = payload.nativeRunDiagnostics || null;
   const suctionPressureResponse = buildSuctionPressureResponse(nativeRunDiagnostics);
+  const nativeNcInterfaceEvidence = buildNativeNcInterfaceEvidence(templateData);
+  const sharedNodeNcEvidence = buildSharedNodeNcEvidence(templateData, logs);
 
   const nucleusSeries = logs.nucleus_nodes || [];
   const cellSeries = logs.cytoplasm_nodes || [];
@@ -1819,6 +1998,7 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     const rigidState = getRigidPipetteState(snapshot, { x: 0, y: 0 });
     return Math.max(maxValue, Math.hypot(rigidState.reaction.x, rigidState.reaction.z));
   }, 0);
+  const captureEvidence = buildCaptureEvidence(maxContactForce, suctionPressureResponse);
   const displacements = {
     nucleus: Math.hypot(lastNucleus[0] || 0, lastNucleus[1] || 0),
     cell: Math.hypot(lastCell[0] || 0, lastCell[1] || 0),
@@ -1889,9 +2069,12 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     displacements,
     detachmentMetrics,
     suctionPressureResponse,
+    captureEvidence,
+    nativeNcInterfaceEvidence,
+    sharedNodeNcEvidence,
     aspiration,
-    captureEstablished: maxContactForce > 0.05,
-    captureMaintained: maxContactForce > 0.05,
+    captureEstablished: captureEvidence.directContactCapture,
+    captureMaintained: captureEvidence.directContactCapture,
     isPhysicalFebioResult: true,
     solverMetadata: sandbox.buildSolverMetadata("febio", {
       source: "febio-cli",
@@ -1939,19 +2122,23 @@ function buildResultFromLogs(sandbox, payload, runDir) {
     },
   };
 
-  if (Object.values(localNc).some((state) => state.firstFailureTime !== null)) {
-    const firstNcTime = Math.min(...Object.values(localNc).filter((state) => state.firstFailureTime !== null).map((state) => state.firstFailureTime));
+  const ncFailureStates = pickNcFailureStatesForNativePreferredTimeline(localNc);
+  if (ncFailureStates.length) {
+    const firstNcTime = Math.min(...ncFailureStates.map((state) => state.firstFailureTime));
     result.events.ncDamageStart = { time: firstNcTime, detail: "nc interface failure started in FEBio output" };
   }
-  if (Object.values(localCd).some((state) => state.firstFailureTime !== null)) {
-    const firstCdTime = Math.min(...Object.values(localCd).filter((state) => state.firstFailureTime !== null).map((state) => state.firstFailureTime));
+  const reliableLocalCdFailures = Object.values(localCd).filter(
+    (state) => state.firstFailureTime !== null && state.sourceDamageDetail?.fanoutFallback !== true,
+  );
+  if (reliableLocalCdFailures.length) {
+    const firstCdTime = Math.min(...reliableLocalCdFailures.map((state) => state.firstFailureTime));
     result.events.cdDamageStart = { time: firstCdTime, detail: "cell-dish detachment started in FEBio output" };
   }
   if (Object.values(membraneRegions).some((state) => state.damage > 0)) {
     result.events.membraneDamageStart = { time: 0, detail: "membrane proxy threshold reached" };
   }
-  if (!result.captureEstablished) {
-    result.events.tipSlip = { time: 0, detail: "no effective pipette reaction force detected" };
+  if (!captureEvidence.established) {
+    result.events.tipSlip = { time: 0, detail: "no direct contact capture or pressure-driven suction response detected" };
   }
 
   attachExplicitDetachmentEvents(
@@ -1978,7 +2165,11 @@ async function runCli(argv = process.argv.slice(2)) {
   const projectRoot = path.resolve(scriptDir, "..");
   const sandbox = await loadCanonicalRuntime(projectRoot);
   const runDir = path.resolve(args.runDir);
-  const inputPayload = hydrateManifestPayload(JSON.parse(fs.readFileSync(path.resolve(args.inputJson), "utf8")));
+  const inputJsonPath = path.resolve(args.inputJson);
+  const inputPayload = hydrateManifestPayload(
+    JSON.parse(fs.readFileSync(inputJsonPath, "utf8")),
+    path.dirname(inputJsonPath),
+  );
   const nativeRunDiagnostics = await buildNativeRunDiagnostics(projectRoot, runDir, inputPayload);
   const normalizedResult = buildResultFromLogs(sandbox, { ...inputPayload, nativeRunDiagnostics }, runDir);
   const outputPath =
@@ -2022,8 +2213,11 @@ if (isDirectRun) {
 export {
   attachExplicitDetachmentEvents,
   assessDetachmentSnapshot,
+  buildCaptureEvidence,
   buildDetachmentMetricsFromLocalState,
+  buildNativeNcInterfaceEvidence,
   buildOutputMappingSummary,
+  buildSharedNodeNcEvidence,
   buildSuctionPressureResponse,
   buildXpltPlotfileBridgePayload,
   computeCellDishRegionStateWithFace,
@@ -2031,7 +2225,9 @@ export {
   computeTangentialTractionFromPlotfileBridge,
   computeTangentialTractionFromFaceSnapshot,
   getRigidPipetteState,
+  hydrateManifestPayload,
   inferFaceSnapshotValueOffset,
+  resolveArtifactPath,
   resolveTangentialShearObservation,
   buildResultFromLogs,
   runCli,

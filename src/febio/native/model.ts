@@ -74,17 +74,28 @@ function buildContacts(spec, mesh) {
   };
 }
 
-function buildSolverFacingLogOutputs(outputs) {
+function buildSolverFacingLogOutputs(outputs, interfaces = {}) {
   const logOutputs = buildNativeLogOutputs(outputs);
   const activeFaceData = new Set([
     "cell_dish_interface_surface",
     "pipette_cell_contact_surface",
     "pipette_contact_surface",
   ]);
+  if (interfaces.nucleusCytoplasm?.solverActive === true) {
+    const activeNcRegions = new Set(interfaces.nucleusCytoplasm?.contactRegions || ["left", "right", "top", "bottom"]);
+    (logOutputs.faceData || [])
+      .filter((entry) => String(entry.name || "").startsWith("nucleus_cytoplasm_") && activeNcRegions.has(entry.name.split("_")[2]))
+      .forEach((entry) => activeFaceData.add(entry.name));
+  }
   return {
     ...logOutputs,
     faceData: (logOutputs.faceData || []).filter((entry) => activeFaceData.has(entry.name)),
-    plotfileSurfaceData: [],
+    plotfileSurfaceData: interfaces.nucleusCytoplasm?.solverActive === true
+      ? (logOutputs.plotfileSurfaceData || []).filter((entry) =>
+          entry.interfaceGroup === "localNc" &&
+          (interfaces.nucleusCytoplasm?.contactRegions || ["left", "right", "top", "bottom"]).includes(entry.region)
+        )
+      : [],
   };
 }
 
@@ -192,7 +203,7 @@ export function buildNativeFebioModel(nativeCaseSpec = {}) {
   const meshValidation = validateNativeMesh(mesh);
   const interfaces = buildNativeInterfaces(spec, mesh);
   const outputs = buildNativeOutputs(spec, mesh);
-  const logOutputs = buildSolverFacingLogOutputs(outputs);
+  const logOutputs = buildSolverFacingLogOutputs(outputs, interfaces);
   const parameterDigest = digestNativeCaseSpec(spec);
 
   return {

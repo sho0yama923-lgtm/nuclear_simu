@@ -21,6 +21,7 @@ import { importFebioResult, normalizeExternalFebioPayload, normalizeFebioResult 
 import {
   applyRunClassification,
   assessDetachment,
+  buildDetachmentEvidence,
   classifyRun,
   determineDominantMechanism,
   findEarliestLocalFailure,
@@ -50,6 +51,7 @@ export {
   normalizeFebioResult,
   applyRunClassification,
   assessDetachment,
+  buildDetachmentEvidence,
   classifyRun,
   determineDominantMechanism,
   findEarliestLocalFailure,

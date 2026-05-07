@@ -1,13 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { loadApp } from "./load-app.mjs";
 import {
   attachExplicitDetachmentEvents,
+  buildCaptureEvidence,
   buildDetachmentMetricsFromLocalState,
+  buildNativeNcInterfaceEvidence,
   buildOutputMappingSummary,
+  buildSharedNodeNcEvidence,
   buildSuctionPressureResponse,
   buildXpltPlotfileBridgePayload,
   computeCellDishRegionStateWithFace,
@@ -15,7 +19,9 @@ import {
   computeTangentialTractionFromFaceSnapshot,
   computeTangentialTractionFromPlotfileBridge,
   getRigidPipetteState,
+  hydrateManifestPayload,
   inferFaceSnapshotValueOffset,
+  resolveArtifactPath,
   resolveTangentialShearObservation,
 } from "../scripts/convert_febio_output.mjs";
 
@@ -519,6 +525,7 @@ test("classification prefers native detachment signals and keeps proxy fallback 
   const app = await loadApp();
   assert.equal(typeof app.applyRunClassification, "function");
   assert.equal(typeof app.assessDetachment, "function");
+  assert.equal(typeof app.buildDetachmentEvidence, "function");
   assert.equal(typeof app.findEarliestLocalFailure, "function");
   const result = {
     captureEstablished: true,
@@ -541,6 +548,288 @@ test("classification prefers native detachment signals and keeps proxy fallback 
   assert.equal(result.classificationSource, "test-source");
   assert.equal(result.firstFailureSite, "nc:top");
   assert.equal(app.assessDetachment(result).mode, "native");
+  assert.equal(app.buildDetachmentEvidence(result).primarySource, "native-nc-interface");
+});
+
+test("classification keeps proxy-only NC regions out of native-first failure ordering", async () => {
+  const app = await loadApp();
+  const result = {
+    captureEstablished: true,
+    captureMaintained: true,
+    damage: { nc: 1, cd: 0, membrane: 0 },
+    localNc: {
+      left: { damage: 0.5, firstFailureTime: 2.0, firstFailureMode: "normal", provenance: "native-face-data-preferred" },
+      top: { damage: 0, provenance: "proxy-fallback-explicit" },
+      right: { damage: 1, firstFailureTime: 0.87, firstFailureMode: "normal", provenance: "native-face-data-preferred" },
+      bottom: { damage: 1, firstFailureTime: 0.53, firstFailureMode: "shear", provenance: "proxy-fallback-explicit" },
+    },
+    membraneRegions: {},
+    detachmentMetrics: { contactAreaRatio: 1, relativeNucleusDisplacement: 1 },
+    displacements: { nucleus: 1 },
+    events: {},
+    peaks: {},
+  };
+
+  assert.deepEqual(app.findEarliestLocalFailure(result), { site: "nc:right", mode: "normal" });
+  app.applyRunClassification(result, "test-source");
+  assert.equal(result.firstFailureSite, "nc:right");
+  assert.equal(result.firstFailureMode, "normal");
+  assert.equal(result.detachmentEvidence.primarySource, "native-nc-interface");
+});
+
+test("classification treats nucleus pressure response as separate capture evidence", async () => {
+  const app = await loadApp();
+  const result = {
+    captureEstablished: false,
+    captureMaintained: false,
+    suctionPressureResponse: {
+      active: true,
+      normalDisplacementActive: true,
+      observedNodeCount: 4,
+      source: "native-pressure-load-response",
+    },
+    damage: { nc: 0.05, cd: 0.02, membrane: 0.03 },
+    localNc: {
+      left: { damage: 0, provenance: "native-face-data-preferred" },
+      top: { damage: 0, provenance: "native-face-data-preferred" },
+      right: { damage: 0, provenance: "native-face-data-preferred" },
+      bottom: { damage: 0, provenance: "native-face-data-preferred" },
+    },
+    membraneRegions: { top_neck: { damage: 0.03 } },
+    detachmentMetrics: { contactAreaRatio: 1, relativeNucleusDisplacement: 0.05 },
+    displacements: { nucleus: 0.05 },
+    events: {},
+    peaks: {},
+  };
+
+  assert.equal(app.assessDetachment(result).pressureDrivenSuctionResponse, true);
+  assert.equal(app.classifyRun(result), "no_capture_general");
+});
+
+test("classification still respects explicit early slip events", async () => {
+  const app = await loadApp();
+  const result = {
+    captureEstablished: false,
+    captureMaintained: false,
+    suctionPressureResponse: {
+      active: true,
+      normalDisplacementActive: true,
+    },
+    damage: { nc: 0, cd: 0, membrane: 0 },
+    localNc: {},
+    membraneRegions: {},
+    events: { tipSlip: { time: 0.5, detail: "explicit measured slip" } },
+    peaks: {},
+  };
+
+  assert.equal(app.classifyRun(result), "early_slip");
+});
+
+test("classification does not treat global fan-out cell-dish force as local detachment", async () => {
+  const app = await loadApp();
+  const result = {
+    captureEstablished: false,
+    captureMaintained: false,
+    suctionPressureResponse: {
+      active: true,
+      normalDisplacementActive: true,
+    },
+    damage: { nc: 0, cd: 1, membrane: 0 },
+    localNc: {
+      left: { damage: 0, provenance: "native-face-data-preferred" },
+      top: { damage: 0, provenance: "native-face-data-preferred" },
+      right: { damage: 0, provenance: "native-face-data-preferred" },
+      bottom: { damage: 0, provenance: "native-face-data-preferred" },
+    },
+    localCd: {
+      left: {
+        damage: 1,
+        firstFailureTime: 0.2,
+        sourceDamage: "native-plotfile-contact-traction",
+        sourceDamageDetail: { fanoutFallback: true, regionScope: "global", payloadRegion: "__global" },
+      },
+    },
+    membraneRegions: {},
+    detachmentMetrics: { contactAreaRatio: 1, relativeNucleusDisplacement: 0 },
+    displacements: { nucleus: 0 },
+    events: { cdDamageStart: { time: 0.2 } },
+    firstFailureSite: "cd:left",
+    peaks: {},
+  };
+
+  assert.equal(app.determineDominantMechanism(result), "local_shear");
+  assert.equal(app.classifyRun(result), "no_capture_general");
+});
+
+test("detachment evidence separates pressure response from proxy displacement and native NC failure", async () => {
+  const app = await loadApp();
+  const result = {
+    captureEstablished: false,
+    captureMaintained: false,
+    suctionPressureResponse: {
+      active: true,
+      normalDisplacementActive: true,
+      observedNodeCount: 4,
+      source: "native-pressure-load-response",
+    },
+    damage: { nc: 0, cd: 0, membrane: 0 },
+    localNc: {
+      left: { damage: 0, provenance: "proxy-fallback-explicit" },
+      top: { damage: 0, provenance: "proxy-fallback-explicit" },
+      right: { damage: 0, provenance: "proxy-fallback-explicit" },
+      bottom: { damage: 0, provenance: "proxy-fallback-explicit" },
+    },
+    localCd: {},
+    membraneRegions: {},
+    nativeNcInterfaceEvidence: {
+      available: false,
+      reason: "nucleus-cytoplasm interface uses conformal shared-node force transfer",
+    },
+    sharedNodeNcEvidence: {
+      available: true,
+      source: "shared-node-region-node-data",
+      compatibleWithSharedNodeCoupling: true,
+      observedNodeCount: 8,
+      maxRelativeNormalDisplacement: 0,
+      maxRelativeShearDisplacement: 0,
+      maxSharedDisplacement: 2.4,
+      interpretation: "shared-node NC evidence observes region displacement continuity; it is not solver-active contact failure evidence",
+    },
+    detachmentMetrics: { contactAreaRatio: 1, relativeNucleusDisplacement: 2.18 },
+    displacements: { nucleus: 2.18 },
+    events: {},
+    peaks: {},
+  };
+  const evidence = app.buildDetachmentEvidence(result);
+
+  assert.equal(evidence.primarySource, "proxy-displacement");
+  assert.equal(evidence.pressureDrivenSuctionResponse.active, true);
+  assert.equal(evidence.nativeNcInterfaceFailure.active, false);
+  assert.equal(evidence.nativeNcInterfaceFailure.outputAvailable, false);
+  assert.match(evidence.nativeNcInterfaceFailure.unavailableReason, /shared-node/);
+  assert.equal(evidence.sharedNodeNcObservation.available, true);
+  assert.equal(evidence.sharedNodeNcObservation.maxSharedDisplacement, 2.4);
+  assert.equal(evidence.proxyDisplacement.active, true);
+  assert.match(evidence.interpretation, /proxy-derived/);
+  assert.equal(app.applyRunClassification(result).detachmentEvidence.primarySource, "proxy-displacement");
+});
+
+test("detachment evidence treats native NC face output as available even without failure", async () => {
+  const app = await loadApp();
+  const result = {
+    captureEstablished: false,
+    captureMaintained: false,
+    suctionPressureResponse: { active: true, normalDisplacementActive: true, observedNodeCount: 4 },
+    damage: { nc: 0, cd: 0, membrane: 0 },
+    localNc: {
+      left: { damage: 0, sourceNormal: "native-face-pressure", sourceDamage: "native-face-gap-pressure" },
+      top: { damage: 0, sourceNormal: "native-face-pressure", sourceDamage: "native-face-gap-pressure" },
+      right: { damage: 0, sourceNormal: "native-face-pressure", sourceDamage: "native-face-gap-pressure" },
+      bottom: { damage: 0, sourceNormal: "native-face-pressure", sourceDamage: "native-face-gap-pressure" },
+    },
+    localCd: {},
+    membraneRegions: {},
+    nativeNcInterfaceEvidence: {
+      available: true,
+      reason: "native nucleus-cytoplasm interface outputs are solver-facing",
+    },
+    detachmentMetrics: { contactAreaRatio: 1, relativeNucleusDisplacement: 2.18 },
+    events: {},
+    peaks: {},
+  };
+  const evidence = app.buildDetachmentEvidence(result);
+
+  assert.equal(evidence.nativePreferred, true);
+  assert.equal(evidence.nativeNcInterfaceFailure.outputAvailable, true);
+  assert.equal(evidence.nativeNcInterfaceFailure.active, false);
+  assert.equal(evidence.nativeNcInterfaceFailure.unavailableReason, "");
+  assert.equal(evidence.primarySource, "proxy-displacement");
+});
+
+test("detachment evidence does not promote proxy-only NC damage to native failure", async () => {
+  const app = await loadApp();
+  const result = {
+    captureEstablished: true,
+    captureMaintained: true,
+    suctionPressureResponse: { active: true, normalDisplacementActive: true, observedNodeCount: 4 },
+    damage: { nc: 1, cd: 0, membrane: 0 },
+    localNc: {
+      left: { damage: 0, sourceNormal: "native-face-pressure", sourceDamage: "native-face-gap-pressure" },
+      top: { damage: 0, provenance: "proxy-fallback-explicit" },
+      right: { damage: 0, sourceNormal: "native-face-pressure", sourceDamage: "native-face-gap-pressure" },
+      bottom: { damage: 1, firstFailureTime: 2, firstFailureMode: "shear", provenance: "proxy-fallback-explicit" },
+    },
+    localCd: {},
+    membraneRegions: {},
+    nativeNcInterfaceEvidence: {
+      available: true,
+      reason: "native nucleus-cytoplasm interface outputs are solver-facing",
+    },
+    detachmentMetrics: { contactAreaRatio: 1, relativeNucleusDisplacement: 1.1 },
+    events: {},
+    peaks: {},
+  };
+  const evidence = app.buildDetachmentEvidence(result);
+
+  assert.equal(evidence.nativePreferred, true);
+  assert.equal(evidence.nativeNcInterfaceFailure.outputAvailable, true);
+  assert.equal(evidence.nativeNcInterfaceFailure.active, false);
+  assert.equal(evidence.nativeNcInterfaceFailure.damage, 0);
+  assert.equal(evidence.primarySource, "proxy-displacement");
+  assert.match(evidence.interpretation, /proxy-derived/);
+});
+
+test("external FEBio converter explains unavailable native NC interface outputs", () => {
+  const evidence = buildNativeNcInterfaceEvidence({
+    interfaces: {
+      nucleusCytoplasm: {
+        type: "conformal-shared-node",
+        solverActive: false,
+        status: "force-transfer-shared-node",
+        mode: "mesh-conformal force-transfer coupling",
+      },
+    },
+    logOutputs: {
+      faceData: [{ name: "cell_dish_interface_surface" }],
+      plotfileSurfaceData: [],
+    },
+  });
+
+  assert.equal(evidence.available, false);
+  assert.match(evidence.reason, /shared-node/);
+  assert.deepEqual(evidence.details.faceDataOutputs, []);
+  assert.deepEqual(evidence.details.plotfileSurfaceOutputs, []);
+  assert.deepEqual(evidence.details.sharedNodeRegionNodeOutputs, []);
+});
+
+test("external FEBio converter summarizes shared-node NC region node evidence", () => {
+  const evidence = buildSharedNodeNcEvidence(
+    {
+      interfaces: {
+        nucleusCytoplasm: { type: "conformal-shared-node" },
+      },
+      interfaceRegions: {
+        localNc: {
+          right: { nucleusNodeSet: "nc_right_nucleus_nodes", cytoplasmNodeSet: "nc_right_cytoplasm_nodes" },
+        },
+      },
+    },
+    {
+      nc_right_nucleus_nodes: [
+        { time: 5, records: [[46, -2, 0, 0.4], [47, -2.2, 0, -0.1]] },
+      ],
+      nc_right_cytoplasm_nodes: [
+        { time: 5, records: [[46, -2, 0, 0.4], [47, -2.2, 0, -0.1]] },
+      ],
+    },
+  );
+
+  assert.equal(evidence.available, true);
+  assert.equal(evidence.compatibleWithSharedNodeCoupling, true);
+  assert.equal(evidence.observedNodeCount, 2);
+  assert.equal(evidence.maxRelativeNormalDisplacement, 0);
+  assert.equal(evidence.maxSharedDisplacement, Math.hypot(2.2, 0, 0.1));
+  assert.match(evidence.interpretation, /not solver-active contact failure/);
 });
 
 test("import supplements detachment events from native-first history", async () => {
@@ -923,6 +1212,19 @@ test("external FEBio converter builds native-first detachment metrics from local
   assert.equal(detachmentMetrics.provenance, "native-face-data-preferred");
 });
 
+test("external FEBio converter ignores unobserved proxy contact fractions for detachment area", () => {
+  const detachmentMetrics = buildDetachmentMetricsFromLocalState(
+    {
+      left: { damage: 0, contactFraction: 0, sourceDamage: "node-displacement-proxy" },
+      top: { damage: 0, contactFraction: 0, sourceDamage: "node-displacement-proxy" },
+    },
+    { nucleus: 0 },
+  );
+
+  assert.equal(detachmentMetrics.contactAreaRatio, 1);
+  assert.equal(detachmentMetrics.provenance, "proxy-fallback-explicit");
+});
+
 test("external FEBio converter carries nucleus-pressure response separately from contact outputs", () => {
   const response = buildSuctionPressureResponse({
     pressureLoadResponse: {
@@ -954,6 +1256,33 @@ test("external FEBio converter carries nucleus-pressure response separately from
   assert.equal(response.meanNormalDisplacement, 2.482);
   assert.equal(response.rows[0].rawId, 38);
   assert.equal(response.source, "native-pressure-load-response");
+
+  const evidence = buildCaptureEvidence(0, response);
+  assert.equal(evidence.directContactCapture, false);
+  assert.equal(evidence.pressureDrivenSuctionResponse, true);
+  assert.equal(evidence.established, true);
+  assert.equal(evidence.maintained, true);
+  assert.match(evidence.interpretation, /direct contact outputs remain separate/);
+});
+
+test("external FEBio converter resolves manifest artifacts next to stale absolute paths", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "nuclear-simu-manifest-"));
+  const nativeModelPath = path.join(tempDir, "S8-M_case_native_model.json");
+  fs.writeFileSync(
+    nativeModelPath,
+    JSON.stringify({
+      parameterDigest: "fdig_test",
+      effectiveNativeSpec: { caseName: "S8_case", outputNameTag: "S8-M" },
+    }),
+    "utf8",
+  );
+  const stalePath = "/old/machine/febio_exports/S8_case/S8-M_case_native_model.json";
+  const manifest = { files: { nativeModel: stalePath } };
+  const hydrated = hydrateManifestPayload(manifest, tempDir);
+
+  assert.equal(resolveArtifactPath(stalePath, tempDir), nativeModelPath);
+  assert.equal(hydrated.parameterDigest, "fdig_test");
+  assert.equal(hydrated.nativeSpec.caseName, "S8_case");
 });
 
 test("external FEBio converter reads native tangential traction from face snapshots when available", () => {
@@ -1348,7 +1677,7 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(agent, /FEBio-native direct parameter path/);
   assert.match(agent, /docs\/ops\/ROADMAP\.md/);
 
-  assert.match(progress, /Active milestone: S8-Q Nucleus-Pressure Detachment Interpretation/);
+  assert.match(progress, /Active milestone: S9 Native NC Failure Calibration/);
   assert.match(progress, /target physical suction model applies pressure to the nucleus-side capture surface/);
   assert.match(progress, /native-only path/);
   assert.match(progress, /diagnostic closure/);

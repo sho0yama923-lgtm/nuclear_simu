@@ -1,54 +1,58 @@
 {
-  "caseName": "S8_pipette_nucleus_pressure_return",
-  "outputNameTag": "S8-M",
-  "baseName": "S8-M_S8_pipette_nucleus_pressure_return",
-  "generatedAt": "2026-05-01T08:25:43.448Z",
-  "parameterDigest": "fdig_598cde20",
+  "caseName": "S8_pipette_nucleus_nc_separated_failure_high_pressure",
+  "outputNameTag": "S8-Y",
+  "baseName": "S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure",
+  "generatedAt": "2026-05-01T08:41:13.575Z",
+  "parameterDigest": "fdig_a9d1023f",
   "exportReady": true,
   "solverMetadata": {
     "solverMode": "febio",
     "source": "febio-native-only"
   },
   "files": {
-    "feb": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.feb",
-    "effectiveNativeSpec": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return_effective_native_spec.json",
-    "nativeModel": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return_native_model.json",
-    "manifest": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return_manifest.json",
-    "readme": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return_README.txt",
-    "expectedLog": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.log",
-    "expectedXplt": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.xplt",
-    "expectedResultJson": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return_result.json"
+    "feb": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure.feb",
+    "effectiveNativeSpec": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure_effective_native_spec.json",
+    "nativeModel": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure_native_model.json",
+    "manifest": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure_manifest.json",
+    "readme": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure_README.txt",
+    "expectedLog": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure.log",
+    "expectedXplt": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure.xplt",
+    "expectedResultJson": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure_result.json"
   },
   "expectedArtifacts": {
-    "logPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.log",
-    "xpltPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.xplt",
+    "logPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure.log",
+    "xpltPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure.xplt",
     "csvOutputPaths": [
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_interface_cell_dish.csv",
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_pipette_cell_contact.csv",
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_pipette_contact.csv",
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_rigid_pipette.csv",
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_nucleus_nodes.csv",
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_cytoplasm_nodes.csv"
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_interface_nc_left.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_interface_nc_right.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_interface_cell_dish.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_pipette_cell_contact.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_pipette_contact.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_rigid_pipette.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_nucleus_nodes.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_cytoplasm_nodes.csv"
     ],
-    "resultJsonPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return_result.json"
+    "resultJsonPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure_result.json"
   },
   "commands": {
-    "febioCli": "febio4 -i \"C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.feb\"",
-    "repositoryRunner": "powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile \"C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.feb\""
+    "febioCli": "febio4 -i \"C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure.feb\"",
+    "repositoryRunner": "powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile \"C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure.feb\""
   },
   "studioConfirmation": {
-    "febPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.feb",
-    "runDirectory": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return",
-    "logPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.log",
-    "xpltPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return.xplt",
-    "resultPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/S8-M_S8_pipette_nucleus_pressure_return_result.json",
+    "febPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure.feb",
+    "runDirectory": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure",
+    "logPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure.log",
+    "xpltPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure.xplt",
+    "resultPath": "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/S8-Y_S8_pipette_nucleus_nc_separated_failure_high_pressure_result.json",
     "outputCsv": [
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_interface_cell_dish.csv",
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_pipette_cell_contact.csv",
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_pipette_contact.csv",
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_rigid_pipette.csv",
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_nucleus_nodes.csv",
-      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_pressure_return/febio_cytoplasm_nodes.csv"
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_interface_nc_left.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_interface_nc_right.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_interface_cell_dish.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_pipette_cell_contact.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_pipette_contact.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_rigid_pipette.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_nucleus_nodes.csv",
+      "C:\\Users\\xiogo\\projects\\nuclear_simu\\febio_exports\\S8_pipette_nucleus_nc_separated_failure_high_pressure/febio_cytoplasm_nodes.csv"
     ]
   },
   "validation": {
@@ -660,45 +664,15 @@
       "surfaceOverlapDiagnostics": {
         "duplicateNodeSets": [
           {
-            "nodeSignature": "45,46,47,48|45,48,49,52|46,47,50,51|49,50,51,52",
-            "surfaces": [
-              "nucleus_interface_surface",
-              "cytoplasm_interface_surface"
-            ]
-          },
-          {
-            "nodeSignature": "45,48,49,52",
-            "surfaces": [
-              "nucleus_interface_left_surface",
-              "cytoplasm_interface_left_surface"
-            ]
-          },
-          {
             "nodeSignature": "46,47,50,51",
             "surfaces": [
               "nucleus_interface_right_surface",
-              "cytoplasm_interface_right_surface",
               "pipette_suction_surface"
-            ]
-          },
-          {
-            "nodeSignature": "49,50,51,52",
-            "surfaces": [
-              "nucleus_interface_top_surface",
-              "cytoplasm_interface_top_surface"
-            ]
-          },
-          {
-            "nodeSignature": "45,46,47,48",
-            "surfaces": [
-              "nucleus_interface_bottom_surface",
-              "cytoplasm_interface_bottom_surface"
             ]
           }
         ],
         "pipetteSuctionOverlaps": [
-          "nucleus_interface_right_surface",
-          "cytoplasm_interface_right_surface"
+          "nucleus_interface_right_surface"
         ],
         "pipetteSuctionSeparatedFromNucleusRight": false
       },

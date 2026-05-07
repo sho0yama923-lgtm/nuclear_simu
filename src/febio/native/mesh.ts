@@ -157,6 +157,7 @@ function refineNativeNucleusCytoplasmCoupling(mesh, spec = {}) {
 
   const yMin = -0.5;
   const yMax = 0.5;
+  const useSeparatedNcContact = spec.contacts?.nucleusCytoplasm?.meshCouplingMode === "separated-contact";
   const splitNodes = [
     buildNode(65, left, yMin, nucleusBottom),
     buildNode(66, left, yMax, nucleusBottom),
@@ -167,17 +168,32 @@ function refineNativeNucleusCytoplasmCoupling(mesh, spec = {}) {
     buildNode(71, right, yMin, nucleusTop),
     buildNode(72, right, yMax, nucleusTop),
   ];
+  const ncCytoplasmNodes = useSeparatedNcContact
+    ? [
+        buildNode(73, nucleusLeft, yMin, nucleusBottom),
+        buildNode(74, nucleusRight, yMin, nucleusBottom),
+        buildNode(75, nucleusRight, yMax, nucleusBottom),
+        buildNode(76, nucleusLeft, yMax, nucleusBottom),
+        buildNode(77, nucleusLeft, yMin, nucleusTop),
+        buildNode(78, nucleusRight, yMin, nucleusTop),
+        buildNode(79, nucleusRight, yMax, nucleusTop),
+        buildNode(80, nucleusLeft, yMax, nucleusTop),
+      ]
+    : [];
+  const c = useSeparatedNcContact
+    ? { n45: 73, n46: 74, n47: 75, n48: 76, n49: 77, n50: 78, n51: 79, n52: 80 }
+    : { n45: 45, n46: 46, n47: 47, n48: 48, n49: 49, n50: 50, n51: 51, n52: 52 };
   const replacedIds = new Set([1, 2, 5]);
   const existingNodes = (mesh.nodes || []).filter((node) => node.id < 9 || node.id > 16);
   const elements = (mesh.elements || []).filter((element) => !replacedIds.has(element.id));
   const coupledElements = [
-    buildHex(1, "cytoplasm", [1, 2, 3, 4, 65, 45, 48, 66]),
+    buildHex(1, "cytoplasm", [1, 2, 3, 4, 65, c.n45, c.n48, 66]),
     buildHex(2, "nucleus", [45, 46, 47, 48, 49, 50, 51, 52]),
-    buildHex(5, "cytoplasm", [33, 34, 35, 36, 46, 69, 70, 47]),
-    buildHex(10, "cytoplasm", [65, 45, 48, 66, 67, 49, 52, 68]),
-    buildHex(11, "cytoplasm", [67, 49, 52, 68, 5, 6, 7, 8]),
-    buildHex(12, "cytoplasm", [46, 69, 70, 47, 50, 71, 72, 51]),
-    buildHex(13, "cytoplasm", [50, 71, 72, 51, 37, 38, 39, 40]),
+    buildHex(5, "cytoplasm", [33, 34, 35, 36, c.n46, 69, 70, c.n47]),
+    buildHex(10, "cytoplasm", [65, c.n45, c.n48, 66, 67, c.n49, c.n52, 68]),
+    buildHex(11, "cytoplasm", [67, c.n49, c.n52, 68, 5, 6, 7, 8]),
+    buildHex(12, "cytoplasm", [c.n46, 69, 70, c.n47, c.n50, 71, 72, c.n51]),
+    buildHex(13, "cytoplasm", [c.n50, 71, 72, c.n51, 37, 38, 39, 40]),
   ];
 
   const suctionSurface =
@@ -189,15 +205,16 @@ function refineNativeNucleusCytoplasmCoupling(mesh, spec = {}) {
     refinements: {
       ...(mesh.refinements || {}),
       nucleusCytoplasmCoupling: {
-        mode: "in-place-current-native-shared-nodes",
-        contactFreeForceTransfer: true,
+        mode: useSeparatedNcContact ? "separated-contact-native-comparison" : "in-place-current-native-shared-nodes",
+        contactFreeForceTransfer: !useSeparatedNcContact,
+        separatedContactComparison: useSeparatedNcContact,
       },
       pipetteSuctionSurface: {
         mode: spec.contacts?.pipetteCell?.suctionSurfaceMode || "nucleus-right",
         studioCompatibleWinding: spec.contacts?.pipetteCell?.suctionSurfaceMode === "cell-outer-right",
       },
     },
-    nodes: [...existingNodes, ...splitNodes].sort((a, b) => a.id - b.id),
+    nodes: [...existingNodes, ...splitNodes, ...ncCytoplasmNodes].sort((a, b) => a.id - b.id),
     elements: [...elements, ...coupledElements].sort((a, b) => a.id - b.id),
     surfaces: {
       ...mesh.surfaces,
@@ -212,15 +229,15 @@ function refineNativeNucleusCytoplasmCoupling(mesh, spec = {}) {
       nucleus_interface_top_surface: [buildFacet(4, [49, 50, 51, 52])],
       nucleus_interface_bottom_surface: [buildFacet(5, [45, 48, 47, 46])],
       cytoplasm_interface_surface: [
-        buildFacet(6, [45, 48, 52, 49]),
-        buildFacet(7, [46, 50, 51, 47]),
-        buildFacet(8, [45, 46, 47, 48]),
-        buildFacet(9, [49, 52, 51, 50]),
+        buildFacet(6, [c.n45, c.n48, c.n52, c.n49]),
+        buildFacet(7, [c.n46, c.n50, c.n51, c.n47]),
+        buildFacet(8, [c.n45, c.n46, c.n47, c.n48]),
+        buildFacet(9, [c.n49, c.n52, c.n51, c.n50]),
       ],
-      cytoplasm_interface_left_surface: [buildFacet(10, [45, 48, 52, 49])],
-      cytoplasm_interface_right_surface: [buildFacet(11, [46, 47, 51, 50])],
-      cytoplasm_interface_top_surface: [buildFacet(12, [49, 52, 51, 50])],
-      cytoplasm_interface_bottom_surface: [buildFacet(13, [45, 46, 47, 48])],
+      cytoplasm_interface_left_surface: [buildFacet(10, [c.n45, c.n48, c.n52, c.n49])],
+      cytoplasm_interface_right_surface: [buildFacet(11, [c.n46, c.n47, c.n51, c.n50])],
+      cytoplasm_interface_top_surface: [buildFacet(12, [c.n49, c.n52, c.n51, c.n50])],
+      cytoplasm_interface_bottom_surface: [buildFacet(13, [c.n45, c.n46, c.n47, c.n48])],
       pipette_suction_surface: suctionSurface,
     },
     nodeSets: {
@@ -229,10 +246,10 @@ function refineNativeNucleusCytoplasmCoupling(mesh, spec = {}) {
       nc_right_nucleus_nodes: [46, 47, 50, 51],
       nc_top_nucleus_nodes: [49, 50, 51, 52],
       nc_bottom_nucleus_nodes: [45, 46, 47, 48],
-      nc_left_cytoplasm_nodes: [45, 48, 49, 52],
-      nc_right_cytoplasm_nodes: [46, 47, 50, 51],
-      nc_top_cytoplasm_nodes: [49, 50, 51, 52],
-      nc_bottom_cytoplasm_nodes: [45, 46, 47, 48],
+      nc_left_cytoplasm_nodes: [c.n45, c.n48, c.n49, c.n52],
+      nc_right_cytoplasm_nodes: [c.n46, c.n47, c.n50, c.n51],
+      nc_top_cytoplasm_nodes: [c.n49, c.n50, c.n51, c.n52],
+      nc_bottom_cytoplasm_nodes: [c.n45, c.n46, c.n47, c.n48],
       pipette_suction_nodes: [...new Set(suctionSurface.flatMap((facet) => facet.nodes || []))].sort((a, b) => a - b),
     },
     elementSets: {

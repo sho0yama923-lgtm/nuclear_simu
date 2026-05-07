@@ -294,8 +294,7 @@ function getActiveSurfacePairNames(model = {}) {
 }
 
 function filterOutputsForFebioXml(outputs = {}, activeSurfaceNames = new Set()) {
-  const isSolverActiveOutput = (entry) =>
-    activeSurfaceNames.has(entry.surface) && !String(entry.name || "").startsWith("nucleus_cytoplasm_");
+  const isSolverActiveOutput = (entry) => activeSurfaceNames.has(entry.surface);
   return {
     ...outputs,
     faceData: (outputs.faceData || []).filter(isSolverActiveOutput),

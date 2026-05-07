@@ -398,3 +398,236 @@ Converted S8-M result:
 - `resultProvenance.dataSources.suctionPressureResponse="native-pressure-load-response"`
 
 Manifest-based conversion now hydrates the exported native model, so the converted S8-M result preserves the native spec and `fdig_598cde20` digest. This makes the nucleus-pressure response available to downstream interpretation without pretending that direct contact pressure, rigid reaction, or pipette contact-force plotfile outputs are active.
+
+## S8-Q detachment / capture interpretation
+
+S8-Q updates downstream classification and conversion semantics so nucleus-side pressure response is recognized as pressure-driven capture evidence without renaming it as direct rigid/contact capture.
+
+Interpretation rules:
+
+- `captureEstablished` and `captureMaintained` remain direct contact / rigid reaction evidence in converted results.
+- `captureEvidence.directContactCapture` reports the direct contact-force threshold result.
+- `captureEvidence.pressureDrivenSuctionResponse` reports whether `suctionPressureResponse.active` or `suctionPressureResponse.normalDisplacementActive` is true.
+- Classification must not return `missed_target` or `insufficient_hold` solely because `captureEstablished=false` when pressure-driven suction response is active.
+- Direct contact outputs remain separate: contact pressure, rigid reaction, pipette `.xplt` force, and pressure-load displacement response must not be collapsed into one gate.
+
+This keeps S8-M as the target physical model: pressure is applied to the nucleus-side capture surface, and S8-G/L outer-cell cases remain diagnostic bridge evidence only.
+
+## S8-R result artifact review gate
+
+S8-R reviews the S8-M converted-result gate after the S8-Q interpretation change.
+
+Repository artifact status in the current checkout:
+
+- native export bundle is present: `.feb`, effective native spec, native model, manifest, README.
+- FEBio run outputs are absent: `.log`, `.xplt`, contact CSVs, node CSVs, suction-node CSV, and converted result JSON.
+- The manifest contains absolute paths from the original export machine, so the converter now resolves manifest artifacts by basename next to the manifest before falling back to the stored absolute path.
+
+Verdict:
+
+- No new geometry or pressure convention change is justified by this checkout.
+- The S8-M result-level verdict is blocked on obtaining or regenerating the FEBio run artifacts.
+- Once artifacts are present, the review should report `captureEvidence.directContactCapture`, `captureEvidence.pressureDrivenSuctionResponse`, `suctionPressureResponse`, direct contact pressure, rigid reaction, pipette plotfile force, and cell-dish support/gap as separate fields.
+
+## S8-S local run artifact acquisition and converted verdict
+
+S8-S regenerated the S8-M run artifacts locally with FEBio 4.12.0 and converted the manifest-backed run output.
+
+Generated artifacts:
+
+- `S8-M_S8_pipette_nucleus_pressure_return.log`
+- `S8-M_S8_pipette_nucleus_pressure_return.xplt`
+- `febio_interface_cell_dish.csv`
+- `febio_pipette_cell_contact.csv`
+- `febio_pipette_contact.csv`
+- `febio_rigid_pipette.csv`
+- `febio_nucleus_nodes.csv`
+- `febio_cytoplasm_nodes.csv`
+- `febio_pipette_suction_nodes.csv`
+- `S8-M_S8_pipette_nucleus_pressure_return_result.json`
+
+Converted verdict:
+
+- classification: `nucleus_detached`
+- `captureEvidence.directContactCapture=false`
+- `captureEvidence.pressureDrivenSuctionResponse=true`
+- `suctionPressureResponse.active=true`
+- `suctionPressureResponse.normalDisplacementActive=true`
+- observed suction nodes: `4`
+- missing suction nodes: `[]`
+- max suction-surface displacement: `3.1480948892317233 um`
+- mean suction-normal displacement: `2.48161278158 um`
+- direct pipette contact outputs remain inactive: contact pressure, rigid reaction, suction plotfile force, mouth plotfile force all zero
+- cell-dish support remains active through `.xplt` contact force with controlled gap, but this global fan-out force is not treated as local cell-dish detachment damage for classification
+
+Interpretation: S8-M now has a local run-backed converted result. The result supports pressure-driven nucleus-side capture/response and does not rely on direct pipette contact capture. The `nucleus_detached` classification is currently driven by proxy displacement/detachment interpretation, not by native nucleus-cytoplasm face damage. The next refinement should inspect whether the detachment metric should report pressure-driven response separately from true nucleus-cytoplasm interface failure.
+
+## S8-T detachment evidence source split
+
+S8-T adds `detachmentEvidence` to classified results so the converted result separates the reason for the detachment classification from pressure-response and native interface-failure evidence.
+
+S8-M converted result after S8-T:
+
+- classification: `nucleus_detached`
+- `detachmentEvidence.primarySource="proxy-displacement"`
+- `detachmentEvidence.pressureDrivenSuctionResponse.active=true`
+- `detachmentEvidence.pressureDrivenSuctionResponse.observedNodeCount=4`
+- `detachmentEvidence.nativeNcInterfaceFailure.active=false`
+- `detachmentEvidence.nativeNcInterfaceFailure.damage=0`
+- `detachmentEvidence.proxyDisplacement.active=true`
+- `detachmentEvidence.proxyDisplacement.value=2.1886848511725`
+- `detachmentEvidence.proxyGeometry.active=false`
+- `detachmentEvidence.proxyGeometry.contactAreaRatio=1`
+
+Interpretation: `nucleus_detached` is now explicitly source-qualified. For S8-M it means proxy displacement crossed the detachment threshold while pressure-driven suction response was active. It does not mean native nucleus-cytoplasm interface failure was observed.
+
+## S8-U native NC interface evidence root cause
+
+S8-U resolves why S8-M cannot currently report native nucleus-cytoplasm interface failure evidence.
+
+Root cause:
+
+- The native nucleus-cytoplasm interface is `type="conformal-shared-node"` with `solverActive=false`.
+- The generated `.feb` intentionally omits `nucleus_cytoplasm_interface` contact.
+- `buildSolverFacingLogOutputs` keeps only `cell_dish_interface_surface`, `pipette_cell_contact_surface`, and `pipette_contact_surface` face-data logs.
+- Solver-facing `plotfileSurfaceData` is empty for S8-M.
+- Therefore no `febio_interface_nc_*.csv`, `febio_interface_nucleus_cytoplasm.csv`, or localNc `.xplt` contact-traction output can exist for the current S8-M run.
+
+Converted result evidence:
+
+- `nativeNcInterfaceEvidence.available=false`
+- reason: conformal shared-node force transfer emits no solver-active NC contact face data
+- `detachmentEvidence.nativeNcInterfaceFailure.outputAvailable=false`
+- `detachmentEvidence.nativeNcInterfaceFailure.active=false`
+
+Conclusion: existing S8-M artifacts are sufficient for pressure-driven suction response and displacement-based detachment interpretation, but not for native NC interface failure. The next bounded instrumentation should add a native NC evidence channel that is compatible with conformal shared-node coupling, such as node-pair relative displacement / strain across named NC regions or a deliberate solver-active cohesive/contact comparison case. Do not change the S8-M pressure geometry to solve this evidence gap.
+
+## S8-V shared-node NC evidence instrumentation
+
+S8-V adds a shared-node-compatible NC observation channel without changing the S8-M pressure geometry.
+
+Implementation:
+
+- Native solver-facing log outputs now include NC region node data for nucleus and cytoplasm sides:
+  - `febio_nc_left_nucleus_nodes.csv`
+  - `febio_nc_left_cytoplasm_nodes.csv`
+  - `febio_nc_right_nucleus_nodes.csv`
+  - `febio_nc_right_cytoplasm_nodes.csv`
+  - `febio_nc_top_nucleus_nodes.csv`
+  - `febio_nc_top_cytoplasm_nodes.csv`
+  - `febio_nc_bottom_nucleus_nodes.csv`
+  - `febio_nc_bottom_cytoplasm_nodes.csv`
+- The converter reports `sharedNodeNcEvidence` separately from `nativeNcInterfaceEvidence`.
+- `detachmentEvidence` now includes `sharedNodeNcObservation` so pressure response, shared-node continuity, proxy displacement, and native NC contact failure are not conflated.
+
+Re-run S8-M result:
+
+- FEBio 4.12.0 reached normal termination.
+- The new NC node CSVs were emitted.
+- `sharedNodeNcEvidence.available=true`
+- `sharedNodeNcEvidence.observedNodeCount=16`
+- `sharedNodeNcEvidence.maxSharedDisplacement=3.1480948892317233`
+- `sharedNodeNcEvidence.maxRelativeNormalDisplacement=0`
+- `sharedNodeNcEvidence.maxRelativeShearDisplacement=0`
+- `nativeNcInterfaceEvidence.available=false` remains true because no solver-active NC contact/cohesive output exists.
+
+Conclusion: the cause is confirmed. S8-M has pressure-driven nucleus motion and shared-node NC displacement continuity, but it still does not contain native NC contact/cohesive failure evidence. Measuring actual NC failure requires a deliberately separate solver-active NC cohesive/contact comparison or another explicit failure instrumentation path.
+
+## S8-W solver-active NC failure comparison
+
+S8-W creates the deliberate comparison that S8-U/V identified as the missing evidence path.
+
+Implementation:
+
+- Added `febio_cases/native/S8_pipette_nucleus_nc_failure_compare.native.json`.
+- The case preserves S8-M nucleus-side pressure geometry and gentle motion.
+- `contacts.nucleusCytoplasm.solverActive=true` enables solver-active NC `tied-elastic` comparison contacts.
+- Native export now honors `contacts.nucleusCytoplasm.solverActive` instead of always forcing shared-node-only NC output.
+- Solver-facing outputs include NC face data and localNc plotfile traction surfaces.
+
+Run result:
+
+- FEBio 4.12.0 reached normal termination.
+- Warning count: `0`.
+- `No contact pairs found`: `0`.
+- NC face-data CSVs were emitted:
+  - `febio_interface_nc_left.csv`
+  - `febio_interface_nc_right.csv`
+  - `febio_interface_nc_top.csv`
+  - `febio_interface_nc_bottom.csv`
+- Converted result: `nativeNcInterfaceEvidence.available=true`.
+- `detachmentEvidence.nativeNcInterfaceFailure.outputAvailable=true`.
+- `detachmentEvidence.nativeNcInterfaceFailure.active=false`.
+- Native NC damage: `0`.
+- NC region face pressure/gap damage: `0`.
+- NC contact fraction: `1`.
+- `firstFailureSite="none"`.
+- S8-W remains `classification="nucleus_detached"` because proxy displacement still crosses the detachment-start threshold.
+
+Interpretation:
+
+S8-W resolves the evidence ambiguity. Native NC failure output can be emitted for a bounded comparison on this geometry, and the solver accepts it warning-free. The result is inactive NC failure, not missing NC failure evidence. Under the current S8-M load and thresholds, suction produces nucleus/cytoplasm displacement but does not create solver-observed NC interface failure.
+
+## S8-X/Y separated-node NC failure activation
+
+S8-X/Y isolate the remaining reason S8-W did not activate native NC failure.
+
+Implementation:
+
+- Added `contacts.nucleusCytoplasm.meshCouplingMode="separated-contact"`.
+- The native mesh now duplicates cytoplasm-side NC interface nodes for separated-contact comparisons:
+  - nucleus right nodes stay `[46,47,50,51]`
+  - cytoplasm right nodes become `[74,75,78,79]`
+- This keeps the same initial coordinates but allows relative NC displacement and solver-active NC contact/failure evidence.
+
+S8-X baseline pressure result:
+
+- Case: `S8_pipette_nucleus_nc_separated_failure`
+- Pressure: `-0.7 kPa`
+- FEBio reached warning-free normal termination after S8-Z cleanup.
+- Solver-active separated NC comparison contacts are emitted only for valid left/right element faces. Top/bottom NC regions remain node-data/proxy observations.
+- `sharedNodeNcObservation.source="separated-nc-region-node-data"`
+- max relative NC displacement: `0.5375988118200001 um`
+- native NC failure remains inactive: damage `0`, `firstFailureSite="none"`
+
+S8-Y high-pressure bound result:
+
+- Case: `S8_pipette_nucleus_nc_separated_failure_high_pressure`
+- Pressure: `-3.5 kPa`
+- FEBio reached normal termination with stiffness-reformation warnings.
+- Invalid facet / no-contact-pair setup warnings are absent after S8-Z cleanup.
+- Native NC failure activates:
+  - `damage.nc=1`
+  - `detachmentEvidence.primarySource="native-nc-interface"`
+  - `detachmentEvidence.nativeNcInterfaceFailure.active=true`
+  - `firstFailureSite="nc:right"`
+  - `firstFailureMode="normal"`
+  - `events.ncDamageStart.time=0.866684`
+  - `detachmentComplete` is present
+- Peak local NC evidence:
+  - right peak normal stress `1.8880728951487502`
+  - left peak normal stress `0.8908501456260017`
+  - bottom remains proxy-only and is not used as the native first-failure site
+
+Conclusion:
+
+The implementation path is now proven end to end. S8-M could not show native NC failure because it was shared-node and failure-output unavailable. S8-W made native NC output available but still had no relative failure-driving kinematics. S8-X introduced separated NC kinematics and is now warning-free at baseline pressure. S8-Y crossed the pressure bound and produced native NC interface failure without the invalid-facet setup warnings. S9 should calibrate the physical failure boundary and reduce or justify the remaining high-pressure stiffness-reformation warnings.
+
+## S9 native NC pressure-boundary scan
+
+S9 keeps the cleaned S8-Z separated-contact comparison geometry and changes only the nucleus-side suction pressure.
+
+| Case | Pressure | FEBio warnings | Native NC failure | Native failure damage | First native/proxy site | Right peak normal | Interpretation |
+| --- | ---: | ---: | --- | ---: | --- | ---: | --- |
+| S8-X | `-0.7 kPa` | `0` | inactive | `0` | `none` | `0.3647674993207499` | warning-free no-failure baseline |
+| S9-A | `-1.4 kPa` | `0` | inactive | `0` | `nc:bottom` proxy | `0.7480285272022499` | proxy displacement/damage only; not native NC failure |
+| S9-D | `-1.55 kPa` | `0` | inactive | `0.23435479253090608` | `nc:right` | `0.8311830866887499` | warning-free partial native damage below active threshold |
+| S9-B | `-2.1 kPa` | `0` | active | `1` | `nc:right` | `1.136099188581751` | warning-free native NC failure bound |
+| S9-C | `-2.8 kPa` | `0` | active | `1` | `nc:right` | `1.5186565906312497` | warning-free stronger native NC failure |
+| S8-Y | `-3.5 kPa` | `152` | active | `1` | `nc:right` | `1.8880728951487502` | high-pressure diagnostic, no longer needed as the clean activation bound |
+
+S9 also fixed a classification interpretation issue exposed by S9-A: proxy-only top/bottom NC damage can appear in the normalized `damage.nc` summary, but it must not activate `detachmentEvidence.nativeNcInterfaceFailure`. Native NC failure now uses native face-data regions only for the native damage gate.
+
+Conclusion:
+
+The useful warning-free native NC failure transition is now bounded between S9-D `-1.55 kPa` and S9-B `-2.1 kPa`. S9-D has partial right-side native damage but stays below the detachment-start threshold; S9-B crosses into full right-side normal native failure. This makes S8-Y a high-pressure stress test rather than the primary evidence case.
