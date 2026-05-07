@@ -39,7 +39,7 @@ Last updated: 2026-05-01
 - S8-W added a solver-active NC comparison case on the S8-M nucleus-pressure geometry. FEBio 4.12.0 reached warning-free normal termination and emitted NC face/plotfile outputs, but native NC failure remained inactive: NC damage `0`, NC gap `0`, native NC face pressure `0`, and NC plotfile contact forces only numerical noise.
 - S8-X/Y added separated-node NC comparison cases. S8-X at `-0.7 kPa` is warning-free after S8-Z cleanup and creates relative NC motion while staying below failure thresholds. S8-Y at `-3.5 kPa` activates native NC failure: damage `1`, `firstFailureSite="nc:right"`, `firstFailureMode="normal"`, and `nativeNcInterfaceFailure.active=true`.
 - S8-Z resolved the separated-contact invalid facet warnings by emitting solver-active NC comparison contacts only for valid left/right element faces. Top/bottom NC observations remain node-data/proxy diagnostics, not solver-active contact surfaces.
-- S9-A/B/C/D ran a pressure-boundary scan on the cleaned separated-contact comparison. `-1.55 kPa` produces partial native right NC damage `0.23435479253090608` but remains below the detachment-start threshold; `-2.1 kPa` reaches warning-free native NC failure with right-side normal mode.
+- S9-A/B/C/D/E/F ran a pressure-boundary scan on the cleaned separated-contact comparison. `-1.55 kPa` produces partial native right NC damage `0.23435479253090608` but remains below the detachment-start threshold; `-1.7 kPa` reaches warning-free native NC failure with right-side normal mode.
 - Native NC failure evidence now uses native face-data damage only. Proxy-only top/bottom NC damage can still appear in summaries, but it cannot activate `nativeNcInterfaceFailure`.
 
 ## Active milestone: S9 Native NC Failure Calibration
@@ -93,9 +93,11 @@ Last updated: 2026-05-01
 - S8-Y raised suction pressure to `-3.5 kPa` on the separated-contact mesh. It reaches normal termination without invalid-facet contact setup warnings, but still has stiffness-reformation warnings under the high-pressure diagnostic load.
 - S8-Y converted result after S8-Z cleanup: `classification="nucleus_detached"`, `damage.nc=1`, `detachmentEvidence.primarySource="native-nc-interface"`, `nativeNcInterfaceFailure.active=true`, `firstFailureSite="nc:right"`, `firstFailureMode="normal"`, `events.ncDamageStart.time=0.866684`, and `detachmentComplete` present.
 - Native-first classification now ignores proxy-only top/bottom NC regions when choosing the representative first NC failure site for separated-contact comparisons with native face-data evidence.
-- S9-A/B/C/D pressure scan:
+- S9-A/B/C/D/E/F pressure scan:
   - S9-A `-1.4 kPa`: warning-free, native failure inactive, native failure damage `0`, right peak normal `0.7480285272022499`, primary source `proxy-displacement`.
   - S9-D `-1.55 kPa`: warning-free, native failure inactive, native failure damage `0.23435479253090608`, right peak normal `0.8311830866887499`, primary source `proxy-displacement`.
+  - S9-E `-1.7 kPa`: warning-free, native failure active, native failure damage `0.6155186249313224`, `firstFailureSite="nc:right"`, right peak normal `0.9144292676850009`.
+  - S9-F `-1.85 kPa`: warning-free, native failure active, native failure damage `0.9966432842754073`, `firstFailureSite="nc:right"`, right peak normal `0.997666893285749`.
   - S9-B `-2.1 kPa`: warning-free, native failure active, native failure damage `1`, `firstFailureSite="nc:right"`, `firstFailureMode="normal"`, `events.ncDamageStart.time=2.00002`.
   - S9-C `-2.8 kPa`: warning-free, native failure active, native failure damage `1`, `firstFailureSite="nc:right"`, `firstFailureMode="normal"`, `events.ncDamageStart.time=2.00002`.
   - S8-Y `-3.5 kPa`: native failure active but retains 152 stiffness-reformation warnings, so it is no longer needed as the primary failure-bound evidence.
@@ -104,11 +106,11 @@ Last updated: 2026-05-01
 
 The main target is not "make any pipette-cell force channel active"; it is to make nucleus-side pressure physically meaningful. S8-M now has local run-backed evidence that nucleus-side pressure can be declared, solved warning-free, and produce normal-direction displacement on all suction-surface nodes while the direct pipette contact and rigid-reaction channels stay zero.
 
-S8-U/V resolved why S8-M could not prove native NC failure: the baseline is conformal shared-node and has no failure-capable NC output. S8-W proved output availability on the same shared-node geometry but no failure activation. S8-X/Y proved the remaining condition: failure-capable relative NC kinematics require separated NC interface nodes, and pressure must be high enough to cross the NC criteria. S8-Z removed the invalid-facet setup issue from the separated-contact comparison. S9 found a warning-free native failure bound at `-2.1 kPa`, while `-1.55 kPa` is a warning-free partial-damage below-threshold point. S8-M remains the warning-free physical shared-node baseline.
+S8-U/V resolved why S8-M could not prove native NC failure: the baseline is conformal shared-node and has no failure-capable NC output. S8-W proved output availability on the same shared-node geometry but no failure activation. S8-X/Y proved the remaining condition: failure-capable relative NC kinematics require separated NC interface nodes, and pressure must be high enough to cross the NC criteria. S8-Z removed the invalid-facet setup issue from the separated-contact comparison. S9 found a warning-free native failure transition between `-1.55 kPa` and `-1.7 kPa`. S8-M remains the warning-free physical shared-node baseline.
 
 ### Next bounded task
 
-- S9 next: refine or accept the warning-free native NC failure boundary between `-1.55 kPa` partial damage and `-2.1 kPa` active failure; decide whether the physical target should use pressure calibration, NC threshold calibration, or both.
+- S9 next: refine or accept the warning-free native NC failure boundary between `-1.55 kPa` partial damage and `-1.7 kPa` active failure; decide whether the physical target should use pressure calibration, NC threshold calibration, or both.
 - Preserve S8-M geometry and pressure load. Do not create a new geometry case just to obtain easier direct contact outputs.
 - Keep direct contact outputs as separate diagnostics; do not collapse them into pressure-load response or `captureEstablished`.
 - Keep S8-Y as a high-pressure diagnostic bound only. Prefer S9-B/S9-C for warning-free native NC failure evidence.

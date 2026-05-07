@@ -622,6 +622,8 @@ S9 keeps the cleaned S8-Z separated-contact comparison geometry and changes only
 | S8-X | `-0.7 kPa` | `0` | inactive | `0` | `none` | `0.3647674993207499` | warning-free no-failure baseline |
 | S9-A | `-1.4 kPa` | `0` | inactive | `0` | `nc:bottom` proxy | `0.7480285272022499` | proxy displacement/damage only; not native NC failure |
 | S9-D | `-1.55 kPa` | `0` | inactive | `0.23435479253090608` | `nc:right` | `0.8311830866887499` | warning-free partial native damage below active threshold |
+| S9-E | `-1.7 kPa` | `0` | active | `0.6155186249313224` | `nc:right` | `0.9144292676850009` | warning-free native NC failure onset |
+| S9-F | `-1.85 kPa` | `0` | active | `0.9966432842754073` | `nc:right` | `0.997666893285749` | warning-free near-complete native NC failure |
 | S9-B | `-2.1 kPa` | `0` | active | `1` | `nc:right` | `1.136099188581751` | warning-free native NC failure bound |
 | S9-C | `-2.8 kPa` | `0` | active | `1` | `nc:right` | `1.5186565906312497` | warning-free stronger native NC failure |
 | S8-Y | `-3.5 kPa` | `152` | active | `1` | `nc:right` | `1.8880728951487502` | high-pressure diagnostic, no longer needed as the clean activation bound |
@@ -630,4 +632,4 @@ S9 also fixed a classification interpretation issue exposed by S9-A: proxy-only 
 
 Conclusion:
 
-The useful warning-free native NC failure transition is now bounded between S9-D `-1.55 kPa` and S9-B `-2.1 kPa`. S9-D has partial right-side native damage but stays below the detachment-start threshold; S9-B crosses into full right-side normal native failure. This makes S8-Y a high-pressure stress test rather than the primary evidence case.
+The useful warning-free native NC failure transition is now bounded between S9-D `-1.55 kPa` and S9-E `-1.7 kPa`. S9-D has partial right-side native damage but stays below the detachment-start threshold; S9-E crosses into active right-side normal native failure. This makes S8-Y a high-pressure stress test rather than the primary evidence case.
