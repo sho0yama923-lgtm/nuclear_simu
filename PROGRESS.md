@@ -9,26 +9,27 @@ Last updated: 2026-05-01
 - Goal: FEBio solver-native output で、核が細胞質から剥離する条件を評価できる物理・診断経路を作る。
 - Active solver path: `febio_cases/native/*.native.json` -> `scripts/export_febio_native_case.mjs` -> `src/febio/native/` -> `.feb`。
 - Legacy UI / canonical / bridge paths は compatibility-only。新しい solver behavior には使わない。
-- S7 は diagnostic closure 済み。S7-M は cell-dish support の現在 baseline。
-- S8 は nucleus-side pressure model へ戻した。outer-cell suction cases は force-channel activation を確認する diagnostic bridge であり、本命 geometry ではない。
-- Active milestone: S9 Native NC Failure Calibration。
+- Current phase: simplified native model pipeline validation first, then mesh / suction patch / NC interface refinement.
+- S7 is diagnostic closure. S8 returned to nucleus-side pressure and separated pressure response, direct contact, proxy detachment, shared-node continuity, and native NC failure evidence.
+- Active milestone: S9 Native NC Failure Pipeline Validation.
+- Next model-refinement direction after S9: S10 local suction patch and NC interface mesh refinement. See `docs/febio/MESH_REFINEMENT_PLAN.md`.
 
 ## Important retained findings
 
 - Active FEBio export and validation use only the native-only path.
-- Do not weaken the S7-E pressure / orientation convention to make a single comparison pass.
-- Solver-facing `.feb` should emit only active solver mesh items. Diagnostic-only selections stay in native model JSON.
-- FEBioStudio can create unstable internal `nodesetNN` references when logfile node data uses inline node ids. Use explicit NodeSets and `node_set` references.
-- FEBio logfile rows can be whitespace-delimited even when XML requests comma delimiter. Parsers must be comma / whitespace tolerant.
-- Cell-dish load-bearing must be evaluated as pressure, plotfile force, normal support, tangential force, and gap control.
-- `native-plotfile-contact-traction` may currently be a global fan-out source for localCd. Do not read it as region-resolved force unless source-detail metadata says so.
-- Pipette interaction must be evaluated as declared suction pressure load, pressure-load response, direct contact pressure, rigid reaction, and pipette `.xplt` force separately.
-- The target physical suction model applies pressure to the nucleus-side capture surface. Outer-cell suction surfaces are diagnostic bridges only.
+- The current coarse / debug mesh can validate execution, output, diagnostics, conversion, and classification paths, but it must not be used to claim final physical detachment pressure.
+- The target physical suction model applies pressure to a local nucleus-side capture patch. Outer-cell suction surfaces are diagnostic bridges only.
 - S8-M is the warning-free physical shared-node baseline for nucleus-side pressure response.
 - Shared-node NC coupling can prove displacement continuity but cannot prove native NC contact/cohesive failure.
 - Native NC failure evidence uses native face-data damage only. Proxy-only top/bottom NC damage can appear in summaries but must not activate `nativeNcInterfaceFailure`.
+- Future physical threshold work needs a refined local suction patch, NC interface refinement, and mesh-level diagnostics before pressure thresholds are interpreted physically.
+- Pipette interaction must be evaluated as declared suction pressure load, pressure-load response, direct contact pressure, rigid reaction, and pipette `.xplt` force separately.
+- Cell-dish load-bearing must be evaluated as pressure, plotfile force, normal support, tangential force, and gap control.
+- FEBio logfile rows can be whitespace-delimited even when XML requests comma delimiter. Parsers must be comma / whitespace tolerant.
+- FEBioStudio can create unstable internal `nodesetNN` references when logfile node data uses inline node ids. Use explicit NodeSets and `node_set` references.
+- Solver-facing `.feb` should emit only active solver mesh items. Diagnostic-only selections stay in native model JSON.
 
-## Active milestone: S9 Native NC Failure Calibration
+## Active milestone: S9 Native NC Failure Pipeline Validation
 
 ### Current facts
 
@@ -36,54 +37,48 @@ Last updated: 2026-05-01
 - S8-W: solver-active NC comparison can emit NC face/plotfile outputs warning-free, but native NC failure remains inactive under baseline pressure.
 - S8-X: separated-contact NC comparison at `-0.7 kPa` is warning-free and creates relative NC kinematics while staying below failure thresholds.
 - S8-Z: invalid separated-contact facet warnings were fixed by emitting solver-active NC comparison contacts only for valid left/right element faces. Top/bottom NC observations remain node-data/proxy diagnostics.
-- S9 pressure boundary so far:
+- S9 pressure scan currently proves pipeline behavior, not final physical threshold:
   - `-1.55 kPa`: warning-free, partial native right NC damage `0.23435479253090608`, native failure inactive.
   - `-1.7 kPa`: warning-free, native NC failure active, damage `0.6155186249313224`, `firstFailureSite="nc:right"`.
   - `-1.85 kPa`: warning-free, near-complete native damage `0.9966432842754073`, `firstFailureSite="nc:right"`.
-- Useful warning-free native NC failure transition is currently bounded between `-1.55 kPa` and `-1.7 kPa`.
+- Useful warning-free native NC failure transition in the current simplified separated-contact comparison is bounded between `-1.55 kPa` and `-1.7 kPa`.
 
 ### Current interpretation
 
-The active problem is no longer whether nucleus-side pressure can move the tissue. It can. The active problem is how to calibrate or accept the native NC failure boundary in the separated-contact comparison while keeping S8-M as the physical shared-node baseline.
+The active problem is not final pressure calibration. The mesh, suction patch, and NC interface geometry are still provisional. Therefore S9 should close as pipeline validation: the simplified model demonstrates that native NC failure outputs can be emitted, converted, and classified warning-free when the interface is failure-capable and the pressure is high enough.
 
-S9 should resolve one coherent decision: whether the current `-1.55` to `-1.7 kPa` native failure transition is good enough for the next model stage, or whether a smaller pressure refinement / threshold calibration is needed.
+The pressure range `-1.55` to `-1.7 kPa` is provisional evidence for this debug comparison only. It is useful for validating the native failure path, but it is not a final physical detachment threshold.
 
 ### Next bounded task
 
-Complete one S9 decision unit; do not stop after a single small edit.
+Close S9 as a pipeline-validation milestone, then move to S10 mesh refinement planning / implementation.
 
-Acceptable completion paths:
+Required S9 closure content:
 
-1. Boundary refinement path:
-   - add one or more targeted pressure cases inside `[-1.55, -1.7] kPa`;
-   - export / run / diagnose / convert when tooling is available;
-   - update `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md` with the result details;
-   - update this file with only the new accepted boundary.
+- state that current pressure boundary is provisional pipeline evidence;
+- preserve the current warning-free native failure example;
+- keep S8-M as the physical shared-node pressure-response baseline;
+- record that physical pressure-threshold calibration is deferred until after mesh refinement;
+- ensure detailed scan evidence lives in `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`, not in `PROGRESS.md`.
 
-2. Boundary acceptance path:
-   - accept `-1.55` to `-1.7 kPa` as the current warning-free native NC failure transition;
-   - document that the next stage should tune pressure calibration, NC threshold calibration, or both;
-   - record the reusable lesson in `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md` if it is not already covered.
+Next stage after S9:
 
-Constraints:
-
-- Preserve S8-M geometry and pressure-load interpretation. Do not create easier outer-cell geometry to obtain contact outputs.
-- Keep direct pipette outputs separate from pressure-load response and native NC failure evidence.
-- Keep S8-Y as high-pressure diagnostic evidence only because it has many stiffness-reformation warnings.
-- Do not add long scan tables to `PROGRESS.md`; detailed scan evidence belongs in the diagnostic doc.
+- S10: local nucleus-side suction patch and NC interface mesh refinement.
+- Use `docs/febio/MESH_REFINEMENT_PLAN.md` as the plan source.
+- Priority: local suction patch -> NC interface local refinement -> pipette mouth / suction / capture vocabulary cleanup -> cell-dish support refinement -> staged mesh levels.
 
 ### Done condition
 
-- S9 has a reviewable decision boundary: either a refined warning-free failure transition or an explicit accepted transition range.
-- The result distinguishes pressure response, shared-node continuity, proxy displacement, native NC output availability, native NC failure activation, and high-pressure solver warnings.
+- S9 is explicitly closed as native NC failure pipeline validation, not final pressure calibration.
+- The next milestone is S10 mesh refinement with local suction patch / NC interface refinement as the first physical-model improvement.
 - `PROGRESS.md` remains compact after the update.
 
 ## Files to open next
 
+- `docs/febio/MESH_REFINEMENT_PLAN.md`
+- `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`
 - `febio_cases/native/S8_pipette_nucleus_pressure_return.native.json`
 - `febio_cases/native/S8_pipette_nucleus_nc_failure_compare.native.json`
-- `febio_cases/native/S9_pipette_nucleus_nc_separated_pressure_1p55.native.json`
-- `febio_cases/native/S9_pipette_nucleus_nc_separated_pressure_1p7.native.json`
 - `src/febio/native/caseSpec.ts`
 - `src/febio/native/mesh.ts`
 - `src/febio/native/outputs.ts`
@@ -92,7 +87,6 @@ Constraints:
 - `scripts/diagnose_febio_native_run.mjs`
 - `scripts/convert_febio_output.mjs`
 - `src/results/classification.ts`
-- `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`
 - `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md`
 
 ## Reference docs
@@ -104,6 +98,7 @@ Constraints:
 - `docs/febio/GEOMETRY_CONVENTIONS.md`
 - `docs/febio/NATIVE_MODEL_REFINEMENT_STRATEGY.md`
 - `docs/febio/FEBIO_OUTPUT_MAPPING.md`
+- `docs/febio/MESH_REFINEMENT_PLAN.md`
 - `docs/febio/PIPETTE_INTERACTION_DIAGNOSTICS.md`
 - `docs/ops/STUDIO_CONFIRMATION_GATES.md`
 - `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md`
@@ -115,7 +110,7 @@ Constraints:
 - S8-M-Q: returned to nucleus-side pressure, added pressure-load response evidence, and separated pressure-driven capture from direct contact capture.
 - S8-R-U: regenerated / interpreted S8-M artifacts and confirmed shared-node NC coupling cannot prove native NC failure.
 - S8-V-Z: added shared-node NC observation, then solver-active / separated-contact NC comparisons; separated-contact left/right valid faces are the current native NC failure comparison path.
-- S9-A-F: pressure scan bounded warning-free native NC failure between `-1.55 kPa` partial damage and `-1.7 kPa` active right-side normal failure.
+- S9-A-F: simplified separated-contact pressure scan validated warning-free native NC failure activation between `-1.55 kPa` partial damage and `-1.7 kPa` active right-side normal failure; this is pipeline evidence, not final physical threshold calibration.
 
 ## PROGRESS.md retirement rule
 
