@@ -45,28 +45,35 @@ Last updated: 2026-05-07
 - S10-A pressure-load response is active on `pipette_suction_patch`: observed 4/4 patch nodes, max displacement `1.1628959591041037 um`, max normal displacement `1.1518070494 um`.
 - S10-A direct pipette contact channels remain inactive: pipette-cell pressure `0`, pipette mouth pressure `0`, rigid reaction `0`, pipette plotfile force inactive. Cell-dish support is active through plotfile force while face-data pressure remains zero.
 - S10-A converted classification is proxy-derived `nucleus_detached`; native NC interface failure remains unavailable/inactive because the S10-A baseline uses conformal shared-node NC coupling.
+- S10-B added `febio_cases/native/S10_local_suction_patch_nc_right_refined.native.json`, preserving the local `pipette_suction_patch` while enabling separated solver-active NC comparison and splitting the S10 nucleus left/right contact facets around the patch band.
+- S10-B export is ready at `febio_exports/S10_local_suction_patch_nc_right_refined/`. Static diagnostics remain valid/warning-free and keep patch area `6.5 um^2`, centroid `[14, 0, 17]`, normal `-x`, nodes `[82,83,86,87]`, face `[24]`, and declared pressure resultant `4.55 nN`.
+- S10-B Windows FEBio CLI run reached normal termination with no solver warnings, errors, negative jacobian, no-force, or no-contact-pair messages. Artifacts are in `febio_exports/S10_local_suction_patch_nc_right_refined/febio_runs/S10-B_S10_local_suction_patch_nc_right_refined/`.
+- S10-B pressure-load response is active on `pipette_suction_patch`: observed 4/4 patch nodes, max displacement `1.2597331654442678 um`, max normal displacement `1.24485318688 um`.
+- S10-B native NC output is solver-facing and active for left/right separated contact; plotfile contact force is nonzero on both left and right NC surfaces. Native NC failure remains inactive at `-0.7 kPa` with damage `0`, so converted `nucleus_detached` classification remains proxy-derived.
 
 ### Current interpretation
 
-The active problem is now physical-model geometry, not evidence plumbing. The simplified separated-contact comparison proves native NC failure outputs can be emitted, converted, and classified warning-free. The next improvement must make the suction geometry more physical before any pressure threshold is interpreted.
+The active problem remains physical-model geometry and pressure schedule calibration, not evidence plumbing. The simplified separated-contact comparison proves native NC failure outputs can be emitted, converted, and classified warning-free. S10-A proves the local suction pressure-load response; S10-B proves local-patch plus solver-active left/right NC output can run warning-free at baseline pressure.
 
 ### Next bounded task
 
-Start the next S10 mesh increment: NC interface local refinement around the suction-side right region.
+Start the next S10 mesh increment: pressure / refinement scan on the S10-B local-patch separated-NC geometry.
 
 Next implementation checklist:
 
-- add a refined NC right-region pairing around the local patch;
 - keep S10-A as the warning-free local-patch pressure-response baseline;
+- use S10-B as the warning-free local-patch separated-NC baseline;
+- add bounded pressure variants or a small scan on S10-B to find where native NC damage starts;
 - continue treating direct pipette contact output as separate from declared pressure-load response;
-- preserve S8-M/S9 as baselines and keep S10-A pressure threshold interpretation explicitly deferred.
+- preserve S8-M/S9 as baselines and keep S10 pressure threshold interpretation explicitly deferred until the refined geometry scan is complete.
 
 ### Done condition
 
 - S10 has a solver-facing local suction patch separate from the historical broad `pipette_suction_surface` meaning.
+- S10-B has solver-active separated left/right NC outputs around the local patch and runs warning-free in Windows FEBio CLI.
 - Exported native model diagnostics report local patch geometry and declared pressure resultant.
 - Existing S8-M/S9 pipeline-validation behavior remains available for comparison.
-- FEBio CLI confirmation for S10-A is complete; Studio visual confirmation remains useful for surface orientation / pressure arrow review.
+- FEBio CLI confirmation for S10-A and S10-B is complete; Studio visual confirmation remains useful for surface orientation / pressure arrow review.
 - `PROGRESS.md` stays compact and points to the next S10 mesh refinement increment.
 
 ## Files to open next
@@ -77,6 +84,7 @@ Next implementation checklist:
 - `febio_cases/native/S8_pipette_nucleus_nc_failure_compare.native.json`
 - `febio_cases/native/S9_pipette_nucleus_nc_separated_pressure_1p7.native.json`
 - `febio_cases/native/S10_local_suction_patch.native.json`
+- `febio_cases/native/S10_local_suction_patch_nc_right_refined.native.json`
 - `src/febio/native/caseSpec.ts`
 - `src/febio/native/mesh.ts`
 - `src/febio/native/outputs.ts`

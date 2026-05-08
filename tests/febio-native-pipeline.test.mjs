@@ -537,6 +537,50 @@ test("native-only S10 local suction patch exports solver-facing patch diagnostic
   assert.match(xml, /<face_data name="pipette_cell_contact_surface" file="febio_pipette_cell_contact\.csv" data="contact gap;contact pressure" delim="," surface="pipette_suction_patch" \/>/);
 });
 
+test("native-only S10 NC right refinement splits local contact region around suction patch", async () => {
+  const native = await loadNativeModule();
+  const refined = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S10_local_suction_patch_nc_right_refined.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(refined);
+  const pressure = refined.geometry.meshValidation.pressureDiagnostics;
+
+  assert.equal(refined.caseName, "S10_local_suction_patch_nc_right_refined");
+  assert.equal(refined.effectiveNativeSpec.outputNameTag, "S10-B");
+  assert.equal(refined.interfaces.nucleusCytoplasm.solverActive, true);
+  assert.deepEqual(refined.interfaces.nucleusCytoplasm.contactRegions, ["left", "right"]);
+  assert.equal(refined.geometry.mesh.refinements.localSuctionPatch.ncRightRefined, true);
+  assert.equal(pressure.localSuctionPatch.surface, "pipette_suction_patch");
+  assert.deepEqual(pressure.localSuctionPatch.faceIds, [24]);
+  assert.deepEqual(refined.geometry.mesh.nodeSets.nc_left_nucleus_nodes, [45, 48, 49, 52, 81, 84, 85, 88]);
+  assert.deepEqual(refined.geometry.mesh.nodeSets.nc_right_nucleus_nodes, [46, 47, 50, 51, 82, 83, 86, 87]);
+  assert.deepEqual(refined.geometry.mesh.nodeSets.nc_right_cytoplasm_nodes, [74, 75, 78, 79, 89, 90, 91, 92]);
+  assert.deepEqual(refined.geometry.mesh.surfaces.nucleus_interface_left_surface.map((facet) => facet.nodes), [
+    [45, 81, 84, 48],
+    [81, 85, 88, 84],
+    [85, 49, 52, 88],
+  ]);
+  assert.deepEqual(refined.geometry.mesh.surfaces.nucleus_interface_right_surface.map((facet) => facet.nodes), [
+    [46, 82, 83, 47],
+    [82, 86, 87, 83],
+    [86, 50, 51, 87],
+  ]);
+  assert.deepEqual(refined.geometry.mesh.surfaces.cytoplasm_interface_right_surface.map((facet) => facet.nodes), [
+    [74, 75, 90, 89],
+    [89, 90, 92, 91],
+    [91, 92, 79, 78],
+  ]);
+  assert.deepEqual(refined.geometry.mesh.elementSets.cytoplasm, [1, 5, 6, 7, 10, 11, 12, 13, 16, 17]);
+  assert.match(xml, /<Surface name="nucleus_interface_left_surface">\n      <quad4 id="28">45,81,84,48<\/quad4>\n      <quad4 id="29">81,85,88,84<\/quad4>\n      <quad4 id="30">85,49,52,88<\/quad4>/);
+  assert.match(xml, /<Surface name="cytoplasm_interface_right_surface">\n      <quad4 id="11">74,75,90,89<\/quad4>\n      <quad4 id="26">89,90,92,91<\/quad4>\n      <quad4 id="27">91,92,79,78<\/quad4>/);
+  assert.match(xml, /<NodeSet name="nc_left_nucleus_nodes">45,48,49,52,81,84,85,88<\/NodeSet>/);
+  assert.match(xml, /<NodeSet name="nc_right_cytoplasm_nodes">74,75,78,79,89,90,91,92<\/NodeSet>/);
+  assert.match(xml, /<contact name="nucleus_cytoplasm_right_interface" type="tied-elastic" surface_pair="nucleus_cytoplasm_right_pair">/);
+  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_patch" type="pressure">/);
+  assert.doesNotMatch(xml, /<contact name="nucleus_cytoplasm_top_interface"/);
+  assert.doesNotMatch(xml, /<contact name="nucleus_cytoplasm_bottom_interface"/);
+});
+
 test("native-only export script writes FEBio handoff artifacts", () => {
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "nuclear-simu-native-export-"));
   const printed = execFileSync(

@@ -45,6 +45,10 @@ Current implementation status:
   - face id `[24]`;
   - pressure resultant `4.55 nN` for `-0.7 kPa`.
 - Windows FEBio CLI solver confirmation is complete for S10-A: normal termination, warning-free, active `pipette_suction_patch` pressure-load response. Studio visual confirmation remains useful for pressure-arrow and surface-orientation review.
+- S10-B (`febio_cases/native/S10_local_suction_patch_nc_right_refined.native.json`) combines the local patch with separated solver-active left/right NC comparison.
+- S10-B splits active nucleus-side left/right NC facets into bottom / patch / top bands and splits the cytoplasm right NC surface around the patch band.
+- Static export diagnostics for `febio_exports/S10_local_suction_patch_nc_right_refined/` are valid with no convention warnings and preserve the same patch area, centroid, normal, node ids, face id, and pressure resultant as S10-A.
+- Windows FEBio CLI solver confirmation is complete for S10-B: normal termination, warning-free, active local suction pressure-load response, and active left/right NC plotfile contact force. Native NC failure output is available but inactive at baseline `-0.7 kPa` pressure.
 
 Add a mesh construct with explicit diagnostics:
 

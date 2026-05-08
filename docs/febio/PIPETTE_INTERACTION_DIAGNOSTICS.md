@@ -677,3 +677,50 @@ Windows FEBio CLI result:
 Interpretation:
 
 S10-A is now the warning-free local-patch pressure-response baseline. It proves that the local nucleus-side pressure patch is solver-facing and produces nonzero patch displacement response. It still does not prove native NC failure or direct pipette contact capture. The next S10 increment should refine the NC right-region interface around the local suction patch while preserving S10-A as the pressure-response baseline.
+
+## S10 local suction patch with separated NC right refinement
+
+S10-B keeps the S10-A local pressure patch and adds a separated solver-active NC comparison on the left/right regions. Because the S10 nucleus is split into bottom / patch / top bands, the active nucleus-side left and right NC surfaces are also split into matching facets. The right cytoplasm interface is split around the local patch band, giving a solver-facing local NC surface around the suction side.
+
+S10-B static export diagnostics:
+
+- case: `febio_cases/native/S10_local_suction_patch_nc_right_refined.native.json`
+- export: `febio_exports/S10_local_suction_patch_nc_right_refined/`
+- mesh mode: `s10-local-suction-patch`
+- pressure surface: `pipette_suction_patch`
+- separated NC contact regions: `left`, `right`
+- right nucleus NC node set: `[46, 47, 50, 51, 82, 83, 86, 87]`
+- right cytoplasm NC node set: `[74, 75, 78, 79, 89, 90, 91, 92]`
+- patch area / centroid / normal: `6.5 um^2`, `[14, 0, 17]`, `-x`
+- declared pressure resultant: `4.55 nN` at `-0.7 kPa`
+- static mesh validation: valid, no convention warnings
+
+Windows FEBio CLI result:
+
+- run directory: `febio_exports/S10_local_suction_patch_nc_right_refined/febio_runs/S10-B_S10_local_suction_patch_nc_right_refined/`
+- termination: normal
+- solver warnings / errors / negative jacobian / no-force / no-contact-pair messages: `0`
+- pressure-load response: active on `pipette_suction_patch`
+- observed patch nodes: `4 / 4`
+- max patch displacement: `1.2597331654442678 um`
+- max patch normal displacement: `1.24485318688 um`
+- native NC plotfile contact force: active on both left and right NC surfaces
+  - left max force magnitude `2.2927008338720363 nN`
+  - right max force magnitude `2.7563108806269647 nN`
+- native NC face-data failure: available but inactive at baseline pressure
+  - left/right native damage `0`
+  - first failure site `none`
+- direct pipette contact output remains inactive
+  - pipette-cell pressure `0`
+  - pipette mouth pressure `0`
+  - rigid reaction `0`
+  - pipette plotfile force inactive
+- cell-dish support remains active through plotfile contact force
+  - max normal force `10.181474685668945 nN`
+  - max tangential force `9.172855377197266 nN`
+  - face-data pressure remains `0`
+- converted classification: proxy-derived `nucleus_detached`
+
+Interpretation:
+
+S10-B is now the warning-free local-patch separated-NC baseline. It proves that the local suction patch and solver-active left/right NC output can coexist without invalid-facet warnings. At `-0.7 kPa`, native NC failure is available but inactive, so pressure-threshold interpretation still requires a bounded S10-B pressure scan.

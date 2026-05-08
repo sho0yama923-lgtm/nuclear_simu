@@ -269,8 +269,9 @@ function applyLocalSuctionPatchRefinement(mesh, spec = {}) {
   const nucleusRight = mesh.bounds?.nucleusRight;
   const nucleusBottom = mesh.bounds?.nucleusBottom;
   const nucleusTop = mesh.bounds?.nucleusTop;
+  const right = mesh.bounds?.cellRight;
   const pipetteZ = spec.geometry?.pipette?.tip?.z ?? mesh.bounds?.pipetteBottom;
-  if (![nucleusLeft, nucleusRight, nucleusBottom, nucleusTop, pipetteZ].every(Number.isFinite)) return mesh;
+  if (![nucleusLeft, nucleusRight, nucleusBottom, nucleusTop, right, pipetteZ].every(Number.isFinite)) return mesh;
 
   const yMin = -0.5;
   const yMax = 0.5;
@@ -293,11 +294,46 @@ function applyLocalSuctionPatchRefinement(mesh, spec = {}) {
     buildHex(14, "nucleus", [81, 82, 83, 84, 85, 86, 87, 88]),
     buildHex(15, "nucleus", [85, 86, 87, 88, 49, 50, 51, 52]),
   ];
+  const leftBottomFacet = buildFacet(28, [45, 81, 84, 48]);
+  const leftPatchBandFacet = buildFacet(29, [81, 85, 88, 84]);
+  const leftTopFacet = buildFacet(30, [85, 49, 52, 88]);
   const rightBottomFacet = buildFacet(20, [46, 82, 83, 47]);
   const suctionPatchFacet = buildFacet(24, [82, 86, 87, 83]);
   const rightTopFacet = buildFacet(25, [86, 50, 51, 87]);
-  const existingNodes = (mesh.nodes || []).filter((node) => !patchNodes.some((patchNode) => patchNode.id === node.id));
-  const elements = (mesh.elements || []).filter((element) => ![2, 14, 15].includes(element.id));
+  const useSeparatedNcContact = mesh.refinements?.nucleusCytoplasmCoupling?.separatedContactComparison === true;
+  const c = useSeparatedNcContact
+    ? { n46: 74, n47: 75, n50: 78, n51: 79 }
+    : { n46: 46, n47: 47, n50: 50, n51: 51 };
+  const cytoplasmPatchNodes = useSeparatedNcContact
+    ? [
+        buildNode(89, nucleusRight, yMin, patchBottom),
+        buildNode(90, nucleusRight, yMax, patchBottom),
+        buildNode(91, nucleusRight, yMin, patchTop),
+        buildNode(92, nucleusRight, yMax, patchTop),
+        buildNode(93, right, yMin, patchBottom),
+        buildNode(94, right, yMax, patchBottom),
+        buildNode(95, right, yMin, patchTop),
+        buildNode(96, right, yMax, patchTop),
+      ]
+    : [];
+  const cytoplasmRightElements = useSeparatedNcContact
+    ? [
+        buildHex(12, "cytoplasm", [c.n46, 69, 70, c.n47, 89, 93, 94, 90]),
+        buildHex(16, "cytoplasm", [89, 93, 94, 90, 91, 95, 96, 92]),
+        buildHex(17, "cytoplasm", [91, 95, 96, 92, c.n50, 71, 72, c.n51]),
+      ]
+    : [];
+  const cytoplasmRightFacets = useSeparatedNcContact
+    ? [
+        buildFacet(11, [c.n46, c.n47, 90, 89]),
+        buildFacet(26, [89, 90, 92, 91]),
+        buildFacet(27, [91, 92, c.n51, c.n50]),
+      ]
+    : null;
+  const replacedElementIds = useSeparatedNcContact ? [2, 12, 14, 15, 16, 17] : [2, 14, 15];
+  const newNodeIds = new Set([...patchNodes, ...cytoplasmPatchNodes].map((node) => node.id));
+  const existingNodes = (mesh.nodes || []).filter((node) => !newNodeIds.has(node.id));
+  const elements = (mesh.elements || []).filter((element) => !replacedElementIds.includes(element.id));
   const pressureValue = Number(spec.loads?.suctionPressure?.value);
 
   return {
@@ -312,6 +348,7 @@ function applyLocalSuctionPatchRefinement(mesh, spec = {}) {
         patchZRange: [patchBottom, patchTop],
         patchHeight,
         declaredPressure: Number.isFinite(pressureValue) ? pressureValue : null,
+        ncRightRefined: useSeparatedNcContact,
       },
       pipetteSuctionSurface: {
         ...(mesh.refinements?.pipetteSuctionSurface || {}),
@@ -321,24 +358,29 @@ function applyLocalSuctionPatchRefinement(mesh, spec = {}) {
         studioCompatibleWinding: false,
       },
     },
-    nodes: [...existingNodes, ...patchNodes].sort((a, b) => a.id - b.id),
-    elements: [...elements, ...nucleusElements].sort((a, b) => a.id - b.id),
+    nodes: [...existingNodes, ...patchNodes, ...cytoplasmPatchNodes].sort((a, b) => a.id - b.id),
+    elements: [...elements, ...nucleusElements, ...cytoplasmRightElements].sort((a, b) => a.id - b.id),
     surfaces: {
       ...mesh.surfaces,
+      nucleus_interface_left_surface: [leftBottomFacet, leftPatchBandFacet, leftTopFacet],
       nucleus_interface_right_surface: [rightBottomFacet, suctionPatchFacet, rightTopFacet],
+      ...(cytoplasmRightFacets ? { cytoplasm_interface_right_surface: cytoplasmRightFacets } : {}),
       pipette_suction_surface: [rightBottomFacet, suctionPatchFacet, rightTopFacet],
       pipette_suction_patch: [suctionPatchFacet],
     },
     nodeSets: {
       ...mesh.nodeSets,
       nucleus: [45, 46, 47, 48, 49, 50, 51, 52, 81, 82, 83, 84, 85, 86, 87, 88],
+      nc_left_nucleus_nodes: [45, 48, 49, 52, 81, 84, 85, 88],
       nc_right_nucleus_nodes: [46, 47, 50, 51, 82, 83, 86, 87],
+      ...(useSeparatedNcContact ? { nc_right_cytoplasm_nodes: [74, 75, 78, 79, 89, 90, 91, 92] } : {}),
       pipette_suction_nodes: [82, 83, 86, 87],
       pipette_suction_patch_nodes: [82, 83, 86, 87],
     },
     elementSets: {
       ...mesh.elementSets,
       nucleus: [2, 14, 15],
+      ...(useSeparatedNcContact ? { cytoplasm: [1, 5, 6, 7, 10, 11, 12, 13, 16, 17] } : {}),
     },
   };
 }
