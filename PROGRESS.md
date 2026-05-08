@@ -1,6 +1,6 @@
 # FEBio Progress
 
-Last updated: 2026-05-07
+Last updated: 2026-05-08
 
 `PROGRESS.md` は current-state file。run log、scan table、長い比較履歴は置かない。完了済み詳細は `docs/febio/*DIAGNOSTICS.md` または `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md` に退役させる。
 
@@ -11,7 +11,7 @@ Last updated: 2026-05-07
 - Legacy UI / canonical / bridge paths は compatibility-only。新しい solver behavior には使わない。
 - Current phase: S10 local suction patch and NC interface mesh refinement.
 - S7 is diagnostic closure. S8 returned to nucleus-side pressure and separated pressure response, direct contact, proxy detachment, shared-node continuity, and native NC failure evidence. S9 closed the native NC failure output / conversion / classification pipeline on the simplified separated-contact comparison.
-- Active milestone: S10 Local Suction Patch Mesh Refinement.
+- Active milestone: S10 Gmsh mesh pipeline foundation.
 - S10 plan source: `docs/febio/MESH_REFINEMENT_PLAN.md`.
 
 ## Important retained findings
@@ -28,8 +28,9 @@ Last updated: 2026-05-07
 - FEBio logfile rows can be whitespace-delimited even when XML requests comma delimiter. Parsers must be comma / whitespace tolerant.
 - FEBioStudio can create unstable internal `nodesetNN` references when logfile node data uses inline node ids. Use explicit NodeSets and `node_set` references.
 - Solver-facing `.feb` should emit only active solver mesh items. Diagnostic-only selections stay in native model JSON.
+- Gmsh 導入は、局所 refinement に進む前の基盤整備として扱う。まず既存 baseline と比較できる Gmsh 由来 mesh 経路を完成させ、その後に局所 refinement / mesh quality policy を扱う。
 
-## Active milestone: S10 Local Suction Patch Mesh Refinement
+## Active milestone: S10 Gmsh mesh pipeline foundation
 
 ### Current facts
 
@@ -55,26 +56,43 @@ Last updated: 2026-05-07
 
 The active problem remains physical-model geometry and pressure schedule calibration, not evidence plumbing. The simplified separated-contact comparison proves native NC failure outputs can be emitted, converted, and classified warning-free. S10-A proves the local suction pressure-load response; S10-B proves local-patch plus solver-active left/right NC output can run warning-free at baseline pressure.
 
+Before adding more hand-authored local refinement, make the mesh generation path reproducible through Gmsh. The next useful review boundary is a Gmsh-derived native mesh that can pass existing validation / FEBio export and compare against the current native baseline. Only after that baseline comparison should the project move to local refinement policy.
+
 ### Next bounded task
 
-Start the next S10 mesh increment: pressure / refinement scan on the S10-B local-patch separated-NC geometry.
+Build the Gmsh mesh pipeline foundation while preserving the existing native mesh path as the default.
 
 Next implementation checklist:
 
-- keep S10-A as the warning-free local-patch pressure-response baseline;
-- use S10-B as the warning-free local-patch separated-NC baseline;
-- add bounded pressure variants or a small scan on S10-B to find where native NC damage starts;
-- continue treating direct pipette contact output as separate from declared pressure-load response;
-- preserve S8-M/S9 as baselines and keep S10 pressure threshold interpretation explicitly deferred until the refined geometry scan is complete.
+- [ ] dump the current native mesh to JSON so node ids, element ids, surface names, and surface face membership are fixed as a comparison artifact;
+- [ ] add a Gmsh `.geo` generator for the current baseline shape without changing the existing native mesh behavior;
+- [ ] add a gmsh CLI wrapper that emits `.msh` v2 ASCII and returns useful stderr / exit-code diagnostics to the caller;
+- [ ] add a `.msh` v2 ASCII parser for nodes, elements, element tags, and physical names;
+- [ ] map Gmsh Physical Groups to the existing native surface names exactly, including `pipette_suction_patch` and NC region names where present;
+- [ ] convert parsed `.msh` data into the native mesh object shape consumed by `validateNativeMesh`;
+- [ ] add a `buildNativeMesh` `meshMode` branch so the current path remains default and Gmsh mode is opt-in;
+- [ ] run the Gmsh-derived native mesh through `validateNativeMesh`;
+- [ ] run `buildNativeFebioExport` on the Gmsh-derived native mesh;
+- [ ] compare the FEBio CLI result against the existing baseline by node count, element count, surface assignment, solver status, and converted result differences;
+- [ ] after the Gmsh baseline comparison is zero-diff or within the documented tolerance, start local refinement design.
 
 ### Done condition
 
-- S10 has a solver-facing local suction patch separate from the historical broad `pipette_suction_surface` meaning.
-- S10-B has solver-active separated left/right NC outputs around the local patch and runs warning-free in Windows FEBio CLI.
-- Exported native model diagnostics report local patch geometry and declared pressure resultant.
-- Existing S8-M/S9 pipeline-validation behavior remains available for comparison.
-- FEBio CLI confirmation for S10-A and S10-B is complete; Studio visual confirmation remains useful for surface orientation / pressure arrow review.
-- `PROGRESS.md` stays compact and points to the next S10 mesh refinement increment.
+- The current native mesh can be dumped as JSON for regression comparison.
+- Gmsh can generate a `.msh` v2 ASCII baseline from a repo-owned `.geo` generator through a wrapper.
+- `.msh` v2 Physical Groups are parsed and preserved as existing native surface names.
+- `buildNativeMesh` can select the legacy native mesh path or the opt-in Gmsh path via `meshMode`.
+- Gmsh-derived native mesh passes `validateNativeMesh`.
+- `buildNativeFebioExport` can export the Gmsh-derived mesh without breaking the existing default path.
+- FEBio CLI comparison against the current baseline records node count, element count, surface assignment, solver status, and converted result differences.
+- Local refinement work remains deferred until the Gmsh baseline path is validated.
+
+### Deferred until after Gmsh baseline
+
+- `.msh` v4 support.
+- Advanced Gmsh size fields and local refinement policy.
+- Physical pressure-threshold interpretation from refined meshes.
+- Mesh convergence and final pressure-threshold calibration.
 
 ## Files to open next
 

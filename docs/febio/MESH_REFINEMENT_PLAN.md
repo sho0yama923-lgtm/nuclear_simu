@@ -4,7 +4,7 @@ This document owns the plan for moving from the current debug / provisional nati
 
 ## Positioning
 
-S9 closed as pipeline validation, not final pressure-threshold calibration. S10 starts the physical mesh refinement path.
+S9 closed as pipeline validation, not final pressure-threshold calibration. S10 starts the physical mesh refinement path. The next S10 increment should establish a Gmsh-generated mesh path before adding more local refinement, so the refined meshes are reproducible and comparable against the current native baseline.
 
 The current coarse / debug mesh can prove that:
 
@@ -16,9 +16,27 @@ The current coarse / debug mesh can prove that:
 
 The current coarse mesh should not be used to claim final physical detachment pressure. Pressure thresholds from this mesh are provisional pipeline evidence only.
 
+## Gmsh foundation before local refinement
+
+Before adding new local refinement policy, create a baseline Gmsh path that preserves the current native mesh behavior and can be compared against the existing FEBio baseline.
+
+Required sequence:
+
+1. dump the current native mesh to JSON and preserve node ids, element ids, surface names, and surface face membership as the comparison source;
+2. add a Gmsh `.geo` generator for the baseline geometry;
+3. add a gmsh CLI wrapper that emits `.msh` v2 ASCII and propagates stderr / exit-code diagnostics;
+4. add a `.msh` v2 ASCII parser for nodes, elements, element tags, and physical names;
+5. map Gmsh Physical Groups exactly to existing native surface names;
+6. convert parsed `.msh` data into the native mesh object shape;
+7. add an opt-in `buildNativeMesh` `meshMode` branch for the Gmsh path while keeping the current native path as default;
+8. pass `validateNativeMesh` and `buildNativeFebioExport`;
+9. compare FEBio CLI output against the existing baseline before moving to local refinement.
+
+Initial scope is `.msh` v2 ASCII. `.msh` v4 support, size-field policy, and advanced local refinement remain later work.
+
 ## Refinement goals
 
-The first physical-model refinement target is a local nucleus-side suction patch and a more useful NC interface mesh.
+The first physical-model refinement target is a local nucleus-side suction patch and a more useful NC interface mesh. New refinement should be built on top of the Gmsh baseline path after the baseline comparison is accepted.
 
 Priority order:
 
@@ -163,7 +181,7 @@ Before pressure thresholds are interpreted physically, the model should report:
 
 ## Roadmap implication
 
-S9 is closed as native NC failure pipeline validation. S10 begins mesh refinement for the physical suction model.
+S9 is closed as native NC failure pipeline validation. S10 begins mesh refinement for the physical suction model. The immediate S10 gate is the Gmsh baseline path: native mesh JSON dump -> `.geo` generation -> gmsh `.msh` v2 ASCII -> parser -> Physical Group surface mapping -> native mesh object -> `validateNativeMesh` -> `buildNativeFebioExport` -> FEBio CLI baseline comparison.
 
 Suggested next stages:
 
