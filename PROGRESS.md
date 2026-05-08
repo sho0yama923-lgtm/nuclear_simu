@@ -51,6 +51,14 @@ Last updated: 2026-05-08
 - S10-B Windows FEBio CLI run reached normal termination with no solver warnings, errors, negative jacobian, no-force, or no-contact-pair messages. Artifacts are in `febio_exports/S10_local_suction_patch_nc_right_refined/febio_runs/S10-B_S10_local_suction_patch_nc_right_refined/`.
 - S10-B pressure-load response is active on `pipette_suction_patch`: observed 4/4 patch nodes, max displacement `1.2597331654442678 um`, max normal displacement `1.24485318688 um`.
 - S10-B native NC output is solver-facing and active for left/right separated contact; plotfile contact force is nonzero on both left and right NC surfaces. Native NC failure remains inactive at `-0.7 kPa` with damage `0`, so converted `nucleus_detached` classification remains proxy-derived.
+- S10 Gmsh foundation now has a native mesh -> `.msh` v2 ASCII -> native mesh round-trip path. It preserves Physical Group names for existing native surfaces / domains, including `pipette_suction_patch`, and validates through `validateNativeMesh`.
+- `meshMode="s10-gmsh-baseline"` is opt-in and keeps the existing default native mesh path unchanged. The opt-in path builds the S10 local suction patch first, then round-trips it through the Gmsh v2 ASCII converter before FEBio export.
+- `scripts/dump_native_gmsh_baseline.mjs` writes the comparison artifacts under `generated/gmsh_baseline/`: `native-baseline.mesh.json`, `native-baseline.geo`, `native-baseline.msh`, `native-baseline.roundtrip.mesh.json`, and `native-baseline.validation.json`. The local dump validation is currently valid, and `--run-gmsh` succeeds with the installed Gmsh CLI.
+- External Gmsh 4.14.0 can read the generated `.geo` / `.msh` and emit `.msh` v2 ASCII successfully. Because this baseline has duplicate-coordinate native nodes at material/contact boundaries, external Gmsh renumbers compact ids; the converter now records `nativeIdRecovery="template-preserved-for-duplicate-coordinate-baseline"` and preserves the native ids from the comparison template.
+- S10-G added `febio_cases/native/S10_gmsh_baseline.native.json` with `meshMode="s10-gmsh-baseline"`. Export is ready at `febio_exports/S10_gmsh_baseline/`, and the Windows FEBio CLI run reached normal termination at `febio_exports/S10_gmsh_baseline/febio_runs/S10-G_S10_gmsh_baseline/`.
+- S10-G comparison against S10-A is recorded at `febio_exports/S10_gmsh_baseline/S10_gmsh_baseline_comparison.json`: node count `72 == 72`, element count `15 == 15`, surface count `21 == 21`, checked surface assignments match, solver source is FEBio CLI for both, classification is `nucleus_detached` for both, final aspiration delta is `0`, pressure response observed nodes are `4 == 4`, and detachment start delta is `0`.
+- S10-H added `febio_cases/native/S10_gmsh_nc_right_refined.native.json` with `meshMode="s10-gmsh-baseline"` plus separated-contact NC refinement. Export is ready at `febio_exports/S10_gmsh_nc_right_refined/`, and the Windows FEBio CLI run reached normal termination at `febio_exports/S10_gmsh_nc_right_refined/febio_runs/S10-H_S10_gmsh_nc_right_refined/`.
+- S10-H comparison against S10-B is recorded at `febio_exports/S10_gmsh_nc_right_refined/S10_gmsh_nc_right_refined_comparison.json`: node count `88 == 88`, element count `17 == 17`, surface count `21 == 21`, checked local suction / NC / cell-dish surface assignments match, contact regions are `left/right` for both, classification is `nucleus_detached` for both, final aspiration delta is `0`, pressure response observed nodes are `4 == 4`, detachment start delta is `0`, and native NC failure output is available but inactive with damage `0` for both.
 
 ### Current interpretation
 
@@ -60,21 +68,25 @@ Before adding more hand-authored local refinement, make the mesh generation path
 
 ### Next bounded task
 
-Build the Gmsh mesh pipeline foundation while preserving the existing native mesh path as the default.
+Start the first Gmsh-backed local refinement design increment. The immediate target is not a pressure threshold claim; it is a named Gmsh-derived refinement level that preserves the S10-B separated NC comparison behavior and then exposes mesh-level diagnostics for the next geometry change.
 
 Next implementation checklist:
 
-- [ ] dump the current native mesh to JSON so node ids, element ids, surface names, and surface face membership are fixed as a comparison artifact;
-- [ ] add a Gmsh `.geo` generator for the current baseline shape without changing the existing native mesh behavior;
-- [ ] add a gmsh CLI wrapper that emits `.msh` v2 ASCII and returns useful stderr / exit-code diagnostics to the caller;
-- [ ] add a `.msh` v2 ASCII parser for nodes, elements, element tags, and physical names;
-- [ ] map Gmsh Physical Groups to the existing native surface names exactly, including `pipette_suction_patch` and NC region names where present;
-- [ ] convert parsed `.msh` data into the native mesh object shape consumed by `validateNativeMesh`;
-- [ ] add a `buildNativeMesh` `meshMode` branch so the current path remains default and Gmsh mode is opt-in;
-- [ ] run the Gmsh-derived native mesh through `validateNativeMesh`;
-- [ ] run `buildNativeFebioExport` on the Gmsh-derived native mesh;
-- [ ] compare the FEBio CLI result against the existing baseline by node count, element count, surface assignment, solver status, and converted result differences;
-- [ ] after the Gmsh baseline comparison is zero-diff or within the documented tolerance, start local refinement design.
+- [x] dump the current native mesh to JSON so node ids, element ids, surface names, and surface face membership are fixed as a comparison artifact;
+- [x] add a Gmsh `.geo` generator for the current baseline shape without changing the existing native mesh behavior;
+- [x] add a gmsh CLI wrapper that emits `.msh` v2 ASCII and returns useful stderr / exit-code diagnostics to the caller;
+- [x] add a `.msh` v2 ASCII parser for nodes, elements, element tags, and physical names;
+- [x] map Gmsh Physical Groups to the existing native surface names exactly, including `pipette_suction_patch` and NC region names where present;
+- [x] convert parsed `.msh` data into the native mesh object shape consumed by `validateNativeMesh`;
+- [x] add a `buildNativeMesh` `meshMode` branch so the current path remains default and Gmsh mode is opt-in;
+- [x] run the Gmsh-derived native mesh through `validateNativeMesh`;
+- [x] run `buildNativeFebioExport` on the Gmsh-derived native mesh;
+- [x] compare the FEBio CLI result against the existing baseline by node count, element count, surface assignment, solver status, and converted result differences;
+- [x] after the Gmsh baseline comparison is zero-diff or within the documented tolerance, start local refinement design.
+- [x] add a Gmsh-derived separated NC-right refinement case that preserves S10-B surfaces and solver outputs;
+- [x] compare the Gmsh-derived separated NC-right refinement against S10-B by node count, element count, surface assignment, solver status, and converted result differences;
+- [ ] add explicit mesh-level diagnostics needed before the next geometry change: element count, face count by named surface, NC region face counts, NC node-pair mapping count, and basic duplicate-coordinate/native-id recovery notes;
+- [ ] design the next actual geometry refinement level (`s10-pipette-nc-refined`) for pipette mouth / suction patch / NC interface alignment.
 
 ### Done condition
 
@@ -103,11 +115,15 @@ Next implementation checklist:
 - `febio_cases/native/S9_pipette_nucleus_nc_separated_pressure_1p7.native.json`
 - `febio_cases/native/S10_local_suction_patch.native.json`
 - `febio_cases/native/S10_local_suction_patch_nc_right_refined.native.json`
+- `febio_cases/native/S10_gmsh_baseline.native.json`
+- `febio_cases/native/S10_gmsh_nc_right_refined.native.json`
 - `src/febio/native/caseSpec.ts`
+- `src/febio/native/gmsh.ts`
 - `src/febio/native/mesh.ts`
 - `src/febio/native/outputs.ts`
 - `src/febio/native/runDiagnostics.ts`
 - `scripts/export_febio_native_case.mjs`
+- `scripts/dump_native_gmsh_baseline.mjs`
 - `scripts/diagnose_febio_native_run.mjs`
 - `scripts/convert_febio_output.mjs`
 - `src/results/classification.ts`

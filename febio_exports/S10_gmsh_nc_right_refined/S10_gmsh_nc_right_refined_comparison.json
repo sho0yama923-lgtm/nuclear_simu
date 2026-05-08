@@ -1,0 +1,135 @@
+{
+  "mesh": {
+    "baseline": {
+      "nodes": 88,
+      "elements": 17,
+      "surfaces": 21
+    },
+    "gmsh": {
+      "nodes": 88,
+      "elements": 17,
+      "surfaces": 21,
+      "nativeIdRecovery": "template-preserved-for-duplicate-coordinate-baseline"
+    },
+    "surfaceAssignmentEqual": true,
+    "checkedSurfaces": [
+      "pipette_suction_patch",
+      "nucleus_interface_left_surface",
+      "nucleus_interface_right_surface",
+      "cytoplasm_interface_left_surface",
+      "cytoplasm_interface_right_surface",
+      "cell_dish_surface",
+      "dish_contact_surface"
+    ],
+    "contactRegions": {
+      "baseline": [
+        "left",
+        "right"
+      ],
+      "gmsh": [
+        "left",
+        "right"
+      ]
+    }
+  },
+  "solver": {
+    "baseline": {
+      "solverMode": "febio",
+      "source": "febio-cli",
+      "note": "converted from FEBio logfile output"
+    },
+    "gmsh": {
+      "solverMode": "febio",
+      "source": "febio-cli",
+      "note": "converted from FEBio logfile output"
+    }
+  },
+  "result": {
+    "classification": {
+      "baseline": "nucleus_detached",
+      "gmsh": "nucleus_detached"
+    },
+    "finalAspiration": {
+      "baseline": 0.9491107324405,
+      "gmsh": 0.9491107324405,
+      "delta": 0
+    },
+    "pressureResponseObservedNodes": {
+      "baseline": 4,
+      "gmsh": 4
+    },
+    "detachmentStart": {
+      "baseline": 0.466676,
+      "gmsh": 0.466676,
+      "delta": 0
+    },
+    "nativeNcFailure": {
+      "baseline": {
+        "active": false,
+        "damage": 0,
+        "startThreshold": 0.45,
+        "completeThreshold": 0.72,
+        "source": "native-local-nc",
+        "outputAvailable": true,
+        "unavailableReason": "",
+        "details": {
+          "interfaceType": "tied-elastic",
+          "solverActive": true,
+          "status": "solver-active NC comparison / shared-node baseline preserved separately / stabilization-validated",
+          "mode": "solver-active NC comparison coupling",
+          "faceDataOutputs": [
+            "nucleus_cytoplasm_left_surface",
+            "nucleus_cytoplasm_right_surface"
+          ],
+          "plotfileSurfaceOutputs": [
+            "nucleus_cytoplasm_left_surface",
+            "nucleus_cytoplasm_right_surface"
+          ],
+          "sharedNodeRegionNodeOutputs": [
+            "nc_left_nucleus_nodes",
+            "nc_left_cytoplasm_nodes",
+            "nc_right_nucleus_nodes",
+            "nc_right_cytoplasm_nodes",
+            "nc_top_nucleus_nodes",
+            "nc_top_cytoplasm_nodes",
+            "nc_bottom_nucleus_nodes",
+            "nc_bottom_cytoplasm_nodes"
+          ]
+        }
+      },
+      "gmsh": {
+        "active": false,
+        "damage": 0,
+        "startThreshold": 0.45,
+        "completeThreshold": 0.72,
+        "source": "native-local-nc",
+        "outputAvailable": true,
+        "unavailableReason": "",
+        "details": {
+          "interfaceType": "tied-elastic",
+          "solverActive": true,
+          "status": "solver-active NC comparison / shared-node baseline preserved separately / stabilization-validated",
+          "mode": "solver-active NC comparison coupling",
+          "faceDataOutputs": [
+            "nucleus_cytoplasm_left_surface",
+            "nucleus_cytoplasm_right_surface"
+          ],
+          "plotfileSurfaceOutputs": [
+            "nucleus_cytoplasm_left_surface",
+            "nucleus_cytoplasm_right_surface"
+          ],
+          "sharedNodeRegionNodeOutputs": [
+            "nc_left_nucleus_nodes",
+            "nc_left_cytoplasm_nodes",
+            "nc_right_nucleus_nodes",
+            "nc_right_cytoplasm_nodes",
+            "nc_top_nucleus_nodes",
+            "nc_top_cytoplasm_nodes",
+            "nc_bottom_nucleus_nodes",
+            "nc_bottom_cytoplasm_nodes"
+          ]
+        }
+      }
+    }
+  }
+}

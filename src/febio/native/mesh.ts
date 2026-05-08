@@ -1,4 +1,5 @@
 import { buildRefinedFebioGeometry, validateFebioMesh } from "../mesh/index.ts";
+import { buildGmshBaselineNativeMesh } from "./gmsh.ts";
 
 function geometryForNativeMesh(spec) {
   return {
@@ -21,7 +22,11 @@ function geometryForNativeMesh(spec) {
 }
 
 export function buildNativeMesh(spec) {
-  return refineNativeNucleusCytoplasmCoupling(refineNativeCellDishGeometry(applyNativeSolverSurfaceConventions(buildRefinedFebioGeometry(geometryForNativeMesh(spec)), spec)), spec);
+  const nativeMesh = refineNativeNucleusCytoplasmCoupling(refineNativeCellDishGeometry(applyNativeSolverSurfaceConventions(buildRefinedFebioGeometry(geometryForNativeMesh(spec)), spec)), spec);
+  if (spec.geometry?.meshMode === "s10-gmsh-baseline") {
+    return buildGmshBaselineNativeMesh(nativeMesh);
+  }
+  return nativeMesh;
 }
 
 function applyNativeSolverSurfaceConventions(mesh, spec = {}) {
@@ -262,7 +267,7 @@ function refineNativeNucleusCytoplasmCoupling(mesh, spec = {}) {
 }
 
 function applyLocalSuctionPatchRefinement(mesh, spec = {}) {
-  if (spec.geometry?.meshMode !== "s10-local-suction-patch") return mesh;
+  if (!["s10-local-suction-patch", "s10-gmsh-baseline"].includes(spec.geometry?.meshMode)) return mesh;
   if (spec.contacts?.pipetteCell?.suctionSurfaceMode === "cell-outer-right") return mesh;
 
   const nucleusLeft = mesh.bounds?.nucleusLeft;

@@ -581,6 +581,77 @@ test("native-only S10 NC right refinement splits local contact region around suc
   assert.doesNotMatch(xml, /<contact name="nucleus_cytoplasm_bottom_interface"/);
 });
 
+test("native-only Gmsh baseline round-trips physical groups into the native mesh shape", async () => {
+  const native = await loadNativeModule();
+  const caseSpec = JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S10_local_suction_patch.native.json"), "utf8"));
+  const nativeMesh = native.buildNativeMesh(caseSpec);
+  const msh = native.serializeNativeMeshToGmshV2(nativeMesh);
+  const parsed = native.parseGmshMshV2(msh);
+  const gmshMesh = native.convertGmshMshToNativeMesh(parsed, nativeMesh);
+  const validation = native.validateNativeMesh(gmshMesh);
+  const geo = native.buildGmshBaselineGeo(nativeMesh, { mshPath: "native-baseline.msh" });
+
+  assert.match(msh, /\$MeshFormat\n2\.2 0 8\n\$EndMeshFormat/);
+  assert.match(msh, /2 \d+ "pipette_suction_patch"/);
+  assert.match(msh, /2 \d+ "nucleus_interface_right_surface"/);
+  assert.match(msh, /3 \d+ "nucleus"/);
+  assert.match(geo, /Merge "native-baseline\.msh";/);
+  assert.equal(gmshMesh.meshMode, "gmsh-baseline");
+  assert.equal(gmshMesh.gmsh.nativeIdRecovery, "template-preserved-for-duplicate-coordinate-baseline");
+  assert.equal(gmshMesh.nodes.length, nativeMesh.nodes.length);
+  assert.equal(gmshMesh.elements.length, nativeMesh.elements.length);
+  assert.deepEqual(gmshMesh.elementSets, nativeMesh.elementSets);
+  assert.deepEqual(gmshMesh.surfaces.pipette_suction_patch, nativeMesh.surfaces.pipette_suction_patch);
+  assert.deepEqual(gmshMesh.surfaces.nucleus_interface_right_surface, nativeMesh.surfaces.nucleus_interface_right_surface);
+  assert.equal(validation.valid, true);
+});
+
+test("native-only opt-in Gmsh mesh mode keeps default path separate and exports FEBio XML", async () => {
+  const native = await loadNativeModule();
+  const caseSpec = JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S10_local_suction_patch.native.json"), "utf8"));
+  const gmshSpec = JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S10_gmsh_baseline.native.json"), "utf8"));
+  const model = native.buildNativeFebioModel(gmshSpec);
+  const bundle = native.buildNativeFebioExport(gmshSpec, { outDir: "tmp" });
+
+  assert.equal(caseSpec.geometry.meshMode, "s10-local-suction-patch");
+  assert.equal(gmshSpec.caseName, "S10_gmsh_baseline");
+  assert.equal(gmshSpec.outputNameTag, "S10-G");
+  assert.equal(model.effectiveNativeSpec.geometry.meshMode, "s10-gmsh-baseline");
+  assert.equal(model.geometry.mesh.meshMode, "gmsh-baseline");
+  assert.equal(model.geometry.mesh.gmsh.format, "gmsh-msh-v2-ascii");
+  assert.equal(model.geometry.meshValidation.valid, true);
+  assert.equal(bundle.exportReady, true);
+  assert.match(bundle.febXml, /<Surface name="pipette_suction_patch">/);
+  assert.match(bundle.febXml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_patch" type="pressure">/);
+});
+
+test("native-only Gmsh NC-right refinement preserves separated contact surfaces", async () => {
+  const native = await loadNativeModule();
+  const baseline = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S10_local_suction_patch_nc_right_refined.native.json"), "utf8")),
+  );
+  const gmsh = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S10_gmsh_nc_right_refined.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(gmsh);
+
+  assert.equal(gmsh.caseName, "S10_gmsh_nc_right_refined");
+  assert.equal(gmsh.effectiveNativeSpec.outputNameTag, "S10-H");
+  assert.equal(gmsh.effectiveNativeSpec.geometry.meshMode, "s10-gmsh-baseline");
+  assert.equal(gmsh.geometry.mesh.meshMode, "gmsh-baseline");
+  assert.equal(gmsh.geometry.mesh.gmsh.nativeIdRecovery, "template-preserved-for-duplicate-coordinate-baseline");
+  assert.equal(gmsh.geometry.meshValidation.valid, true);
+  assert.deepEqual(gmsh.interfaces.nucleusCytoplasm.contactRegions, ["left", "right"]);
+  assert.deepEqual(gmsh.geometry.mesh.surfaces.nucleus_interface_right_surface, baseline.geometry.mesh.surfaces.nucleus_interface_right_surface);
+  assert.deepEqual(gmsh.geometry.mesh.surfaces.cytoplasm_interface_right_surface, baseline.geometry.mesh.surfaces.cytoplasm_interface_right_surface);
+  assert.deepEqual(gmsh.geometry.mesh.surfaces.pipette_suction_patch, baseline.geometry.mesh.surfaces.pipette_suction_patch);
+  assert.equal(gmsh.logOutputs.faceData.some((entry) => entry.name === "nucleus_cytoplasm_right_surface"), true);
+  assert.equal(gmsh.logOutputs.faceData.some((entry) => entry.name === "nucleus_cytoplasm_top_surface"), false);
+  assert.match(xml, /<Surface name="cytoplasm_interface_right_surface">\n      <quad4 id="11">74,75,90,89<\/quad4>\n      <quad4 id="26">89,90,92,91<\/quad4>\n      <quad4 id="27">91,92,79,78<\/quad4>/);
+  assert.match(xml, /<contact name="nucleus_cytoplasm_right_interface" type="tied-elastic" surface_pair="nucleus_cytoplasm_right_pair">/);
+  assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_patch" type="pressure">/);
+});
+
 test("native-only S10 pressure scan variants preserve refined local-patch geometry", async () => {
   const native = await loadNativeModule();
   const scanCases = [

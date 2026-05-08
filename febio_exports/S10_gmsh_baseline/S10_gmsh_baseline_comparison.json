@@ -1,0 +1,53 @@
+{
+  "mesh": {
+    "baseline": {
+      "nodes": 72,
+      "elements": 15,
+      "surfaces": 21
+    },
+    "gmsh": {
+      "nodes": 72,
+      "elements": 15,
+      "surfaces": 21
+    },
+    "surfaceAssignmentEqual": true,
+    "checkedSurfaces": [
+      "pipette_suction_patch",
+      "nucleus_interface_right_surface",
+      "cell_dish_surface",
+      "dish_contact_surface"
+    ]
+  },
+  "solver": {
+    "baseline": {
+      "solverMode": "febio",
+      "source": "febio-cli",
+      "note": "converted from FEBio logfile output"
+    },
+    "gmsh": {
+      "solverMode": "febio",
+      "source": "febio-cli",
+      "note": "converted from FEBio logfile output"
+    }
+  },
+  "result": {
+    "classification": {
+      "baseline": "nucleus_detached",
+      "gmsh": "nucleus_detached"
+    },
+    "finalAspiration": {
+      "baseline": 0.846131091927375,
+      "gmsh": 0.846131091927375,
+      "delta": 0
+    },
+    "pressureResponseObservedNodes": {
+      "baseline": 4,
+      "gmsh": 4
+    },
+    "detachmentStart": {
+      "baseline": 0.533344,
+      "gmsh": 0.533344,
+      "delta": 0
+    }
+  }
+}

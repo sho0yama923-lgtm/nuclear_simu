@@ -5,6 +5,13 @@ export {
   validateNativeCaseSpec
 } from "./caseSpec.ts";
 export { buildNativeMesh, validateNativeMesh } from "./mesh.ts";
+export {
+  buildGmshBaselineGeo,
+  buildGmshBaselineNativeMesh,
+  convertGmshMshToNativeMesh,
+  parseGmshMshV2,
+  serializeNativeMeshToGmshV2
+} from "./gmsh.ts";
 export { buildNativeInterfaces } from "./interfaces.ts";
 export { buildNativeOutputs, buildNativeLogOutputs } from "./outputs.ts";
 export { buildNativeFebioModel } from "./model.ts";
