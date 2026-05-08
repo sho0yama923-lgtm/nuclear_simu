@@ -28,6 +28,9 @@ febio_cases/native/S9_pipette_nucleus_nc_separated_pressure_2p1.native.json
 febio_cases/native/S9_pipette_nucleus_nc_separated_pressure_2p8.native.json
 febio_cases/native/S10_local_suction_patch.native.json
 febio_cases/native/S10_local_suction_patch_nc_right_refined.native.json
+febio_cases/native/S10_local_suction_patch_nc_right_refined_pressure_1p0.native.json
+febio_cases/native/S10_local_suction_patch_nc_right_refined_pressure_1p3.native.json
+febio_cases/native/S10_local_suction_patch_nc_right_refined_pressure_1p55.native.json
 scripts/export_febio_native_case.mjs
 scripts/diagnose_febio_native_run.mjs
 src/febio/native/
@@ -46,6 +49,9 @@ febio_exports/S8_pipette_outer_cell_surface_delayed_inward/
 febio_exports/S8_pipette_nucleus_pressure_return/
 febio_exports/S10_local_suction_patch/
 febio_exports/S10_local_suction_patch_nc_right_refined/
+febio_exports/S10_local_suction_patch_nc_right_refined_pressure_1p0/
+febio_exports/S10_local_suction_patch_nc_right_refined_pressure_1p3/
+febio_exports/S10_local_suction_patch_nc_right_refined_pressure_1p55/
 ```
 
 Use this path for new solver-facing work, pressure/contact changes, `.feb` serialization, output declarations, manifests, and Studio handoff artifacts.

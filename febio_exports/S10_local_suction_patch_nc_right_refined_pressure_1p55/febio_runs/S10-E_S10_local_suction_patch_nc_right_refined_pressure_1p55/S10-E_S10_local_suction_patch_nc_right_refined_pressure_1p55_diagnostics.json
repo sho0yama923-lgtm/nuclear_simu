@@ -1,0 +1,885 @@
+{
+  "warnings": {
+    "normalTermination": 1,
+    "warning": 0,
+    "platformWarning": 0,
+    "error": 0,
+    "negativeJacobian": 0,
+    "noForceActing": 0,
+    "noContactPairs": 0
+  },
+  "cellDish": {
+    "time": 5.00003,
+    "rows": [
+      [
+        1,
+        0.0431910234725,
+        0
+      ],
+      [
+        2,
+        0.0459183830928,
+        0
+      ],
+      [
+        3,
+        0.0483921317597,
+        0
+      ]
+    ],
+    "finalGap": [
+      0.0431910234725,
+      0.0459183830928,
+      0.0483921317597
+    ],
+    "finalPressure": [
+      0,
+      0,
+      0
+    ],
+    "maxFinalGap": 0.0483921317597,
+    "maxAbsPressure": 0,
+    "hasLoadBearingPressure": false,
+    "hasControlledGap": true
+  },
+  "pipetteCell": {
+    "time": 5.00003,
+    "rows": [
+      [
+        1,
+        0,
+        0
+      ]
+    ],
+    "finalGap": [
+      0
+    ],
+    "finalPressure": [
+      0
+    ],
+    "maxFinalGap": 0,
+    "maxAbsPressure": 0,
+    "hasLoadBearingPressure": false,
+    "hasControlledGap": true
+  },
+  "pipetteContact": {
+    "time": 5.00003,
+    "rows": [
+      [
+        1,
+        0,
+        0
+      ]
+    ],
+    "finalGap": [
+      0
+    ],
+    "finalPressure": [
+      0
+    ],
+    "maxFinalGap": 0,
+    "maxAbsPressure": 0,
+    "hasLoadBearingPressure": false,
+    "hasControlledGap": true
+  },
+  "rigidPipette": {
+    "time": 5.00003,
+    "row": [
+      4,
+      20.25,
+      0,
+      17.65,
+      0,
+      0,
+      0
+    ],
+    "position": {
+      "x": 20.25,
+      "y": 0,
+      "z": 17.65
+    },
+    "reaction": {
+      "Fx": 0,
+      "Fy": 0,
+      "Fz": 0
+    },
+    "maxAbsReaction": 0,
+    "hasReaction": false
+  },
+  "nucleus": {
+    "time": 5.00003,
+    "maxDisplacement": 2.7804219912391797,
+    "hasDisplacement": true
+  },
+  "cytoplasm": {
+    "time": 5.00003,
+    "maxDisplacement": 2.9067731100847696,
+    "hasDisplacement": true
+  },
+  "pressureLoads": {
+    "available": true,
+    "loads": [
+      {
+        "name": "pipette_suction_pressure",
+        "surface": "pipette_suction_patch",
+        "value": -1.55,
+        "magnitude": 1.55,
+        "unit": "kPa",
+        "area": 6.5,
+        "resultant": 10.075000000000001,
+        "resultantUnit": "nN",
+        "active": true,
+        "interpretation": "pressure resultant is computed from declared surface_load pressure times native mesh surface area"
+      },
+      {
+        "name": "cell_dish_normal_preload",
+        "surface": "cell_dish_surface",
+        "value": 0.1,
+        "magnitude": 0.1,
+        "unit": "kPa",
+        "area": 52,
+        "resultant": 5.2,
+        "resultantUnit": "nN",
+        "active": true,
+        "interpretation": "pressure resultant is computed from declared surface_load pressure times native mesh surface area"
+      }
+    ],
+    "pipetteSuction": {
+      "name": "pipette_suction_pressure",
+      "surface": "pipette_suction_patch",
+      "value": -1.55,
+      "magnitude": 1.55,
+      "unit": "kPa",
+      "area": 6.5,
+      "resultant": 10.075000000000001,
+      "resultantUnit": "nN",
+      "active": true,
+      "interpretation": "pressure resultant is computed from declared surface_load pressure times native mesh surface area"
+    }
+  },
+  "pressureLoadResponse": {
+    "available": true,
+    "loads": [
+      {
+        "name": "pipette_suction_pressure",
+        "surface": "pipette_suction_patch",
+        "nodeIds": [
+          82,
+          83,
+          86,
+          87
+        ],
+        "observedNodeCount": 4,
+        "missingNodeIds": [],
+        "sources": [
+          "pipetteSuction"
+        ],
+        "surfaceNormal": [
+          -1,
+          0,
+          0
+        ],
+        "rows": [
+          {
+            "id": 82,
+            "rawId": 74,
+            "source": "pipetteSuction",
+            "displacement": [
+              -2.37090851911,
+              0,
+              0.321142833398
+            ],
+            "magnitude": 2.392559283577163,
+            "normalDisplacement": 2.37090851911
+          },
+          {
+            "id": 83,
+            "rawId": 75,
+            "source": "pipetteSuction",
+            "displacement": [
+              -2.37090851911,
+              0,
+              0.321142833398
+            ],
+            "magnitude": 2.392559283577163,
+            "normalDisplacement": 2.37090851911
+          },
+          {
+            "id": 86,
+            "rawId": 78,
+            "source": "pipetteSuction",
+            "displacement": [
+              -2.75586831208,
+              0,
+              0.368695397096
+            ],
+            "magnitude": 2.7804219912391797,
+            "normalDisplacement": 2.75586831208
+          },
+          {
+            "id": 87,
+            "rawId": 79,
+            "source": "pipetteSuction",
+            "displacement": [
+              -2.75586831208,
+              0,
+              0.368695397096
+            ],
+            "magnitude": 2.7804219912391797,
+            "normalDisplacement": 2.75586831208
+          }
+        ],
+        "maxDisplacement": 2.7804219912391797,
+        "meanDisplacement": 2.5864906374081715,
+        "maxAbsNormalDisplacement": 2.75586831208,
+        "meanNormalDisplacement": 2.563388415595,
+        "hasDisplacement": true,
+        "hasNormalDisplacement": true,
+        "interpretation": "pressure-load response is computed from final displacement of nodes on the declared pressure surface"
+      },
+      {
+        "name": "cell_dish_normal_preload",
+        "surface": "cell_dish_surface",
+        "nodeIds": [
+          1,
+          2,
+          3,
+          4,
+          33,
+          34,
+          35,
+          36,
+          41,
+          42,
+          43,
+          44
+        ],
+        "observedNodeCount": 12,
+        "missingNodeIds": [],
+        "sources": [
+          "cytoplasm"
+        ],
+        "surfaceNormal": [
+          0,
+          0,
+          -1
+        ],
+        "rows": [
+          {
+            "id": 1,
+            "rawId": 1,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.0535830043705,
+              0,
+              -0.0820269769267
+            ],
+            "magnitude": 0.09797736116625308,
+            "normalDisplacement": 0.0820269769267
+          },
+          {
+            "id": 2,
+            "rawId": 2,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.00405182756999,
+              0,
+              0.0577620239837
+            ],
+            "magnitude": 0.05790396118876898,
+            "normalDisplacement": -0.0577620239837
+          },
+          {
+            "id": 3,
+            "rawId": 3,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.00405182756999,
+              0,
+              0.0577620239837
+            ],
+            "magnitude": 0.05790396118876898,
+            "normalDisplacement": -0.0577620239837
+          },
+          {
+            "id": 4,
+            "rawId": 4,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.0535830043705,
+              0,
+              -0.0820269769267
+            ],
+            "magnitude": 0.09797736116625308,
+            "normalDisplacement": 0.0820269769267
+          },
+          {
+            "id": 33,
+            "rawId": 25,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.00636691853062,
+              0,
+              -0.0332104048748
+            ],
+            "magnitude": 0.03381521319648439,
+            "normalDisplacement": 0.0332104048748
+          },
+          {
+            "id": 34,
+            "rawId": 26,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.0706828326692,
+              0,
+              0.120092758821
+            ],
+            "magnitude": 0.13934968085855454,
+            "normalDisplacement": -0.120092758821
+          },
+          {
+            "id": 35,
+            "rawId": 27,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.0706828326692,
+              0,
+              0.120092758821
+            ],
+            "magnitude": 0.13934968085855454,
+            "normalDisplacement": -0.120092758821
+          },
+          {
+            "id": 36,
+            "rawId": 28,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.00636691853062,
+              0,
+              -0.0332104048748
+            ],
+            "magnitude": 0.03381521319648439,
+            "normalDisplacement": 0.0332104048748
+          },
+          {
+            "id": 41,
+            "rawId": 33,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.0391664612727,
+              0,
+              -0.0511506632049
+            ],
+            "magnitude": 0.0644236139542561,
+            "normalDisplacement": 0.0511506632049
+          },
+          {
+            "id": 42,
+            "rawId": 34,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.0400498631033,
+              0,
+              0.0725050746398
+            ],
+            "magnitude": 0.08283101703538379,
+            "normalDisplacement": -0.0725050746398
+          },
+          {
+            "id": 43,
+            "rawId": 35,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.0400498631033,
+              0,
+              0.0725050746398
+            ],
+            "magnitude": 0.08283101703538379,
+            "normalDisplacement": -0.0725050746398
+          },
+          {
+            "id": 44,
+            "rawId": 36,
+            "source": "cytoplasm",
+            "displacement": [
+              -0.0391664612727,
+              0,
+              -0.0511506632049
+            ],
+            "magnitude": 0.0644236139542561,
+            "normalDisplacement": 0.0511506632049
+          }
+        ],
+        "maxDisplacement": 0.13934968085855454,
+        "meanDisplacement": 0.0793834745666168,
+        "maxAbsNormalDisplacement": 0.120092758821,
+        "meanNormalDisplacement": -0.013995302073016665,
+        "hasDisplacement": true,
+        "hasNormalDisplacement": true,
+        "interpretation": "pressure-load response is computed from final displacement of nodes on the declared pressure surface"
+      }
+    ],
+    "pipetteSuction": {
+      "name": "pipette_suction_pressure",
+      "surface": "pipette_suction_patch",
+      "nodeIds": [
+        82,
+        83,
+        86,
+        87
+      ],
+      "observedNodeCount": 4,
+      "missingNodeIds": [],
+      "sources": [
+        "pipetteSuction"
+      ],
+      "surfaceNormal": [
+        -1,
+        0,
+        0
+      ],
+      "rows": [
+        {
+          "id": 82,
+          "rawId": 74,
+          "source": "pipetteSuction",
+          "displacement": [
+            -2.37090851911,
+            0,
+            0.321142833398
+          ],
+          "magnitude": 2.392559283577163,
+          "normalDisplacement": 2.37090851911
+        },
+        {
+          "id": 83,
+          "rawId": 75,
+          "source": "pipetteSuction",
+          "displacement": [
+            -2.37090851911,
+            0,
+            0.321142833398
+          ],
+          "magnitude": 2.392559283577163,
+          "normalDisplacement": 2.37090851911
+        },
+        {
+          "id": 86,
+          "rawId": 78,
+          "source": "pipetteSuction",
+          "displacement": [
+            -2.75586831208,
+            0,
+            0.368695397096
+          ],
+          "magnitude": 2.7804219912391797,
+          "normalDisplacement": 2.75586831208
+        },
+        {
+          "id": 87,
+          "rawId": 79,
+          "source": "pipetteSuction",
+          "displacement": [
+            -2.75586831208,
+            0,
+            0.368695397096
+          ],
+          "magnitude": 2.7804219912391797,
+          "normalDisplacement": 2.75586831208
+        }
+      ],
+      "maxDisplacement": 2.7804219912391797,
+      "meanDisplacement": 2.5864906374081715,
+      "maxAbsNormalDisplacement": 2.75586831208,
+      "meanNormalDisplacement": 2.563388415595,
+      "hasDisplacement": true,
+      "hasNormalDisplacement": true,
+      "interpretation": "pressure-load response is computed from final displacement of nodes on the declared pressure surface"
+    }
+  },
+  "plotfileContactForce": {
+    "available": true,
+    "stateCount": 213,
+    "nonzeroRowCount": 1272,
+    "hasContactForce": true,
+    "componentBasis": {
+      "normalAxis": "z",
+      "tangentialAxes": [
+        "x",
+        "y"
+      ],
+      "normalDirection": "cell-dish normal; +z is away from dish / apical"
+    },
+    "maxAbs": {
+      "x": 20.380687713623047,
+      "y": 0,
+      "z": 9.333883285522461,
+      "magnitude": 22.39818065601876,
+      "normal": 9.333883285522461,
+      "tangential": 20.380687713623047
+    },
+    "maxAt": {
+      "x": {
+        "value": 20.380687713623047,
+        "time": 5.000030040740967,
+        "itemId": 5,
+        "signedValue": 20.380687713623047
+      },
+      "y": {
+        "value": 0,
+        "time": 0,
+        "itemId": 1,
+        "signedValue": 0
+      },
+      "z": {
+        "value": 9.333883285522461,
+        "time": 2.0166869163513184,
+        "itemId": 5,
+        "signedValue": -9.333883285522461
+      },
+      "magnitude": {
+        "value": 22.39818065601876,
+        "time": 2.0166869163513184,
+        "itemId": 5,
+        "signedValue": 22.39818065601876
+      },
+      "normalMagnitude": {
+        "value": 9.333883285522461,
+        "time": 2.0166869163513184,
+        "itemId": 5,
+        "signedValue": 9.333883285522461
+      },
+      "tangentialMagnitude": {
+        "value": 20.380687713623047,
+        "time": 5.000030040740967,
+        "itemId": 5,
+        "signedValue": 20.380687713623047
+      }
+    },
+    "surfaceSummaries": {
+      "nucleus_interface_left_surface": {
+        "nonzeroRowCount": 212,
+        "hasContactForce": true,
+        "maxAbs": {
+          "x": 3.1644935607910156,
+          "y": 0,
+          "z": 3.9775524139404297,
+          "magnitude": 5.0828085446858156,
+          "normal": 3.9775524139404297,
+          "tangential": 3.1644935607910156
+        }
+      },
+      "nucleus_interface_right_surface": {
+        "nonzeroRowCount": 212,
+        "hasContactForce": true,
+        "maxAbs": {
+          "x": 4.319808483123779,
+          "y": 0,
+          "z": 4.275455951690674,
+          "magnitude": 6.07785068307172,
+          "normal": 4.275455951690674,
+          "tangential": 4.319808483123779
+        }
+      },
+      "cytoplasm_interface_left_surface": {
+        "nonzeroRowCount": 212,
+        "hasContactForce": true,
+        "maxAbs": {
+          "x": 3.1644935607910156,
+          "y": 0,
+          "z": 3.9775524139404297,
+          "magnitude": 5.0828085446858156,
+          "normal": 3.9775524139404297,
+          "tangential": 3.1644935607910156
+        }
+      },
+      "cytoplasm_interface_right_surface": {
+        "nonzeroRowCount": 212,
+        "hasContactForce": true,
+        "maxAbs": {
+          "x": 4.319808483123779,
+          "y": 0,
+          "z": 4.275455951690674,
+          "magnitude": 6.07785068307172,
+          "normal": 4.275455951690674,
+          "tangential": 4.319808483123779
+        }
+      },
+      "cell_dish_surface": {
+        "nonzeroRowCount": 212,
+        "hasContactForce": true,
+        "maxAbs": {
+          "x": 20.380687713623047,
+          "y": 0,
+          "z": 9.333883285522461,
+          "magnitude": 22.39818065601876,
+          "normal": 9.333883285522461,
+          "tangential": 20.380687713623047
+        }
+      },
+      "dish_contact_surface": {
+        "nonzeroRowCount": 212,
+        "hasContactForce": true,
+        "maxAbs": {
+          "x": 20.380687713623047,
+          "y": 0,
+          "z": 9.333883285522461,
+          "magnitude": 22.39818065601876,
+          "normal": 9.333883285522461,
+          "tangential": 20.380687713623047
+        }
+      },
+      "pipette_suction_surface": {
+        "nonzeroRowCount": 0,
+        "hasContactForce": false,
+        "maxAbs": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "magnitude": 0,
+          "normal": 0,
+          "tangential": 0
+        }
+      },
+      "pipette_contact_surface": {
+        "nonzeroRowCount": 0,
+        "hasContactForce": false,
+        "maxAbs": {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "magnitude": 0,
+          "normal": 0,
+          "tangential": 0
+        }
+      }
+    },
+    "surfaceByItemId": {
+      "1": "nucleus_interface_left_surface",
+      "2": "nucleus_interface_right_surface",
+      "3": "cytoplasm_interface_left_surface",
+      "4": "cytoplasm_interface_right_surface",
+      "5": "cell_dish_surface",
+      "6": "dish_contact_surface",
+      "7": "pipette_suction_surface",
+      "8": "pipette_contact_surface",
+      "9": "pipette_suction_patch"
+    },
+    "zToXRatio": 0.4579768561628772,
+    "normalToTangentialRatio": 0.4579768561628772,
+    "finalState": {
+      "time": 5.000030040740967,
+      "rowCount": 10,
+      "rows": [
+        {
+          "itemId": 1,
+          "x": 3.1644935607910156,
+          "y": 0,
+          "z": 3.9775524139404297,
+          "magnitude": 5.0828085446858156,
+          "normalComponent": 3.9775524139404297,
+          "normalMagnitude": 3.9775524139404297,
+          "tangentialMagnitude": 3.1644935607910156,
+          "variableId": 1,
+          "surface": "nucleus_interface_left_surface"
+        },
+        {
+          "itemId": 2,
+          "x": 4.319808483123779,
+          "y": 0,
+          "z": -4.275455951690674,
+          "magnitude": 6.07785068307172,
+          "normalComponent": -4.275455951690674,
+          "normalMagnitude": 4.275455951690674,
+          "tangentialMagnitude": 4.319808483123779,
+          "variableId": 1,
+          "surface": "nucleus_interface_right_surface"
+        },
+        {
+          "itemId": 3,
+          "x": -3.1644935607910156,
+          "y": 0,
+          "z": -3.9775524139404297,
+          "magnitude": 5.0828085446858156,
+          "normalComponent": -3.9775524139404297,
+          "normalMagnitude": 3.9775524139404297,
+          "tangentialMagnitude": 3.1644935607910156,
+          "variableId": 1,
+          "surface": "cytoplasm_interface_left_surface"
+        },
+        {
+          "itemId": 4,
+          "x": -4.319808483123779,
+          "y": 0,
+          "z": 4.275455951690674,
+          "magnitude": 6.07785068307172,
+          "normalComponent": 4.275455951690674,
+          "normalMagnitude": 4.275455951690674,
+          "tangentialMagnitude": 4.319808483123779,
+          "variableId": 1,
+          "surface": "cytoplasm_interface_right_surface"
+        },
+        {
+          "itemId": 5,
+          "x": 20.380687713623047,
+          "y": 0,
+          "z": -9.20345401763916,
+          "magnitude": 22.362379066973705,
+          "normalComponent": -9.20345401763916,
+          "normalMagnitude": 9.20345401763916,
+          "tangentialMagnitude": 20.380687713623047,
+          "variableId": 1,
+          "surface": "cell_dish_surface"
+        },
+        {
+          "itemId": 6,
+          "x": -20.380687713623047,
+          "y": 0,
+          "z": 9.20345401763916,
+          "magnitude": 22.362379066973705,
+          "normalComponent": 9.20345401763916,
+          "normalMagnitude": 9.20345401763916,
+          "tangentialMagnitude": 20.380687713623047,
+          "variableId": 1,
+          "surface": "dish_contact_surface"
+        },
+        {
+          "itemId": 7,
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "magnitude": 0,
+          "normalComponent": 0,
+          "normalMagnitude": 0,
+          "tangentialMagnitude": 0,
+          "variableId": 1,
+          "surface": "pipette_suction_surface"
+        },
+        {
+          "itemId": 8,
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "magnitude": 0,
+          "normalComponent": 0,
+          "normalMagnitude": 0,
+          "tangentialMagnitude": 0,
+          "variableId": 1,
+          "surface": "pipette_contact_surface"
+        },
+        {
+          "itemId": 1,
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "magnitude": 0,
+          "normalComponent": 0,
+          "normalMagnitude": 0,
+          "tangentialMagnitude": 0,
+          "variableId": 2,
+          "surface": "nucleus_interface_left_surface"
+        },
+        {
+          "itemId": 2,
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "magnitude": 0,
+          "normalComponent": 0,
+          "normalMagnitude": 0,
+          "tangentialMagnitude": 0,
+          "variableId": 3,
+          "surface": "nucleus_interface_right_surface"
+        }
+      ]
+    }
+  },
+  "cellDishForce": {
+    "pressureForceMismatch": true,
+    "normalForce": 9.333883285522461,
+    "tangentialForce": 20.380687713623047,
+    "normalToTangentialRatio": 0.4579768561628772,
+    "normalSupportThreshold": {
+      "minMagnitude": 1e-9,
+      "minNormalToTangentialRatio": 0.2
+    },
+    "hasNormalSupport": true,
+    "hasTangentialForce": true,
+    "interpretation": "cell-dish face-data pressure is zero while plotfile contact force is nonzero"
+  },
+  "pipetteInteraction": {
+    "pressureActive": false,
+    "mouthPressureActive": false,
+    "rigidReactionActive": false,
+    "suctionPlotfileForceActive": false,
+    "mouthPlotfileForceActive": false,
+    "plotfileForceActive": false,
+    "suctionPressureLoadActive": true,
+    "directContactOutputActive": false,
+    "hasInteraction": false,
+    "maxPressure": 0,
+    "maxMouthPressure": 0,
+    "suctionPressureLoadResultant": 10.075000000000001,
+    "suctionPressureLoad": {
+      "name": "pipette_suction_pressure",
+      "surface": "pipette_suction_patch",
+      "value": -1.55,
+      "magnitude": 1.55,
+      "unit": "kPa",
+      "area": 6.5,
+      "resultant": 10.075000000000001,
+      "resultantUnit": "nN",
+      "active": true,
+      "interpretation": "pressure resultant is computed from declared surface_load pressure times native mesh surface area"
+    },
+    "maxRigidReaction": 0,
+    "suctionPlotfileForce": {
+      "nonzeroRowCount": 0,
+      "hasContactForce": false,
+      "maxAbs": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "magnitude": 0,
+        "normal": 0,
+        "tangential": 0
+      }
+    },
+    "mouthPlotfileForce": {
+      "nonzeroRowCount": 0,
+      "hasContactForce": false,
+      "maxAbs": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "magnitude": 0,
+        "normal": 0,
+        "tangential": 0
+      }
+    },
+    "interpretation": "pipette interaction channels are all inactive: pipette-cell pressure, pipette mouth pressure, rigid reaction, and pipette plotfile contact force are zero"
+  },
+  "gates": {
+    "warningFree": true,
+    "cellDishPressureActive": false,
+    "cellDishContactForceActive": true,
+    "cellDishNormalSupportActive": true,
+    "cellDishTangentialForceActive": true,
+    "cellDishPressureForceMismatch": true,
+    "cellDishLoadBearing": false,
+    "cellDishGapControlled": true,
+    "plotfileContactForceActive": true,
+    "pipetteCellPressureActive": false,
+    "pipetteMouthPressureActive": false,
+    "pipetteRigidReactionActive": false,
+    "pipetteSuctionPlotfileForceActive": false,
+    "pipetteMouthPlotfileForceActive": false,
+    "pipettePlotfileForceActive": false,
+    "pipetteSuctionPressureLoadActive": true,
+    "pipetteSuctionPressureResponseActive": true,
+    "pipetteSuctionNormalDisplacementActive": true,
+    "pipetteDirectContactOutputActive": false,
+    "pipetteInteractionActive": false,
+    "nucleusCytoplasmMoved": true
+  }
+}

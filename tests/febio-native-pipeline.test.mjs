@@ -581,6 +581,54 @@ test("native-only S10 NC right refinement splits local contact region around suc
   assert.doesNotMatch(xml, /<contact name="nucleus_cytoplasm_bottom_interface"/);
 });
 
+test("native-only S10 pressure scan variants preserve refined local-patch geometry", async () => {
+  const native = await loadNativeModule();
+  const scanCases = [
+    {
+      file: "febio_cases/native/S10_local_suction_patch_nc_right_refined_pressure_1p0.native.json",
+      caseName: "S10_local_suction_patch_nc_right_refined_pressure_1p0",
+      tag: "S10-C",
+      pressure: -1,
+      resultant: 6.5,
+    },
+    {
+      file: "febio_cases/native/S10_local_suction_patch_nc_right_refined_pressure_1p3.native.json",
+      caseName: "S10_local_suction_patch_nc_right_refined_pressure_1p3",
+      tag: "S10-D",
+      pressure: -1.3,
+      resultant: 8.45,
+    },
+    {
+      file: "febio_cases/native/S10_local_suction_patch_nc_right_refined_pressure_1p55.native.json",
+      caseName: "S10_local_suction_patch_nc_right_refined_pressure_1p55",
+      tag: "S10-E",
+      pressure: -1.55,
+      resultant: 10.075,
+    },
+  ];
+
+  for (const entry of scanCases) {
+    const model = native.buildNativeFebioModel(JSON.parse(fs.readFileSync(path.resolve(entry.file), "utf8")));
+    const xml = native.serializeNativeModelToFebioXml(model);
+    const patch = model.geometry.meshValidation.pressureDiagnostics.localSuctionPatch;
+
+    assert.equal(model.caseName, entry.caseName);
+    assert.equal(model.effectiveNativeSpec.outputNameTag, entry.tag);
+    assert.equal(model.effectiveNativeSpec.loads.suctionPressure.surface, "pipette_suction_patch");
+    assert.equal(model.effectiveNativeSpec.loads.suctionPressure.value, entry.pressure);
+    assert.equal(model.geometry.mesh.refinements.localSuctionPatch.ncRightRefined, true);
+    assert.equal(patch.surface, "pipette_suction_patch");
+    assert.equal(patch.area, 6.5);
+    assert.equal(patch.pressure, entry.pressure);
+    assert.ok(Math.abs(patch.pressureResultant - entry.resultant) < 1e-9);
+    assert.deepEqual(patch.faceIds, [24]);
+    assert.deepEqual(model.interfaces.nucleusCytoplasm.contactRegions, ["left", "right"]);
+    assert.match(xml, /<Surface name="pipette_suction_patch">\n      <quad4 id="24">82,86,87,83<\/quad4>/);
+    assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_patch" type="pressure">/);
+    assert.match(xml, /<contact name="nucleus_cytoplasm_right_interface" type="tied-elastic" surface_pair="nucleus_cytoplasm_right_pair">/);
+  }
+});
+
 test("native-only export script writes FEBio handoff artifacts", () => {
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "nuclear-simu-native-export-"));
   const printed = execFileSync(
