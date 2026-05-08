@@ -641,6 +641,14 @@ test("native-only Gmsh NC-right refinement preserves separated contact surfaces"
   assert.equal(gmsh.geometry.mesh.meshMode, "gmsh-baseline");
   assert.equal(gmsh.geometry.mesh.gmsh.nativeIdRecovery, "template-preserved-for-duplicate-coordinate-baseline");
   assert.equal(gmsh.geometry.meshValidation.valid, true);
+  assert.equal(gmsh.geometry.meshValidation.meshLevelDiagnostics.elementCount, 17);
+  assert.equal(gmsh.geometry.meshValidation.meshLevelDiagnostics.nodeCount, 88);
+  assert.equal(gmsh.geometry.meshValidation.meshLevelDiagnostics.faceCountBySurface.pipette_suction_patch, 1);
+  assert.equal(gmsh.geometry.meshValidation.meshLevelDiagnostics.faceCountBySurface.nucleus_interface_right_surface, 3);
+  assert.equal(gmsh.geometry.meshValidation.meshLevelDiagnostics.faceCountBySurface.cytoplasm_interface_right_surface, 3);
+  assert.equal(gmsh.geometry.meshValidation.meshLevelDiagnostics.ncRegionDiagnostics.byRegion.right.nodePairMappingCount, 8);
+  assert.equal(gmsh.geometry.meshValidation.meshLevelDiagnostics.ncRegionDiagnostics.byRegion.left.nodePairMappingCount, 4);
+  assert.equal(gmsh.geometry.meshValidation.meshLevelDiagnostics.duplicateCoordinateDiagnostics.nativeIdRecovery, "template-preserved-for-duplicate-coordinate-baseline");
   assert.deepEqual(gmsh.interfaces.nucleusCytoplasm.contactRegions, ["left", "right"]);
   assert.deepEqual(gmsh.geometry.mesh.surfaces.nucleus_interface_right_surface, baseline.geometry.mesh.surfaces.nucleus_interface_right_surface);
   assert.deepEqual(gmsh.geometry.mesh.surfaces.cytoplasm_interface_right_surface, baseline.geometry.mesh.surfaces.cytoplasm_interface_right_surface);

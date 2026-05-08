@@ -68,6 +68,9 @@ Current implementation status:
 - Static export diagnostics for `febio_exports/S10_local_suction_patch_nc_right_refined/` are valid with no convention warnings and preserve the same patch area, centroid, normal, node ids, face id, and pressure resultant as S10-A.
 - Windows FEBio CLI solver confirmation is complete for S10-B: normal termination, warning-free, active local suction pressure-load response, and active left/right NC plotfile contact force. Native NC failure output is available but inactive at baseline `-0.7 kPa` pressure.
 - S10-C/D/E add a bounded pressure-only scan on the S10-B geometry at `-1.0`, `-1.3`, and `-1.55 kPa`. These cases preserve the same local patch and separated left/right NC surfaces and are intended to bracket native NC damage onset before any physical threshold interpretation.
+- S10-G (`febio_cases/native/S10_gmsh_baseline.native.json`) validates that the S10-A local suction patch can round-trip through the Gmsh v2 ASCII baseline path and reproduce the S10-A FEBio CLI result.
+- S10-H (`febio_cases/native/S10_gmsh_nc_right_refined.native.json`) validates that the S10-B separated left/right NC refinement can round-trip through the Gmsh v2 ASCII baseline path and reproduce the S10-B FEBio CLI result.
+- `meshLevelDiagnostics` is now emitted by native mesh validation and reports element counts, face counts by surface, NC region face counts, NC node-pair mapping counts, duplicate-coordinate groups, and Gmsh native-id recovery notes.
 
 Add a mesh construct with explicit diagnostics:
 

@@ -2,7 +2,7 @@
   "caseName": "S10_gmsh_baseline",
   "outputNameTag": "S10-G",
   "baseName": "S10-G_S10_gmsh_baseline",
-  "generatedAt": "2026-05-08T07:01:16.710Z",
+  "generatedAt": "2026-05-08T07:32:18.956Z",
   "parameterDigest": "fdig_81e213c8",
   "exportReady": true,
   "solverMetadata": {
@@ -756,6 +756,266 @@
           "nucleus_interface_right_surface"
         ],
         "pipetteSuctionSeparatedFromNucleusRight": false
+      },
+      "meshLevelDiagnostics": {
+        "meshMode": "gmsh-baseline",
+        "elementCount": 15,
+        "nodeCount": 72,
+        "faceCount": 37,
+        "elementCountByMaterial": {
+          "cytoplasm": 8,
+          "nucleus": 3,
+          "pipette": 1,
+          "dish": 3
+        },
+        "faceCountBySurface": {
+          "nucleus_interface_surface": 4,
+          "nucleus_interface_left_surface": 3,
+          "nucleus_interface_right_surface": 3,
+          "nucleus_interface_top_surface": 1,
+          "nucleus_interface_bottom_surface": 1,
+          "cytoplasm_interface_surface": 4,
+          "cytoplasm_interface_left_surface": 1,
+          "cytoplasm_interface_right_surface": 1,
+          "cytoplasm_interface_top_surface": 1,
+          "cytoplasm_interface_bottom_surface": 1,
+          "cell_dish_surface": 3,
+          "dish_contact_surface": 3,
+          "cell_dish_left_surface": 1,
+          "cell_dish_center_surface": 1,
+          "cell_dish_right_surface": 1,
+          "pipette_suction_surface": 3,
+          "pipette_contact_surface": 1,
+          "dish_contact_left_surface": 1,
+          "dish_contact_center_surface": 1,
+          "dish_contact_right_surface": 1,
+          "pipette_suction_patch": 1
+        },
+        "ncRegionDiagnostics": {
+          "byRegion": {
+            "left": {
+              "nucleusSurface": "nucleus_interface_left_surface",
+              "cytoplasmSurface": "cytoplasm_interface_left_surface",
+              "nucleusFaceCount": 3,
+              "cytoplasmFaceCount": 1,
+              "nucleusNodeCount": 8,
+              "cytoplasmNodeCount": 4,
+              "nodePairMappingCount": 4,
+              "nodePairs": [
+                {
+                  "nucleusNodeId": 45,
+                  "cytoplasmNodeId": 45
+                },
+                {
+                  "nucleusNodeId": 48,
+                  "cytoplasmNodeId": 48
+                },
+                {
+                  "nucleusNodeId": 49,
+                  "cytoplasmNodeId": 49
+                },
+                {
+                  "nucleusNodeId": 52,
+                  "cytoplasmNodeId": 52
+                }
+              ],
+              "solverActiveFaceReady": true
+            },
+            "right": {
+              "nucleusSurface": "nucleus_interface_right_surface",
+              "cytoplasmSurface": "cytoplasm_interface_right_surface",
+              "nucleusFaceCount": 3,
+              "cytoplasmFaceCount": 1,
+              "nucleusNodeCount": 8,
+              "cytoplasmNodeCount": 4,
+              "nodePairMappingCount": 4,
+              "nodePairs": [
+                {
+                  "nucleusNodeId": 46,
+                  "cytoplasmNodeId": 46
+                },
+                {
+                  "nucleusNodeId": 47,
+                  "cytoplasmNodeId": 47
+                },
+                {
+                  "nucleusNodeId": 50,
+                  "cytoplasmNodeId": 50
+                },
+                {
+                  "nucleusNodeId": 51,
+                  "cytoplasmNodeId": 51
+                }
+              ],
+              "solverActiveFaceReady": true
+            },
+            "top": {
+              "nucleusSurface": "nucleus_interface_top_surface",
+              "cytoplasmSurface": "cytoplasm_interface_top_surface",
+              "nucleusFaceCount": 1,
+              "cytoplasmFaceCount": 1,
+              "nucleusNodeCount": 4,
+              "cytoplasmNodeCount": 4,
+              "nodePairMappingCount": 4,
+              "nodePairs": [
+                {
+                  "nucleusNodeId": 49,
+                  "cytoplasmNodeId": 49
+                },
+                {
+                  "nucleusNodeId": 50,
+                  "cytoplasmNodeId": 50
+                },
+                {
+                  "nucleusNodeId": 51,
+                  "cytoplasmNodeId": 51
+                },
+                {
+                  "nucleusNodeId": 52,
+                  "cytoplasmNodeId": 52
+                }
+              ],
+              "solverActiveFaceReady": true
+            },
+            "bottom": {
+              "nucleusSurface": "nucleus_interface_bottom_surface",
+              "cytoplasmSurface": "cytoplasm_interface_bottom_surface",
+              "nucleusFaceCount": 1,
+              "cytoplasmFaceCount": 1,
+              "nucleusNodeCount": 4,
+              "cytoplasmNodeCount": 4,
+              "nodePairMappingCount": 4,
+              "nodePairs": [
+                {
+                  "nucleusNodeId": 45,
+                  "cytoplasmNodeId": 45
+                },
+                {
+                  "nucleusNodeId": 46,
+                  "cytoplasmNodeId": 46
+                },
+                {
+                  "nucleusNodeId": 47,
+                  "cytoplasmNodeId": 47
+                },
+                {
+                  "nucleusNodeId": 48,
+                  "cytoplasmNodeId": 48
+                }
+              ],
+              "solverActiveFaceReady": true
+            }
+          },
+          "totalNodePairMappingCount": 16,
+          "solverActiveRegions": [
+            "left",
+            "right",
+            "top",
+            "bottom"
+          ]
+        },
+        "duplicateCoordinateDiagnostics": {
+          "groupCount": 12,
+          "nodeCount": 28,
+          "groups": [
+            {
+              "coordinate": "-26.0000000000000,-0.500000000000000,0.00000000000000",
+              "nodeIds": [
+                1,
+                29
+              ]
+            },
+            {
+              "coordinate": "-14.0000000000000,-0.500000000000000,0.00000000000000",
+              "nodeIds": [
+                2,
+                41,
+                61
+              ]
+            },
+            {
+              "coordinate": "-14.0000000000000,0.500000000000000,0.00000000000000",
+              "nodeIds": [
+                3,
+                44,
+                62
+              ]
+            },
+            {
+              "coordinate": "-26.0000000000000,0.500000000000000,0.00000000000000",
+              "nodeIds": [
+                4,
+                32
+              ]
+            },
+            {
+              "coordinate": "-14.0000000000000,-0.500000000000000,34.0000000000000",
+              "nodeIds": [
+                6,
+                53
+              ]
+            },
+            {
+              "coordinate": "-14.0000000000000,0.500000000000000,34.0000000000000",
+              "nodeIds": [
+                7,
+                56
+              ]
+            },
+            {
+              "coordinate": "26.0000000000000,-0.500000000000000,0.00000000000000",
+              "nodeIds": [
+                30,
+                34
+              ]
+            },
+            {
+              "coordinate": "26.0000000000000,0.500000000000000,0.00000000000000",
+              "nodeIds": [
+                31,
+                35
+              ]
+            },
+            {
+              "coordinate": "14.0000000000000,-0.500000000000000,0.00000000000000",
+              "nodeIds": [
+                33,
+                42,
+                63
+              ]
+            },
+            {
+              "coordinate": "14.0000000000000,0.500000000000000,0.00000000000000",
+              "nodeIds": [
+                36,
+                43,
+                64
+              ]
+            },
+            {
+              "coordinate": "14.0000000000000,-0.500000000000000,34.0000000000000",
+              "nodeIds": [
+                37,
+                54
+              ]
+            },
+            {
+              "coordinate": "14.0000000000000,0.500000000000000,34.0000000000000",
+              "nodeIds": [
+                40,
+                55
+              ]
+            }
+          ],
+          "nativeIdRecovery": "template-preserved-for-duplicate-coordinate-baseline",
+          "note": "duplicate-coordinate native nodes are intentional at material/contact boundaries; Gmsh imports may renumber them, so template native-id recovery is required for baseline comparisons"
+        },
+        "gmsh": {
+          "format": "gmsh-msh-v2-ascii",
+          "physicalGroupCount": 25,
+          "source": "gmsh-v2-ascii",
+          "nativeIdRecovery": "template-preserved-for-duplicate-coordinate-baseline"
+        }
       },
       "conventionWarnings": []
     },

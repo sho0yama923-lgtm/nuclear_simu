@@ -59,6 +59,7 @@ Last updated: 2026-05-08
 - S10-G comparison against S10-A is recorded at `febio_exports/S10_gmsh_baseline/S10_gmsh_baseline_comparison.json`: node count `72 == 72`, element count `15 == 15`, surface count `21 == 21`, checked surface assignments match, solver source is FEBio CLI for both, classification is `nucleus_detached` for both, final aspiration delta is `0`, pressure response observed nodes are `4 == 4`, and detachment start delta is `0`.
 - S10-H added `febio_cases/native/S10_gmsh_nc_right_refined.native.json` with `meshMode="s10-gmsh-baseline"` plus separated-contact NC refinement. Export is ready at `febio_exports/S10_gmsh_nc_right_refined/`, and the Windows FEBio CLI run reached normal termination at `febio_exports/S10_gmsh_nc_right_refined/febio_runs/S10-H_S10_gmsh_nc_right_refined/`.
 - S10-H comparison against S10-B is recorded at `febio_exports/S10_gmsh_nc_right_refined/S10_gmsh_nc_right_refined_comparison.json`: node count `88 == 88`, element count `17 == 17`, surface count `21 == 21`, checked local suction / NC / cell-dish surface assignments match, contact regions are `left/right` for both, classification is `nucleus_detached` for both, final aspiration delta is `0`, pressure response observed nodes are `4 == 4`, detachment start delta is `0`, and native NC failure output is available but inactive with damage `0` for both.
+- `validateNativeMesh` now emits `meshLevelDiagnostics`: node / element / total face counts, element counts by material, face counts by named surface, NC region face/node/node-pair diagnostics, duplicate-coordinate groups, and Gmsh native-id recovery notes. S10-H reports `88` nodes, `17` elements, `39` named surface faces, `3` right nucleus NC faces, `3` right cytoplasm NC faces, and `8` right NC node-pair mappings.
 
 ### Current interpretation
 
@@ -85,7 +86,7 @@ Next implementation checklist:
 - [x] after the Gmsh baseline comparison is zero-diff or within the documented tolerance, start local refinement design.
 - [x] add a Gmsh-derived separated NC-right refinement case that preserves S10-B surfaces and solver outputs;
 - [x] compare the Gmsh-derived separated NC-right refinement against S10-B by node count, element count, surface assignment, solver status, and converted result differences;
-- [ ] add explicit mesh-level diagnostics needed before the next geometry change: element count, face count by named surface, NC region face counts, NC node-pair mapping count, and basic duplicate-coordinate/native-id recovery notes;
+- [x] add explicit mesh-level diagnostics needed before the next geometry change: element count, face count by named surface, NC region face counts, NC node-pair mapping count, and basic duplicate-coordinate/native-id recovery notes;
 - [ ] design the next actual geometry refinement level (`s10-pipette-nc-refined`) for pipette mouth / suction patch / NC interface alignment.
 
 ### Done condition

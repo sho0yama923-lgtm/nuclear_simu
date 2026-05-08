@@ -735,12 +735,108 @@ function buildSurfaceOverlapDiagnostics(mesh) {
   };
 }
 
+function coordinateKeyForNode(node) {
+  return node ? [node.x, node.y, node.z].map((value) => Number(value).toPrecision(15)).join(",") : "";
+}
+
+function buildDuplicateCoordinateDiagnostics(mesh) {
+  const byCoordinate = new Map();
+  (mesh.nodes || []).forEach((node) => {
+    const key = coordinateKeyForNode(node);
+    const entries = byCoordinate.get(key) || [];
+    entries.push(node.id);
+    byCoordinate.set(key, entries);
+  });
+  const groups = [...byCoordinate.entries()]
+    .filter(([, nodeIds]) => nodeIds.length > 1)
+    .map(([coordinate, nodeIds]) => ({ coordinate, nodeIds: [...nodeIds].sort((a, b) => a - b) }));
+  return {
+    groupCount: groups.length,
+    nodeCount: groups.reduce((total, group) => total + group.nodeIds.length, 0),
+    groups,
+    nativeIdRecovery: mesh.gmsh?.nativeIdRecovery || "",
+    note: groups.length
+      ? "duplicate-coordinate native nodes are intentional at material/contact boundaries; Gmsh imports may renumber them, so template native-id recovery is required for baseline comparisons"
+      : "no duplicate-coordinate native nodes detected",
+  };
+}
+
+function countByKey(items = [], key) {
+  return items.reduce((counts, item) => {
+    const value = item?.[key] || "unknown";
+    counts[value] = (counts[value] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function pairNodesByCoordinate(mesh, nucleusSetName, cytoplasmSetName) {
+  const nodesById = new Map((mesh.nodes || []).map((node) => [node.id, node]));
+  const cytoplasmByCoordinate = new Map();
+  (mesh.nodeSets?.[cytoplasmSetName] || []).forEach((nodeId) => {
+    const node = nodesById.get(nodeId);
+    if (!node) return;
+    const entries = cytoplasmByCoordinate.get(coordinateKeyForNode(node)) || [];
+    entries.push(nodeId);
+    cytoplasmByCoordinate.set(coordinateKeyForNode(node), entries);
+  });
+  return (mesh.nodeSets?.[nucleusSetName] || []).flatMap((nucleusNodeId) => {
+    const nucleusNode = nodesById.get(nucleusNodeId);
+    const candidates = nucleusNode ? cytoplasmByCoordinate.get(coordinateKeyForNode(nucleusNode)) || [] : [];
+    return candidates.map((cytoplasmNodeId) => ({ nucleusNodeId, cytoplasmNodeId }));
+  });
+}
+
+function buildNcRegionMeshDiagnostics(mesh) {
+  const regions = ["left", "right", "top", "bottom"];
+  const byRegion = Object.fromEntries(regions.map((region) => {
+    const nucleusSurface = `nucleus_interface_${region}_surface`;
+    const cytoplasmSurface = `cytoplasm_interface_${region}_surface`;
+    const nucleusNodeSet = `nc_${region}_nucleus_nodes`;
+    const cytoplasmNodeSet = `nc_${region}_cytoplasm_nodes`;
+    const nodePairs = pairNodesByCoordinate(mesh, nucleusNodeSet, cytoplasmNodeSet);
+    return [region, {
+      nucleusSurface,
+      cytoplasmSurface,
+      nucleusFaceCount: (mesh.surfaces?.[nucleusSurface] || []).length,
+      cytoplasmFaceCount: (mesh.surfaces?.[cytoplasmSurface] || []).length,
+      nucleusNodeCount: (mesh.nodeSets?.[nucleusNodeSet] || []).length,
+      cytoplasmNodeCount: (mesh.nodeSets?.[cytoplasmNodeSet] || []).length,
+      nodePairMappingCount: nodePairs.length,
+      nodePairs,
+      solverActiveFaceReady: (mesh.surfaces?.[nucleusSurface] || []).length > 0 && (mesh.surfaces?.[cytoplasmSurface] || []).length > 0,
+    }];
+  }));
+  return {
+    byRegion,
+    totalNodePairMappingCount: Object.values(byRegion).reduce((total, region) => total + region.nodePairMappingCount, 0),
+    solverActiveRegions: regions.filter((region) => byRegion[region].solverActiveFaceReady),
+  };
+}
+
+function buildMeshLevelDiagnostics(mesh) {
+  const faceCountsBySurface = Object.fromEntries(
+    Object.entries(mesh.surfaces || {}).map(([name, facets]) => [name, (facets || []).length]),
+  );
+  return {
+    meshMode: mesh.meshMode || "",
+    elementCount: (mesh.elements || []).length,
+    nodeCount: (mesh.nodes || []).length,
+    faceCount: Object.values(faceCountsBySurface).reduce((total, count) => total + count, 0),
+    elementCountByMaterial: countByKey(mesh.elements || [], "material"),
+    faceCountBySurface: faceCountsBySurface,
+    ncRegionDiagnostics: buildNcRegionMeshDiagnostics(mesh),
+    duplicateCoordinateDiagnostics: buildDuplicateCoordinateDiagnostics(mesh),
+    gmsh: mesh.gmsh || null,
+  };
+}
+
 export function validateNativeMesh(mesh) {
   const base = validateFebioMesh(mesh);
   const surfaceNormals = buildSurfaceNormalDiagnostics(mesh);
   const contactPairs = buildContactPairDiagnostics(mesh);
   const pressure = buildPressureDiagnostics(mesh);
   const surfaceOverlaps = buildSurfaceOverlapDiagnostics(mesh);
+  const meshLevel = buildMeshLevelDiagnostics(mesh);
   return {
     ...base,
     coordinateConvention: COORDINATE_CONVENTION,
@@ -748,6 +844,7 @@ export function validateNativeMesh(mesh) {
     contactPairDiagnostics: contactPairs,
     pressureDiagnostics: pressure,
     surfaceOverlapDiagnostics: surfaceOverlaps,
+    meshLevelDiagnostics: meshLevel,
     conventionWarnings: [
       ...surfaceNormals.warnings,
       ...contactPairs.warnings,
