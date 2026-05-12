@@ -267,7 +267,7 @@ function refineNativeNucleusCytoplasmCoupling(mesh, spec = {}) {
 }
 
 function applyLocalSuctionPatchRefinement(mesh, spec = {}) {
-  if (!["s10-local-suction-patch", "s10-gmsh-baseline"].includes(spec.geometry?.meshMode)) return mesh;
+  if (!["s10-local-suction-patch", "s10-gmsh-baseline", "s10-pipette-nc-refined"].includes(spec.geometry?.meshMode)) return mesh;
   if (spec.contacts?.pipetteCell?.suctionSurfaceMode === "cell-outer-right") return mesh;
 
   const nucleusLeft = mesh.bounds?.nucleusLeft;
@@ -341,7 +341,7 @@ function applyLocalSuctionPatchRefinement(mesh, spec = {}) {
   const elements = (mesh.elements || []).filter((element) => !replacedElementIds.includes(element.id));
   const pressureValue = Number(spec.loads?.suctionPressure?.value);
 
-  return {
+  const refinedMesh = {
     ...mesh,
     refinements: {
       ...(mesh.refinements || {}),
@@ -386,6 +386,79 @@ function applyLocalSuctionPatchRefinement(mesh, spec = {}) {
       ...mesh.elementSets,
       nucleus: [2, 14, 15],
       ...(useSeparatedNcContact ? { cytoplasm: [1, 5, 6, 7, 10, 11, 12, 13, 16, 17] } : {}),
+    },
+  };
+  return applyPipetteMouthPatchRefinement(refinedMesh, spec);
+}
+
+function applyPipetteMouthPatchRefinement(mesh, spec = {}) {
+  if (spec.geometry?.meshMode !== "s10-pipette-nc-refined") return mesh;
+  const patchRange = mesh.refinements?.localSuctionPatch?.patchZRange || [];
+  const patchBottom = Number(patchRange[0]);
+  const patchTop = Number(patchRange[1]);
+  const leftBottom = nodeById(mesh, 17);
+  const rightBottom = nodeById(mesh, 18);
+  const rightTop = nodeById(mesh, 23);
+  const leftTop = nodeById(mesh, 24);
+  if (![patchBottom, patchTop, leftBottom?.x, rightBottom?.x, leftBottom?.y, leftTop?.y].every(Number.isFinite)) return mesh;
+
+  const xLeft = leftBottom.x;
+  const xRight = rightBottom.x;
+  const yMin = leftBottom.y;
+  const yMax = leftTop.y;
+  const zBottom = leftBottom.z;
+  const zTop = rightTop.z;
+  const pipetteNodes = [
+    buildNode(97, xLeft, yMin, patchBottom),
+    buildNode(98, xRight, yMin, patchBottom),
+    buildNode(99, xRight, yMax, patchBottom),
+    buildNode(100, xLeft, yMax, patchBottom),
+    buildNode(101, xLeft, yMin, patchTop),
+    buildNode(102, xRight, yMin, patchTop),
+    buildNode(103, xRight, yMax, patchTop),
+    buildNode(104, xLeft, yMax, patchTop),
+  ];
+  const pipetteElements = [
+    buildHex(3, "pipette", [17, 18, 19, 20, 97, 98, 99, 100]),
+    buildHex(18, "pipette", [97, 98, 99, 100, 101, 102, 103, 104]),
+    buildHex(19, "pipette", [101, 102, 103, 104, 21, 22, 23, 24]),
+  ];
+  const mouthBottomFacet = buildFacet(31, [17, 97, 100, 20]);
+  const mouthPatchFacet = buildFacet(32, [97, 101, 104, 100]);
+  const mouthTopFacet = buildFacet(33, [101, 21, 24, 104]);
+  const existingNodes = (mesh.nodes || []).filter((node) => !pipetteNodes.some((newNode) => newNode.id === node.id));
+  const elements = (mesh.elements || []).filter((element) => ![3, 18, 19].includes(element.id));
+
+  return {
+    ...mesh,
+    refinements: {
+      ...(mesh.refinements || {}),
+      pipetteMouthPatch: {
+        mode: "s10-pipette-nc-refined",
+        mouthSurface: "pipette_mouth_surface",
+        mouthPatchSurface: "pipette_mouth_patch",
+        legacySurface: "pipette_contact_surface",
+        alignedWithSuctionPatch: true,
+        patchZRange: [patchBottom, patchTop],
+        fullZRange: [zBottom, zTop],
+      },
+    },
+    nodes: [...existingNodes, ...pipetteNodes].sort((a, b) => a.id - b.id),
+    elements: [...elements, ...pipetteElements].sort((a, b) => a.id - b.id),
+    surfaces: {
+      ...mesh.surfaces,
+      pipette_contact_surface: [mouthBottomFacet, mouthPatchFacet, mouthTopFacet],
+      pipette_mouth_surface: [mouthBottomFacet, mouthPatchFacet, mouthTopFacet],
+      pipette_mouth_patch: [mouthPatchFacet],
+    },
+    nodeSets: {
+      ...mesh.nodeSets,
+      pipette_contact_nodes: [17, 20, 21, 24, 97, 100, 101, 104],
+      pipette_mouth_patch_nodes: [97, 100, 101, 104],
+    },
+    elementSets: {
+      ...mesh.elementSets,
+      pipette: [3, 18, 19],
     },
   };
 }

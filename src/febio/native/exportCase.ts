@@ -12,7 +12,7 @@ function buildBaseName(model) {
 }
 
 export function buildNativeFebioExport(caseSpec = {}, options = {}) {
-  const model = buildNativeFebioModel(caseSpec);
+  const model = buildNativeFebioModel(caseSpec, { meshOverride: options.meshOverride });
   const febXml = serializeNativeModelToFebioXml(model);
   const baseName = buildBaseName(model);
   const outDir = options.outDir || ".";

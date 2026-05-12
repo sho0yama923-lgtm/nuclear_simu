@@ -590,12 +590,22 @@ test("native-only Gmsh baseline round-trips physical groups into the native mesh
   const gmshMesh = native.convertGmshMshToNativeMesh(parsed, nativeMesh);
   const validation = native.validateNativeMesh(gmshMesh);
   const geo = native.buildGmshBaselineGeo(nativeMesh, { mshPath: "native-baseline.msh" });
+  const editableGeo = native.buildEditableGmshBlockGeo(nativeMesh);
+  const parametricGeo = native.buildParametricEditableGmshBlockGeo(nativeMesh);
 
   assert.match(msh, /\$MeshFormat\n2\.2 0 8\n\$EndMeshFormat/);
   assert.match(msh, /2 \d+ "pipette_suction_patch"/);
   assert.match(msh, /2 \d+ "nucleus_interface_right_surface"/);
   assert.match(msh, /3 \d+ "nucleus"/);
   assert.match(geo, /Merge "native-baseline\.msh";/);
+  assert.match(editableGeo, /Point\(82\) = \{14, -0\.5, 13\.75, 1\};/);
+  assert.match(editableGeo, /Volume\(14\) = \{/);
+  assert.match(editableGeo, /Physical Volume\("nucleus"\) = \{/);
+  assert.match(editableGeo, /Physical Surface\("pipette_suction_patch"\) = \{/);
+  assert.match(parametricGeo, /\/\/ Coordinate planes used by the rectangular block layout\./);
+  assert.match(parametricGeo, /pipetteOuterX = X_27;/);
+  assert.match(parametricGeo, /Point\(17\) = \{pipetteMouthX, pipetteYMin, pipetteZBottom, lc\};/);
+  assert.match(parametricGeo, /Physical Surface\("pipette_suction_patch"\) = \{/);
   assert.equal(gmshMesh.meshMode, "gmsh-baseline");
   assert.equal(gmshMesh.gmsh.nativeIdRecovery, "template-preserved-for-duplicate-coordinate-baseline");
   assert.equal(gmshMesh.nodes.length, nativeMesh.nodes.length);
@@ -658,6 +668,42 @@ test("native-only Gmsh NC-right refinement preserves separated contact surfaces"
   assert.match(xml, /<Surface name="cytoplasm_interface_right_surface">\n      <quad4 id="11">74,75,90,89<\/quad4>\n      <quad4 id="26">89,90,92,91<\/quad4>\n      <quad4 id="27">91,92,79,78<\/quad4>/);
   assert.match(xml, /<contact name="nucleus_cytoplasm_right_interface" type="tied-elastic" surface_pair="nucleus_cytoplasm_right_pair">/);
   assert.match(xml, /<surface_load name="pipette_suction_pressure" surface="pipette_suction_patch" type="pressure">/);
+});
+
+test("native-only S10 pipette-NC refinement aligns mouth patch with suction patch", async () => {
+  const native = await loadNativeModule();
+  const refined = native.buildNativeFebioModel(
+    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S10_pipette_nc_refined.native.json"), "utf8")),
+  );
+  const xml = native.serializeNativeModelToFebioXml(refined);
+  const mesh = refined.geometry.mesh;
+  const diagnostics = refined.geometry.meshValidation.meshLevelDiagnostics;
+
+  assert.equal(refined.caseName, "S10_pipette_nc_refined");
+  assert.equal(refined.effectiveNativeSpec.outputNameTag, "S10-I");
+  assert.equal(refined.effectiveNativeSpec.geometry.meshMode, "s10-pipette-nc-refined");
+  assert.equal(mesh.refinements.pipetteMouthPatch.alignedWithSuctionPatch, true);
+  assert.deepEqual(mesh.elementSets.pipette, [3, 18, 19]);
+  assert.deepEqual(mesh.surfaces.pipette_contact_surface.map((facet) => facet.nodes), [
+    [17, 97, 100, 20],
+    [97, 101, 104, 100],
+    [101, 21, 24, 104],
+  ]);
+  assert.deepEqual(mesh.surfaces.pipette_mouth_patch[0].nodes, [97, 101, 104, 100]);
+  assert.deepEqual(mesh.nodeSets.pipette_contact_nodes, [17, 20, 21, 24, 97, 100, 101, 104]);
+  assert.equal(diagnostics.elementCountByMaterial.pipette, 3);
+  assert.equal(diagnostics.faceCountBySurface.pipette_contact_surface, 3);
+  assert.equal(diagnostics.faceCountBySurface.pipette_mouth_patch, 1);
+  assert.equal(refined.geometry.meshValidation.pressureDiagnostics.couplingReadiness.ready, true);
+  assert.match(xml, /<Surface name="pipette_contact_surface">\n      <quad4 id="31">17,97,100,20<\/quad4>\n      <quad4 id="32">97,101,104,100<\/quad4>\n      <quad4 id="33">101,21,24,104<\/quad4>/);
+  assert.match(xml, /<Surface name="pipette_suction_patch">\n      <quad4 id="24">82,86,87,83<\/quad4>/);
+
+  const parametricGeo = native.buildParametricEditableGmshBlockGeo(mesh);
+  assert.match(parametricGeo, /pipettePatchZBottom = Z_13p75;/);
+  assert.match(parametricGeo, /pipettePatchZTop = Z_20p25;/);
+  assert.match(parametricGeo, /Point\(97\) = \{pipetteMouthX, pipetteYMin, pipettePatchZBottom, lc\};/);
+  assert.match(parametricGeo, /Point\(104\) = \{pipetteMouthX, pipetteYMax, pipettePatchZTop, lc\};/);
+  assert.match(parametricGeo, /Physical Surface\("pipette_mouth_patch"\) = \{/);
 });
 
 test("native-only S10 pressure scan variants preserve refined local-patch geometry", async () => {
@@ -740,6 +786,45 @@ test("native-only export script writes FEBio handoff artifacts", () => {
   assert.match(manifest.expectedArtifacts.logPath, /S7-K_S7_native_baseline\.log/);
   assert.match(manifest.expectedArtifacts.xpltPath, /S7-K_S7_native_baseline\.xplt/);
   assert.ok(manifest.expectedArtifacts.csvOutputPaths.some((entry) => entry.endsWith("febio_pipette_cell_contact.csv")));
+});
+
+test("native-only Gmsh mesh export script writes FEBio handoff artifacts", async () => {
+  const native = await loadNativeModule();
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "nuclear-simu-gmsh-export-"));
+  const caseFile = "febio_cases/native/S10_pipette_nc_refined.native.json";
+  const caseSpec = JSON.parse(fs.readFileSync(path.resolve(caseFile), "utf8"));
+  const mesh = native.buildNativeMesh(caseSpec);
+  const mshPath = path.join(tmpDir, "s10i.msh");
+  fs.writeFileSync(mshPath, native.serializeNativeMeshToGmshV2(mesh), "utf8");
+
+  const printed = execFileSync(
+    process.execPath,
+    [
+      "scripts/export_febio_from_gmsh_mesh.mjs",
+      "--case",
+      caseFile,
+      "--msh",
+      mshPath,
+      "--out-dir",
+      tmpDir
+    ],
+    { encoding: "utf8" }
+  ).trim();
+  const summary = JSON.parse(printed);
+
+  assert.equal(summary.outDir, tmpDir);
+  assert.equal(summary.caseName, "S10_pipette_nc_refined");
+  assert.equal(summary.nodes, 96);
+  assert.equal(summary.elements, 19);
+  assert.equal(summary.validationValid, true);
+  assert.equal(summary.exportReady, true);
+  assert.equal(fs.existsSync(path.join(tmpDir, "S10-I_S10_pipette_nc_refined.feb")), true);
+  assert.equal(fs.existsSync(path.join(tmpDir, "S10-I_S10_pipette_nc_refined_gmsh_mesh_validation.json")), true);
+  const model = JSON.parse(fs.readFileSync(path.join(tmpDir, "S10-I_S10_pipette_nc_refined_native_model.json"), "utf8"));
+  assert.equal(model.geometry.mesh.meshMode, "gmsh-parametric-edited");
+  assert.equal(model.geometry.mesh.gmsh.sourceFile, mshPath);
+  assert.deepEqual(model.geometry.mesh.surfaces.pipette_mouth_patch[0].nodes, [97, 101, 104, 100]);
+  assert.match(fs.readFileSync(path.join(tmpDir, "S10-I_S10_pipette_nc_refined.feb"), "utf8"), /<Surface name="pipette_contact_surface">/);
 });
 
 test("native run diagnostics summarize final contact and reaction gates", async () => {

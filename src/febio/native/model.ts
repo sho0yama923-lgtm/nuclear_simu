@@ -196,10 +196,10 @@ function buildLoads(spec) {
   };
 }
 
-export function buildNativeFebioModel(nativeCaseSpec = {}) {
+export function buildNativeFebioModel(nativeCaseSpec = {}, options = {}) {
   const spec = normalizeNativeCaseSpec(nativeCaseSpec);
   const validationReport = validateNativeCaseSpec(spec);
-  const mesh = buildNativeMesh(spec);
+  const mesh = options.meshOverride || buildNativeMesh(spec);
   const meshValidation = validateNativeMesh(mesh);
   const interfaces = buildNativeInterfaces(spec, mesh);
   const outputs = buildNativeOutputs(spec, mesh);

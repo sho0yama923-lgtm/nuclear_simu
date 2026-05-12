@@ -6,8 +6,10 @@ export {
 } from "./caseSpec.ts";
 export { buildNativeMesh, validateNativeMesh } from "./mesh.ts";
 export {
+  buildEditableGmshBlockGeo,
   buildGmshBaselineGeo,
   buildGmshBaselineNativeMesh,
+  buildParametricEditableGmshBlockGeo,
   convertGmshMshToNativeMesh,
   parseGmshMshV2,
   serializeNativeMeshToGmshV2

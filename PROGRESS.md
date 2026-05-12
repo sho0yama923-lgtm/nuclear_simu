@@ -1,6 +1,6 @@
 # FEBio Progress
 
-Last updated: 2026-05-08
+Last updated: 2026-05-12
 
 `PROGRESS.md` は current-state file。run log、scan table、長い比較履歴は置かない。完了済み詳細は `docs/febio/*DIAGNOSTICS.md` または `docs/ops/INCIDENTS_AND_ROOT_CAUSES.md` に退役させる。
 
@@ -11,7 +11,7 @@ Last updated: 2026-05-08
 - Legacy UI / canonical / bridge paths は compatibility-only。新しい solver behavior には使わない。
 - Current phase: S10 local suction patch and NC interface mesh refinement.
 - S7 is diagnostic closure. S8 returned to nucleus-side pressure and separated pressure response, direct contact, proxy detachment, shared-node continuity, and native NC failure evidence. S9 closed the native NC failure output / conversion / classification pipeline on the simplified separated-contact comparison.
-- Active milestone: S10 Gmsh mesh pipeline foundation.
+- Active milestone: S10 parametric rectangular-block Gmsh refinement.
 - S10 plan source: `docs/febio/MESH_REFINEMENT_PLAN.md`.
 
 ## Important retained findings
@@ -28,9 +28,9 @@ Last updated: 2026-05-08
 - FEBio logfile rows can be whitespace-delimited even when XML requests comma delimiter. Parsers must be comma / whitespace tolerant.
 - FEBioStudio can create unstable internal `nodesetNN` references when logfile node data uses inline node ids. Use explicit NodeSets and `node_set` references.
 - Solver-facing `.feb` should emit only active solver mesh items. Diagnostic-only selections stay in native model JSON.
-- Gmsh 導入は、局所 refinement に進む前の基盤整備として扱う。まず既存 baseline と比較できる Gmsh 由来 mesh 経路を完成させ、その後に局所 refinement / mesh quality policy を扱う。
+- Gmsh refinement は、点番号を直接大量管理する方式ではなく、長方形ブロック / 座標面 / named patch 変数で管理する。手編集対象は `native-parametric-block.geo` を優先し、`native-editable-block.geo` は比較・退避用に扱う。
 
-## Active milestone: S10 Gmsh mesh pipeline foundation
+## Active milestone: S10 parametric rectangular-block Gmsh refinement
 
 ### Current facts
 
@@ -60,16 +60,26 @@ Last updated: 2026-05-08
 - S10-H added `febio_cases/native/S10_gmsh_nc_right_refined.native.json` with `meshMode="s10-gmsh-baseline"` plus separated-contact NC refinement. Export is ready at `febio_exports/S10_gmsh_nc_right_refined/`, and the Windows FEBio CLI run reached normal termination at `febio_exports/S10_gmsh_nc_right_refined/febio_runs/S10-H_S10_gmsh_nc_right_refined/`.
 - S10-H comparison against S10-B is recorded at `febio_exports/S10_gmsh_nc_right_refined/S10_gmsh_nc_right_refined_comparison.json`: node count `88 == 88`, element count `17 == 17`, surface count `21 == 21`, checked local suction / NC / cell-dish surface assignments match, contact regions are `left/right` for both, classification is `nucleus_detached` for both, final aspiration delta is `0`, pressure response observed nodes are `4 == 4`, detachment start delta is `0`, and native NC failure output is available but inactive with damage `0` for both.
 - `validateNativeMesh` now emits `meshLevelDiagnostics`: node / element / total face counts, element counts by material, face counts by named surface, NC region face/node/node-pair diagnostics, duplicate-coordinate groups, and Gmsh native-id recovery notes. S10-H reports `88` nodes, `17` elements, `39` named surface faces, `3` right nucleus NC faces, `3` right cytoplasm NC faces, and `8` right NC node-pair mappings.
+- `buildEditableGmshBlockGeo` now emits an editable Gmsh block geometry from a native hex mesh: Points, Lines, transfinite Plane Surfaces, transfinite Volumes, and Physical Volume / Physical Surface groups with native names. `scripts/dump_native_gmsh_baseline.mjs --run-gmsh` writes `native-editable-block.geo`, runs Gmsh on it, round-trips the resulting `.msh`, and validates it.
+- S10-H editable block geometry was generated at `generated/gmsh_editable_s10h/native-editable-block.geo`; Gmsh 4.14.0 produced `88` nodes and `49` parsed physical quad/hex elements from it, and the native round-trip validation is valid. This is the first hand-editable `.geo` bridge; it is still block-structured and not yet a curved/size-field refinement policy.
+- S10-I added `febio_cases/native/S10_pipette_nc_refined.native.json` with `meshMode="s10-pipette-nc-refined"`. It splits the rigid pipette element into bottom / patch / top bands, adds `pipette_mouth_patch`, and aligns that patch with the existing `pipette_suction_patch` z-band.
+- S10-I export is ready at `febio_exports/S10_pipette_nc_refined/`. Windows FEBio CLI reached normal termination with no solver warnings, errors, negative jacobian, no-force, or no-contact-pair messages at `febio_exports/S10_pipette_nc_refined/febio_runs/S10-I_S10_pipette_nc_refined/`.
+- S10-I comparison against S10-H is recorded at `febio_exports/S10_pipette_nc_refined/S10_pipette_nc_refined_comparison.json`: node count changes `88 -> 96`, element count changes `17 -> 19`, surface count changes `21 -> 23`, checked local suction / NC / cell-dish surface assignments remain unchanged, classification is `nucleus_detached` for both, final aspiration delta is `0`, pressure response observed nodes are `4 == 4`, detachment start delta is `0`, and native NC failure output remains available but inactive with damage `0`.
+- S10-I editable block geometry was generated at `generated/gmsh_editable_s10i/native-editable-block.geo`; Gmsh 4.14.0 produced `96` nodes and a valid native round-trip. This reaches the first stage where the pipette mouth, suction patch, and NC-side refinement have named editable regions ready for hand-authored Gmsh changes.
+- `buildParametricEditableGmshBlockGeo` now emits `native-parametric-block.geo`: the same block topology as S10-I, but with coordinate-plane variables and high-value edit handles such as `pipetteOuterX`, `pipetteZBottom`, `pipettePatchZBottom`, `pipettePatchZTop`, and `pipetteZTop`.
+- S10-I parametric rectangular-block geometry was generated at `generated/gmsh_editable_s10i/native-parametric-block.geo`; Gmsh 4.14.0 produced `96` nodes, `57` parsed physical quad/hex elements, and a valid native round-trip. This is now the preferred manual editing surface for making the pipette thinner or changing local rectangular bands without hand-maintaining every point.
+- `scripts/export_febio_from_gmsh_mesh.mjs` now exports a FEBio handoff from an edited Gmsh `.msh` using a native case as the template. This is the bridge for `native-parametric-block.geo` edits: edit variables -> Gmsh save `.msh` -> native validation -> `.feb` export.
+- The unmodified S10-I parametric `.msh` was exported through this edited-mesh bridge at `febio_exports/S10_pipette_nc_refined_parametric/`: `96` nodes, `19` elements, `23` surfaces, native validation valid, export ready.
 
 ### Current interpretation
 
-The active problem remains physical-model geometry and pressure schedule calibration, not evidence plumbing. The simplified separated-contact comparison proves native NC failure outputs can be emitted, converted, and classified warning-free. S10-A proves the local suction pressure-load response; S10-B proves local-patch plus solver-active left/right NC output can run warning-free at baseline pressure.
+The active problem remains physical-model geometry and pressure schedule calibration, not evidence plumbing. The simplified separated-contact comparison proves native NC failure outputs can be emitted, converted, and classified warning-free. S10-A proves the local suction pressure-load response; S10-B proves local-patch plus solver-active left/right NC output can run warning-free at baseline pressure. S10-I adds the missing pipette mouth banding while preserving the S10-H solver behavior exactly on the tracked converted metrics.
 
-Before adding more hand-authored local refinement, make the mesh generation path reproducible through Gmsh. The next useful review boundary is a Gmsh-derived native mesh that can pass existing validation / FEBio export and compare against the current native baseline. Only after that baseline comparison should the project move to local refinement policy.
+The project is now past the Gmsh baseline gate and the first pipette-mouth alignment gate. The manual editing policy has shifted from editing individual point ids to editing rectangular-block coordinate variables. The next useful review boundary is a small `native-parametric-block.geo` change, such as thinning the pipette by moving `pipetteZBottom` / `pipetteZTop` toward the patch band, then proving the changed mesh can round-trip, export, run in FEBio, and compare against S10-I.
 
 ### Next bounded task
 
-Start the first Gmsh-backed local refinement design increment. The immediate target is not a pressure threshold claim; it is a named Gmsh-derived refinement level that preserves the S10-B separated NC comparison behavior and then exposes mesh-level diagnostics for the next geometry change.
+Start the first hand-authored parametric rectangular-block Gmsh refinement increment. The immediate target is not a pressure threshold claim; it is a small variable-level `.geo` change around the pipette mouth / suction patch / NC-side region that preserves S10-I behavior within documented tolerance or records the first intentional geometry-induced difference.
 
 Next implementation checklist:
 
@@ -87,7 +97,12 @@ Next implementation checklist:
 - [x] add a Gmsh-derived separated NC-right refinement case that preserves S10-B surfaces and solver outputs;
 - [x] compare the Gmsh-derived separated NC-right refinement against S10-B by node count, element count, surface assignment, solver status, and converted result differences;
 - [x] add explicit mesh-level diagnostics needed before the next geometry change: element count, face count by named surface, NC region face counts, NC node-pair mapping count, and basic duplicate-coordinate/native-id recovery notes;
-- [ ] design the next actual geometry refinement level (`s10-pipette-nc-refined`) for pipette mouth / suction patch / NC interface alignment.
+- [x] add the first editable Gmsh block-geometry generator and prove Gmsh can mesh / round-trip / validate it;
+- [x] design and validate the next actual geometry refinement level (`s10-pipette-nc-refined`) for pipette mouth / suction patch / NC interface alignment;
+- [x] add a parametric rectangular-block `.geo` generator so refinement can be done by editing coordinate variables instead of individual point ids;
+- [x] generate and validate the S10-I `native-parametric-block.geo` through Gmsh and native round-trip validation;
+- [x] add an edited-Gmsh-mesh export CLI so a saved `.msh` can become a native FEBio handoff;
+- [ ] make the first intentional hand-authored edit to the S10-I parametric `.geo` and capture the mesh / solver comparison against S10-I.
 
 ### Done condition
 
@@ -98,7 +113,9 @@ Next implementation checklist:
 - Gmsh-derived native mesh passes `validateNativeMesh`.
 - `buildNativeFebioExport` can export the Gmsh-derived mesh without breaking the existing default path.
 - FEBio CLI comparison against the current baseline records node count, element count, surface assignment, solver status, and converted result differences.
-- Local refinement work remains deferred until the Gmsh baseline path is validated.
+- S10-I aligns the rigid pipette mouth patch with the local suction patch and preserves S10-H converted solver behavior on the tracked metrics.
+- The preferred manual edit source is `generated/gmsh_editable_s10i/native-parametric-block.geo`, not direct point-by-point editing of `native-editable-block.geo`.
+- The next refinement must start from the parametric rectangular-block `.geo` path and record any intentional mesh-induced solver difference against S10-I.
 
 ### Deferred until after Gmsh baseline
 
@@ -118,6 +135,7 @@ Next implementation checklist:
 - `febio_cases/native/S10_local_suction_patch_nc_right_refined.native.json`
 - `febio_cases/native/S10_gmsh_baseline.native.json`
 - `febio_cases/native/S10_gmsh_nc_right_refined.native.json`
+- `febio_cases/native/S10_pipette_nc_refined.native.json`
 - `src/febio/native/caseSpec.ts`
 - `src/febio/native/gmsh.ts`
 - `src/febio/native/mesh.ts`

@@ -42,6 +42,8 @@ const caseSpec = readJson(path.resolve(args.casePath));
 const mesh = native.buildNativeMesh(caseSpec);
 const msh = native.serializeNativeMeshToGmshV2(mesh);
 const geo = native.buildGmshBaselineGeo(mesh, { mshPath: "native-baseline.msh" });
+const editableGeo = native.buildEditableGmshBlockGeo(mesh);
+const parametricGeo = native.buildParametricEditableGmshBlockGeo(mesh);
 const parsed = native.parseGmshMshV2(msh);
 const roundTrip = native.convertGmshMshToNativeMesh(parsed, mesh);
 const validation = native.validateNativeMesh(roundTrip);
@@ -49,6 +51,8 @@ const outDir = path.resolve(args.outDir);
 
 writeFile(path.join(outDir, "native-baseline.mesh.json"), JSON.stringify(mesh, null, 2));
 writeFile(path.join(outDir, "native-baseline.geo"), geo);
+writeFile(path.join(outDir, "native-editable-block.geo"), editableGeo);
+writeFile(path.join(outDir, "native-parametric-block.geo"), parametricGeo);
 writeFile(path.join(outDir, "native-baseline.msh"), msh);
 writeFile(path.join(outDir, "native-baseline.roundtrip.mesh.json"), JSON.stringify(roundTrip, null, 2));
 writeFile(path.join(outDir, "native-baseline.validation.json"), JSON.stringify(validation, null, 2));
@@ -74,6 +78,72 @@ if (args.runGmsh) {
     };
   }
   writeFile(path.join(outDir, "native-baseline.gmsh-result.json"), JSON.stringify(gmshResult, null, 2));
+
+  let editableGmshResult;
+  try {
+    const stdout = execFileSync(args.gmsh, [
+      "-3",
+      "-format",
+      "msh2",
+      path.join(outDir, "native-editable-block.geo"),
+      "-o",
+      path.join(outDir, "native-editable-block.gmsh.msh"),
+    ], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    const editableParsed = native.parseGmshMshV2(fs.readFileSync(path.join(outDir, "native-editable-block.gmsh.msh"), "utf8"));
+    const editableMesh = native.convertGmshMshToNativeMesh(editableParsed, mesh);
+    const editableValidation = native.validateNativeMesh(editableMesh);
+    writeFile(path.join(outDir, "native-editable-block.roundtrip.mesh.json"), JSON.stringify(editableMesh, null, 2));
+    writeFile(path.join(outDir, "native-editable-block.validation.json"), JSON.stringify(editableValidation, null, 2));
+    editableGmshResult = {
+      requested: true,
+      exitCode: 0,
+      stdout,
+      parsedNodeCount: editableParsed.nodes.length,
+      parsedElementCount: editableParsed.elements.length,
+      validationValid: editableValidation.valid,
+    };
+  } catch (error) {
+    editableGmshResult = {
+      requested: true,
+      exitCode: error.status ?? 1,
+      stdout: error.stdout?.toString() || "",
+      stderr: error.stderr?.toString() || error.message,
+    };
+  }
+  writeFile(path.join(outDir, "native-editable-block.gmsh-result.json"), JSON.stringify(editableGmshResult, null, 2));
+
+  let parametricGmshResult;
+  try {
+    const stdout = execFileSync(args.gmsh, [
+      "-3",
+      "-format",
+      "msh2",
+      path.join(outDir, "native-parametric-block.geo"),
+      "-o",
+      path.join(outDir, "native-parametric-block.gmsh.msh"),
+    ], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    const parametricParsed = native.parseGmshMshV2(fs.readFileSync(path.join(outDir, "native-parametric-block.gmsh.msh"), "utf8"));
+    const parametricMesh = native.convertGmshMshToNativeMesh(parametricParsed, mesh);
+    const parametricValidation = native.validateNativeMesh(parametricMesh);
+    writeFile(path.join(outDir, "native-parametric-block.roundtrip.mesh.json"), JSON.stringify(parametricMesh, null, 2));
+    writeFile(path.join(outDir, "native-parametric-block.validation.json"), JSON.stringify(parametricValidation, null, 2));
+    parametricGmshResult = {
+      requested: true,
+      exitCode: 0,
+      stdout,
+      parsedNodeCount: parametricParsed.nodes.length,
+      parsedElementCount: parametricParsed.elements.length,
+      validationValid: parametricValidation.valid,
+    };
+  } catch (error) {
+    parametricGmshResult = {
+      requested: true,
+      exitCode: error.status ?? 1,
+      stdout: error.stdout?.toString() || "",
+      stderr: error.stderr?.toString() || error.message,
+    };
+  }
+  writeFile(path.join(outDir, "native-parametric-block.gmsh-result.json"), JSON.stringify(parametricGmshResult, null, 2));
 }
 
 console.log(JSON.stringify({

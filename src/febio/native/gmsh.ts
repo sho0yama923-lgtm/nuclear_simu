@@ -35,6 +35,21 @@ function collectPhysicalGroups(mesh) {
   return groups.map((group, index) => ({ ...group, id: index + 1 }));
 }
 
+function formatGmshNumber(value) {
+  return Number(value).toPrecision(15).replace(/\.?0+$/, "");
+}
+
+function coordinateVariableName(axis, value) {
+  const normalized = formatGmshNumber(value)
+    .replace(/^-/, "n")
+    .replace(/\./g, "p");
+  return `${axis}_${normalized}`;
+}
+
+function coordinateVariableKey(axis, value) {
+  return `${axis}:${formatGmshNumber(value)}`;
+}
+
 function coordinateKey(node) {
   return [node.x, node.y, node.z].map((value) => Number(value).toPrecision(15)).join(",");
 }
@@ -264,6 +279,275 @@ export function buildGmshBaselineGeo(mesh, options = {}) {
     "// Physical group names expected by the native converter:",
     ...collectPhysicalGroups(mesh).map((group) => `// ${group.dimension} ${group.id} ${group.name}`),
   ];
+  return `${lines.join("\n")}\n`;
+}
+
+const HEX_FACE_NODES = [
+  [0, 3, 2, 1],
+  [4, 5, 6, 7],
+  [0, 1, 5, 4],
+  [1, 2, 6, 5],
+  [2, 3, 7, 6],
+  [3, 0, 4, 7],
+];
+
+function makeEdgeKey(a, b) {
+  return a < b ? `${a}:${b}` : `${b}:${a}`;
+}
+
+function makeFaceKey(nodes = []) {
+  return [...nodes].sort((a, b) => a - b).join(":");
+}
+
+export function buildEditableGmshBlockGeo(mesh, options = {}) {
+  const characteristicLength = Number.isFinite(Number(options.characteristicLength))
+    ? Number(options.characteristicLength)
+    : 1;
+  const surfaceNameByFaceKey = new Map();
+  Object.entries(mesh.surfaces || {}).forEach(([surfaceName, facets]) => {
+    (facets || []).forEach((facet) => {
+      const key = makeFaceKey(facet.nodes || []);
+      if (!surfaceNameByFaceKey.has(key)) surfaceNameByFaceKey.set(key, []);
+      surfaceNameByFaceKey.get(key).push(surfaceName);
+    });
+  });
+
+  const lines = [
+    "// Editable Gmsh block geometry generated from the FEBio native mesh.",
+    "// This is the first hand-editable bridge: each native hex is represented as transfinite geometry.",
+    "// Keep Physical Volume and Physical Surface names aligned with native mesh names.",
+    "Mesh.MshFileVersion = 2.2;",
+    "Mesh.SaveAll = 0;",
+    "Mesh.RecombineAll = 1;",
+    "",
+  ];
+
+  (mesh.nodes || []).forEach((node) => {
+    lines.push(`Point(${node.id}) = {${formatGmshNumber(node.x)}, ${formatGmshNumber(node.y)}, ${formatGmshNumber(node.z)}, ${formatGmshNumber(characteristicLength)}};`);
+  });
+  lines.push("");
+
+  const edgeIds = new Map();
+  const surfaceIds = new Map();
+  const surfaceIdsByName = new Map();
+  const volumeIdsByMaterial = new Map();
+  let nextLineId = 10000;
+  let nextSurfaceId = 20000;
+
+  function lineRef(a, b) {
+    const key = makeEdgeKey(a, b);
+    let edge = edgeIds.get(key);
+    if (!edge) {
+      edge = { id: nextLineId++, from: a, to: b };
+      edgeIds.set(key, edge);
+      lines.push(`Line(${edge.id}) = {${a}, ${b}};`);
+    }
+    return edge.from === a && edge.to === b ? edge.id : -edge.id;
+  }
+
+  function surfaceForFace(faceNodes, ownerElementId) {
+    const key = makeFaceKey(faceNodes);
+    let surface = surfaceIds.get(key);
+    if (!surface) {
+      const loopId = nextSurfaceId;
+      const surfaceId = nextSurfaceId++;
+      const refs = [
+        lineRef(faceNodes[0], faceNodes[1]),
+        lineRef(faceNodes[1], faceNodes[2]),
+        lineRef(faceNodes[2], faceNodes[3]),
+        lineRef(faceNodes[3], faceNodes[0]),
+      ];
+      lines.push(`Curve Loop(${loopId}) = {${refs.join(", ")}};`);
+      lines.push(`Plane Surface(${surfaceId}) = {${loopId}}; // owner element ${ownerElementId}`);
+      lines.push(`Transfinite Surface {${surfaceId}};`);
+      lines.push(`Recombine Surface {${surfaceId}};`);
+      surface = { id: surfaceId, names: surfaceNameByFaceKey.get(key) || [] };
+      surfaceIds.set(key, surface);
+      surface.names.forEach((name) => {
+        const ids = surfaceIdsByName.get(name) || [];
+        ids.push(surfaceId);
+        surfaceIdsByName.set(name, ids);
+      });
+    }
+    return surface.id;
+  }
+
+  lines.push("");
+  (mesh.elements || []).forEach((element) => {
+    if (element.type !== "hex8") return;
+    const faceSurfaceIds = HEX_FACE_NODES.map((face) => surfaceForFace(face.map((index) => element.nodes[index]), element.id));
+    const surfaceLoopId = 30000 + element.id;
+    lines.push(`Surface Loop(${surfaceLoopId}) = {${faceSurfaceIds.join(", ")}};`);
+    lines.push(`Volume(${element.id}) = {${surfaceLoopId}};`);
+    lines.push(`Transfinite Volume {${element.id}} = {${element.nodes.join(", ")}};`);
+    lines.push(`Recombine Volume {${element.id}};`);
+    const volumeIds = volumeIdsByMaterial.get(element.material) || [];
+    volumeIds.push(element.id);
+    volumeIdsByMaterial.set(element.material, volumeIds);
+  });
+
+  lines.push("");
+  [...edgeIds.values()].forEach((edge) => {
+    lines.push(`Transfinite Curve {${edge.id}} = 2;`);
+  });
+  lines.push("");
+
+  [...volumeIdsByMaterial.entries()].forEach(([material, ids]) => {
+    lines.push(`Physical Volume("${quoteGmshName(material)}") = {${ids.join(", ")}};`);
+  });
+  [...surfaceIdsByName.entries()].forEach(([surfaceName, ids]) => {
+    lines.push(`Physical Surface("${quoteGmshName(surfaceName)}") = {${[...new Set(ids)].join(", ")}};`);
+  });
+  lines.push("");
+
+  return `${lines.join("\n")}\n`;
+}
+
+export function buildParametricEditableGmshBlockGeo(mesh, options = {}) {
+  const characteristicLength = Number.isFinite(Number(options.characteristicLength))
+    ? Number(options.characteristicLength)
+    : 1;
+  const surfaceNameByFaceKey = new Map();
+  Object.entries(mesh.surfaces || {}).forEach(([surfaceName, facets]) => {
+    (facets || []).forEach((facet) => {
+      const key = makeFaceKey(facet.nodes || []);
+      if (!surfaceNameByFaceKey.has(key)) surfaceNameByFaceKey.set(key, []);
+      surfaceNameByFaceKey.get(key).push(surfaceName);
+    });
+  });
+
+  const coordinateValues = {
+    X: [...new Set((mesh.nodes || []).map((node) => node.x))].sort((a, b) => a - b),
+    Y: [...new Set((mesh.nodes || []).map((node) => node.y))].sort((a, b) => a - b),
+    Z: [...new Set((mesh.nodes || []).map((node) => node.z))].sort((a, b) => a - b),
+  };
+  const aliases = new Map([
+    [coordinateVariableKey("X", 14), "pipetteMouthX"],
+    [coordinateVariableKey("X", 27), "pipetteOuterX"],
+    [coordinateVariableKey("Y", -0.2), "pipetteYMin"],
+    [coordinateVariableKey("Y", 0.2), "pipetteYMax"],
+    [coordinateVariableKey("Z", 10.5), "pipetteZBottom"],
+    [coordinateVariableKey("Z", 13.75), "pipettePatchZBottom"],
+    [coordinateVariableKey("Z", 20.25), "pipettePatchZTop"],
+    [coordinateVariableKey("Z", 23.5), "pipetteZTop"],
+  ]);
+
+  function coordinateExpression(axis, value) {
+    return aliases.get(coordinateVariableKey(axis, value)) || coordinateVariableName(axis, value);
+  }
+
+  const lines = [
+    "// Parametric editable Gmsh block geometry generated from the FEBio native mesh.",
+    "// This keeps the current quad/hex block topology, but exposes rectangle/block coordinates as variables.",
+    "// Edit coordinate variables first; keep Physical Volume and Physical Surface names aligned with native mesh names.",
+    "Mesh.MshFileVersion = 2.2;",
+    "Mesh.SaveAll = 0;",
+    "Mesh.RecombineAll = 1;",
+    "",
+    "lc = " + formatGmshNumber(characteristicLength) + ";",
+    "",
+    "// Coordinate planes used by the rectangular block layout.",
+  ];
+
+  Object.entries(coordinateValues).forEach(([axis, values]) => {
+    values.forEach((value) => {
+      lines.push(`${coordinateVariableName(axis, value)} = ${formatGmshNumber(value)};`);
+    });
+  });
+  lines.push(
+    "",
+    "// High-value editing handles.",
+    "// To thin the visible pipette mouth in the x-z view, move pipetteZBottom / pipetteZTop toward the patch band.",
+    "// To shorten or lengthen the rigid pipette barrel, edit pipetteOuterX.",
+    "pipetteMouthX = X_14;",
+    "pipetteOuterX = X_27;",
+    "pipetteYMin = Y_n0p2;",
+    "pipetteYMax = Y_0p2;",
+    "pipetteZBottom = Z_10p5;",
+    "pipettePatchZBottom = Z_13p75;",
+    "pipettePatchZTop = Z_20p25;",
+    "pipetteZTop = Z_23p5;",
+    "",
+  );
+
+  (mesh.nodes || []).forEach((node) => {
+    lines.push(`Point(${node.id}) = {${coordinateExpression("X", node.x)}, ${coordinateExpression("Y", node.y)}, ${coordinateExpression("Z", node.z)}, lc};`);
+  });
+  lines.push("");
+
+  const edgeIds = new Map();
+  const surfaceIds = new Map();
+  const surfaceIdsByName = new Map();
+  const volumeIdsByMaterial = new Map();
+  let nextLineId = 10000;
+  let nextSurfaceId = 20000;
+
+  function lineRef(a, b) {
+    const key = makeEdgeKey(a, b);
+    let edge = edgeIds.get(key);
+    if (!edge) {
+      edge = { id: nextLineId++, from: a, to: b };
+      edgeIds.set(key, edge);
+      lines.push(`Line(${edge.id}) = {${a}, ${b}};`);
+    }
+    return edge.from === a && edge.to === b ? edge.id : -edge.id;
+  }
+
+  function surfaceForFace(faceNodes, ownerElementId) {
+    const key = makeFaceKey(faceNodes);
+    let surface = surfaceIds.get(key);
+    if (!surface) {
+      const loopId = nextSurfaceId;
+      const surfaceId = nextSurfaceId++;
+      const refs = [
+        lineRef(faceNodes[0], faceNodes[1]),
+        lineRef(faceNodes[1], faceNodes[2]),
+        lineRef(faceNodes[2], faceNodes[3]),
+        lineRef(faceNodes[3], faceNodes[0]),
+      ];
+      lines.push(`Curve Loop(${loopId}) = {${refs.join(", ")}};`);
+      lines.push(`Plane Surface(${surfaceId}) = {${loopId}}; // owner element ${ownerElementId}`);
+      lines.push(`Transfinite Surface {${surfaceId}};`);
+      lines.push(`Recombine Surface {${surfaceId}};`);
+      surface = { id: surfaceId, names: surfaceNameByFaceKey.get(key) || [] };
+      surfaceIds.set(key, surface);
+      surface.names.forEach((name) => {
+        const ids = surfaceIdsByName.get(name) || [];
+        ids.push(surfaceId);
+        surfaceIdsByName.set(name, ids);
+      });
+    }
+    return surface.id;
+  }
+
+  lines.push("");
+  (mesh.elements || []).forEach((element) => {
+    if (element.type !== "hex8") return;
+    const faceSurfaceIds = HEX_FACE_NODES.map((face) => surfaceForFace(face.map((index) => element.nodes[index]), element.id));
+    const surfaceLoopId = 30000 + element.id;
+    lines.push(`Surface Loop(${surfaceLoopId}) = {${faceSurfaceIds.join(", ")}};`);
+    lines.push(`Volume(${element.id}) = {${surfaceLoopId}};`);
+    lines.push(`Transfinite Volume {${element.id}} = {${element.nodes.join(", ")}};`);
+    lines.push(`Recombine Volume {${element.id}};`);
+    const volumeIds = volumeIdsByMaterial.get(element.material) || [];
+    volumeIds.push(element.id);
+    volumeIdsByMaterial.set(element.material, volumeIds);
+  });
+
+  lines.push("");
+  [...edgeIds.values()].forEach((edge) => {
+    lines.push(`Transfinite Curve {${edge.id}} = 2;`);
+  });
+  lines.push("");
+
+  [...volumeIdsByMaterial.entries()].forEach(([material, ids]) => {
+    lines.push(`Physical Volume("${quoteGmshName(material)}") = {${ids.join(", ")}};`);
+  });
+  [...surfaceIdsByName.entries()].forEach(([surfaceName, ids]) => {
+    lines.push(`Physical Surface("${quoteGmshName(surfaceName)}") = {${[...new Set(ids)].join(", ")}};`);
+  });
+  lines.push("");
+
   return `${lines.join("\n")}\n`;
 }
 

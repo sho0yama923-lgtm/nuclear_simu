@@ -1677,7 +1677,7 @@ test("docs and governance files exist and stay aligned", () => {
   assert.match(agent, /FEBio-native direct parameter path/);
   assert.match(agent, /docs\/ops\/ROADMAP\.md/);
 
-  assert.match(progress, /Active milestone: S10 Gmsh mesh pipeline foundation/);
+  assert.match(progress, /Active milestone: S10 parametric rectangular-block Gmsh refinement/);
   assert.match(progress, /target physical suction model applies pressure to a local nucleus-side capture patch/);
   assert.match(progress, /native-only path/);
   assert.match(progress, /pipeline validation, not final pressure calibration/);
