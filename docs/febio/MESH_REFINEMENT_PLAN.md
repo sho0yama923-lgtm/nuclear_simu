@@ -42,6 +42,7 @@ Current implementation:
 
 - `native-editable-block.geo` remains available as the direct point / line / surface representation.
 - `native-parametric-block.geo` is now preferred for manual refinement.
+- `native-python-api-block.py` is the next preferred safe-edit surface because it keeps geometry handles and FEBio-facing Physical Group names in one Python API script.
 - High-value handles include:
   - `pipetteOuterX`;
   - `pipetteZBottom`;
@@ -52,6 +53,25 @@ Current implementation:
 - Physical group names must remain unchanged, especially `pipette_mouth_patch`, `pipette_suction_patch`, `nucleus_interface_right_surface`, and `cytoplasm_interface_right_surface`.
 - The first validation target after any parametric edit is: Gmsh `.geo -> .msh`, native round-trip validation, FEBio export, FEBio CLI run, and comparison against S10-I.
 - Edited `.msh` files should be exported with `scripts/export_febio_from_gmsh_mesh.mjs` using the matching native case as the template.
+
+## Gmsh Python API registry policy
+
+The safer long-term path is to generate meshes through the Gmsh Python API instead of hand-editing `.geo` text. The Python API script should own:
+
+- rectangular coordinate/edit handles;
+- block topology;
+- `PHYSICAL_VOLUMES`;
+- `PHYSICAL_SURFACES`;
+- `PHYSICAL_GROUP_IDS`.
+
+FEBio-facing names should be assigned only through this registry. Adding or renaming a Physical Group must be treated as a FEBio interface change, because the native converter maps Gmsh Physical names directly to FEBio domains and surfaces.
+
+Current bridge:
+
+- `buildGmshPythonApiBlockScript` emits `native-python-api-block.py`.
+- `scripts/export_febio_from_gmsh_python_api.mjs` generates the Python API script, runs it to produce `.msh`, validates the native round-trip, and writes FEBio handoff artifacts.
+- The current local environment has Gmsh CLI `4.14.0` and a project-local Python `gmsh` package at `.tools/python-gmsh` reporting `4.15.2`. Generated Python API scripts auto-discover this local package from the project tree.
+- The unmodified S10-I Python API bridge has been run successfully and writes FEBio handoff artifacts under `febio_exports/S10_pipette_nc_refined_python_api/`.
 
 ## Refinement goals
 
@@ -94,6 +114,7 @@ Current implementation status:
 - S10-I (`febio_cases/native/S10_pipette_nc_refined.native.json`) adds the first actual pipette-mouth alignment refinement. It splits the rigid pipette mouth into bottom / patch / top bands, adds `pipette_mouth_patch`, keeps `pipette_suction_patch` unchanged, and preserves the S10-H FEBio CLI result on tracked converted metrics: final aspiration delta `0`, pressure response observed nodes `4 == 4`, detachment start delta `0`, and warning-free normal termination.
 - S10-I now also emits `generated/gmsh_editable_s10i/native-parametric-block.geo`, a rectangular-block `.geo` with coordinate variables and pipette edit handles. Gmsh 4.14.0 can mesh it, parse `96` nodes and `57` physical quad/hex elements, and round-trip it through native validation.
 - `scripts/export_febio_from_gmsh_mesh.mjs` provides the handoff from a saved edited `.msh` into FEBio export artifacts.
+- S10-I now also emits `generated/gmsh_editable_s10i/native-python-api-block.py`, a Gmsh Python API script with centralized Physical Group registries. It is the intended next safe-edit surface once Python `gmsh` is available.
 
 Add a mesh construct with explicit diagnostics:
 

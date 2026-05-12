@@ -29,6 +29,7 @@ Last updated: 2026-05-12
 - FEBioStudio can create unstable internal `nodesetNN` references when logfile node data uses inline node ids. Use explicit NodeSets and `node_set` references.
 - Solver-facing `.feb` should emit only active solver mesh items. Diagnostic-only selections stay in native model JSON.
 - Gmsh refinement は、点番号を直接大量管理する方式ではなく、長方形ブロック / 座標面 / named patch 変数で管理する。手編集対象は `native-parametric-block.geo` を優先し、`native-editable-block.geo` は比較・退避用に扱う。
+- Gmsh Python API を使う段階では、FEBio surface/domain 名と Physical Group ID を registry で固定する。生成 Python は手編集禁止の成果物として扱い、編集元は native case JSON の `geometry.gmshPythonApi` と `src/febio/native/gmsh.ts` の generator / registry に置く。
 
 ## Active milestone: S10 parametric rectangular-block Gmsh refinement
 
@@ -70,16 +71,23 @@ Last updated: 2026-05-12
 - S10-I parametric rectangular-block geometry was generated at `generated/gmsh_editable_s10i/native-parametric-block.geo`; Gmsh 4.14.0 produced `96` nodes, `57` parsed physical quad/hex elements, and a valid native round-trip. This is now the preferred manual editing surface for making the pipette thinner or changing local rectangular bands without hand-maintaining every point.
 - `scripts/export_febio_from_gmsh_mesh.mjs` now exports a FEBio handoff from an edited Gmsh `.msh` using a native case as the template. This is the bridge for `native-parametric-block.geo` edits: edit variables -> Gmsh save `.msh` -> native validation -> `.feb` export.
 - The unmodified S10-I parametric `.msh` was exported through this edited-mesh bridge at `febio_exports/S10_pipette_nc_refined_parametric/`: `96` nodes, `19` elements, `23` surfaces, native validation valid, export ready.
+- `buildGmshPythonApiBlockScript` emits `native-python-api-block.py` as a generated, do-not-edit Gmsh Python API script. It centralizes `PHYSICAL_VOLUMES`, `PHYSICAL_SURFACES`, and fixed `PHYSICAL_GROUP_IDS`; IDs no longer depend on object-key traversal order. Current fixed IDs include volume groups `cytoplasm=1`, `nucleus=2`, `pipette=3`, `dish=4`, and `pipette_suction_patch=120`.
+- The Gmsh Python package was installed project-locally under `.tools/python-gmsh` using `pip --target`; `import gmsh` reports `4.15.2` while the system CLI is `4.14.0`. Generated Python API scripts auto-discover this local package from the project tree.
+- `scripts/export_febio_from_gmsh_python_api.mjs` now provides the intended one-command bridge for Python API managed meshes: native case -> generated Python API script -> `.msh` -> native validation -> FEBio export. The unmodified S10-I Python API bridge ran successfully at `febio_exports/S10_pipette_nc_refined_python_api/`: `96` nodes, `19` elements, `23` surfaces, native validation valid, export ready.
+- S10 Python API generation now reads editable mesh-generation parameters from native case JSON at `geometry.gmshPythonApi`. `transfiniteCurveDivisions` controls generated `TRANSFINITE_CURVE_DIVISIONS`, while `coordinateAliases` controls readable emitted handles such as `pipetteMouthX`, `pipetteZBottom`, `pipettePatchZBottom`, and `pipettePatchZTop`.
+- `src/febio/native/gmsh.ts` now includes a readable geometry editing map with `Box`, `partition`, and `blockFromBox`. `buildProjectGmshBlockLayout` names the current conceptual blocks as `cytoplasmBox`, `nucleusBox`, `pipetteBox`, `dishBox`, and `cytoplasmPartition`, so future generator edits can be reasoned about as physical boxes/partitions instead of point-id lists. Low-level tag emission still preserves the validated native round-trip path.
+- Generated Python API scripts now include an edit guide at the top: model size/position changes start in `geometry.nucleus`, `geometry.cytoplasm`, and `geometry.pipette`; generated coordinate handles come from `geometry.gmshPythonApi.coordinateAliases`; global transfinite subdivision comes from `geometry.gmshPythonApi.transfiniteCurveDivisions`; Physical Group compatibility lives in `DEFAULT_PHYSICAL_GROUP_REGISTRY`.
+- `scripts/export_febio_from_gmsh_python_api.mjs --gui` forwards to generated Python as `--gui`, writes `.msh` relative to the generated script directory, and lets Gmsh FLTK inspect the generated model after mesh generation. Physical Group registration now checks that every requested entity tag exists before calling `addPhysicalGroup`.
 
 ### Current interpretation
 
 The active problem remains physical-model geometry and pressure schedule calibration, not evidence plumbing. The simplified separated-contact comparison proves native NC failure outputs can be emitted, converted, and classified warning-free. S10-A proves the local suction pressure-load response; S10-B proves local-patch plus solver-active left/right NC output can run warning-free at baseline pressure. S10-I adds the missing pipette mouth banding while preserving the S10-H solver behavior exactly on the tracked converted metrics.
 
-The project is now past the Gmsh baseline gate and the first pipette-mouth alignment gate. The manual editing policy has shifted from editing individual point ids to editing rectangular-block coordinate variables. The next useful review boundary is a small `native-parametric-block.geo` change, such as thinning the pipette by moving `pipetteZBottom` / `pipetteZTop` toward the patch band, then proving the changed mesh can round-trip, export, run in FEBio, and compare against S10-I.
+The project is now past the Gmsh baseline gate and the first pipette-mouth alignment gate. The manual editing policy has shifted from editing individual point ids to editing native case JSON / generator options, with generated Python treated as a reproducible artifact. The next useful review boundary is a small Python API managed change, such as changing `geometry.gmshPythonApi.transfiniteCurveDivisions` or moving a pipette-related coordinate alias source, then proving the changed mesh can round-trip, export, run in FEBio, and compare against S10-I.
 
 ### Next bounded task
 
-Start the first hand-authored parametric rectangular-block Gmsh refinement increment. The immediate target is not a pressure threshold claim; it is a small variable-level `.geo` change around the pipette mouth / suction patch / NC-side region that preserves S10-I behavior within documented tolerance or records the first intentional geometry-induced difference.
+Start the first Gmsh Python API managed rectangular-block refinement increment. The immediate target is not a pressure threshold claim; it is a small case-JSON / generator-option change around the pipette mouth / suction patch / NC-side region that preserves S10-I behavior within documented tolerance or records the first intentional geometry-induced difference.
 
 Next implementation checklist:
 
@@ -102,7 +110,14 @@ Next implementation checklist:
 - [x] add a parametric rectangular-block `.geo` generator so refinement can be done by editing coordinate variables instead of individual point ids;
 - [x] generate and validate the S10-I `native-parametric-block.geo` through Gmsh and native round-trip validation;
 - [x] add an edited-Gmsh-mesh export CLI so a saved `.msh` can become a native FEBio handoff;
-- [ ] make the first intentional hand-authored edit to the S10-I parametric `.geo` and capture the mesh / solver comparison against S10-I.
+- [x] add a Gmsh Python API script generator with centralized Physical Group / FEBio name registry;
+- [x] add a Python API mesh export bridge that can emit `.msh`, validate it, and write FEBio handoff artifacts when the `gmsh` Python package is available;
+- [x] install or expose the Gmsh Python package and run the Python API bridge once on unmodified S10-I;
+- [x] fix Physical Group IDs through a registry instead of object key order;
+- [x] move Python API edit handles and transfinite subdivision parameters to native case JSON / generator options;
+- [x] mark generated Python as do-not-edit and document what source fields affect coordinates, subdivisions, and Physical Groups;
+- [x] add a readable `Box` / `partition` / `blockFromBox` geometry map in `gmsh.ts` for future generator edits;
+- [ ] make the first intentional case-JSON / generator-option edit for S10-I and capture the mesh / solver comparison against S10-I.
 
 ### Done condition
 
@@ -115,7 +130,9 @@ Next implementation checklist:
 - FEBio CLI comparison against the current baseline records node count, element count, surface assignment, solver status, and converted result differences.
 - S10-I aligns the rigid pipette mouth patch with the local suction patch and preserves S10-H converted solver behavior on the tracked metrics.
 - The preferred manual edit source is `generated/gmsh_editable_s10i/native-parametric-block.geo`, not direct point-by-point editing of `native-editable-block.geo`.
-- The next refinement must start from the parametric rectangular-block `.geo` path and record any intentional mesh-induced solver difference against S10-I.
+- The generated Python API file is not the safe-edit source. It is a regenerated artifact under `febio_exports/<case>_gmsh_python_api/native-python-api-block.py`.
+- The preferred safe-edit source is the native case JSON (`geometry.gmshPythonApi`) plus the generator/registry in `src/febio/native/gmsh.ts`. FEBio-facing names and IDs are centralized in `DEFAULT_PHYSICAL_GROUP_REGISTRY`, `PHYSICAL_SURFACES`, and `PHYSICAL_VOLUMES`.
+- The next refinement must start from the Python API rectangular-block path by changing case JSON / generator options and recording any intentional mesh-induced solver difference against S10-I.
 
 ### Deferred until after Gmsh baseline
 

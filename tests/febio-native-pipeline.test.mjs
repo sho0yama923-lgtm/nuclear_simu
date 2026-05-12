@@ -591,9 +591,12 @@ test("native-only Gmsh baseline round-trips physical groups into the native mesh
   const validation = native.validateNativeMesh(gmshMesh);
   const geo = native.buildGmshBaselineGeo(nativeMesh, { mshPath: "native-baseline.msh" });
   const editableGeo = native.buildEditableGmshBlockGeo(nativeMesh);
-  const parametricGeo = native.buildParametricEditableGmshBlockGeo(nativeMesh);
+  const parametricGeo = native.buildParametricEditableGmshBlockGeo(nativeMesh, caseSpec.geometry.gmshPythonApi);
+  const pythonApiScript = native.buildGmshPythonApiBlockScript(nativeMesh, caseSpec.geometry.gmshPythonApi);
 
   assert.match(msh, /\$MeshFormat\n2\.2 0 8\n\$EndMeshFormat/);
+  assert.match(msh, /3 2 "nucleus"/);
+  assert.match(msh, /2 120 "pipette_suction_patch"/);
   assert.match(msh, /2 \d+ "pipette_suction_patch"/);
   assert.match(msh, /2 \d+ "nucleus_interface_right_surface"/);
   assert.match(msh, /3 \d+ "nucleus"/);
@@ -606,6 +609,20 @@ test("native-only Gmsh baseline round-trips physical groups into the native mesh
   assert.match(parametricGeo, /pipetteOuterX = X_27;/);
   assert.match(parametricGeo, /Point\(17\) = \{pipetteMouthX, pipetteYMin, pipetteZBottom, lc\};/);
   assert.match(parametricGeo, /Physical Surface\("pipette_suction_patch"\) = \{/);
+  assert.match(pythonApiScript, /import gmsh/);
+  assert.match(pythonApiScript, /DO NOT EDIT: regenerate from the native case JSON \/ generator options\./);
+  assert.doesNotMatch(pythonApiScript, /High-value editing handles/);
+  assert.match(pythonApiScript, /OUT_MSH = SCRIPT_DIR \/ "native-python-api-block\.msh"/);
+  assert.match(pythonApiScript, /TRANSFINITE_CURVE_DIVISIONS = 2/);
+  assert.match(pythonApiScript, /require_existing_entity_tags\(dimension, name, tags\)/);
+  assert.match(pythonApiScript, /pipetteMouthX = X_14/);
+  assert.match(pythonApiScript, /PHYSICAL_SURFACES = \{/);
+  assert.match(pythonApiScript, /"pipette_suction_patch": \[/);
+  assert.match(pythonApiScript, /"pipette_suction_patch": 120/);
+  assert.match(pythonApiScript, /gmsh\.model\.setPhysicalName\(2, group, name\)/);
+  assert.match(pythonApiScript, /gmsh\.model\.mesh\.setTransfiniteCurve\(\d+, TRANSFINITE_CURVE_DIVISIONS\)/);
+  assert.match(pythonApiScript, /gmsh\.model\.mesh\.setTransfiniteVolume/);
+  assert.match(pythonApiScript, /gmsh\.fltk\.run\(\)/);
   assert.equal(gmshMesh.meshMode, "gmsh-baseline");
   assert.equal(gmshMesh.gmsh.nativeIdRecovery, "template-preserved-for-duplicate-coordinate-baseline");
   assert.equal(gmshMesh.nodes.length, nativeMesh.nodes.length);
@@ -672,9 +689,8 @@ test("native-only Gmsh NC-right refinement preserves separated contact surfaces"
 
 test("native-only S10 pipette-NC refinement aligns mouth patch with suction patch", async () => {
   const native = await loadNativeModule();
-  const refined = native.buildNativeFebioModel(
-    JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S10_pipette_nc_refined.native.json"), "utf8")),
-  );
+  const refinedSpec = JSON.parse(fs.readFileSync(path.resolve("febio_cases/native/S10_pipette_nc_refined.native.json"), "utf8"));
+  const refined = native.buildNativeFebioModel(refinedSpec);
   const xml = native.serializeNativeModelToFebioXml(refined);
   const mesh = refined.geometry.mesh;
   const diagnostics = refined.geometry.meshValidation.meshLevelDiagnostics;
@@ -698,12 +714,17 @@ test("native-only S10 pipette-NC refinement aligns mouth patch with suction patc
   assert.match(xml, /<Surface name="pipette_contact_surface">\n      <quad4 id="31">17,97,100,20<\/quad4>\n      <quad4 id="32">97,101,104,100<\/quad4>\n      <quad4 id="33">101,21,24,104<\/quad4>/);
   assert.match(xml, /<Surface name="pipette_suction_patch">\n      <quad4 id="24">82,86,87,83<\/quad4>/);
 
-  const parametricGeo = native.buildParametricEditableGmshBlockGeo(mesh);
+  const parametricGeo = native.buildParametricEditableGmshBlockGeo(mesh, refinedSpec.geometry.gmshPythonApi);
+  const pythonApiScript = native.buildGmshPythonApiBlockScript(mesh, { ...refinedSpec.geometry.gmshPythonApi, outputMshPath: "s10i-python-api.msh" });
   assert.match(parametricGeo, /pipettePatchZBottom = Z_13p75;/);
   assert.match(parametricGeo, /pipettePatchZTop = Z_20p25;/);
   assert.match(parametricGeo, /Point\(97\) = \{pipetteMouthX, pipetteYMin, pipettePatchZBottom, lc\};/);
   assert.match(parametricGeo, /Point\(104\) = \{pipetteMouthX, pipetteYMax, pipettePatchZTop, lc\};/);
   assert.match(parametricGeo, /Physical Surface\("pipette_mouth_patch"\) = \{/);
+  assert.match(pythonApiScript, /OUT_MSH = SCRIPT_DIR \/ "s10i-python-api\.msh"/);
+  assert.match(pythonApiScript, /"pipette_mouth_patch": \[/);
+  assert.match(pythonApiScript, /"pipette_suction_patch": \[/);
+  assert.match(pythonApiScript, /gmsh\.model\.geo\.addPoint\(pipetteMouthX, pipetteYMin, pipettePatchZBottom, 0, 97\)/);
 });
 
 test("native-only S10 pressure scan variants preserve refined local-patch geometry", async () => {

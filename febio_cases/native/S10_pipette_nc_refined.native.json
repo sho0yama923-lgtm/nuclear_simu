@@ -10,7 +10,20 @@
       "puncture": { "x": 4.5, "z": 17 },
       "tip": { "x": 14, "z": 17 }
     },
-    "meshMode": "s10-pipette-nc-refined"
+    "meshMode": "s10-pipette-nc-refined",
+    "gmshPythonApi": {
+      "transfiniteCurveDivisions": 2,
+      "coordinateAliases": {
+        "pipetteMouthX": { "axis": "X", "value": 14 },
+        "pipetteOuterX": { "axis": "X", "value": 27 },
+        "pipetteYMin": { "axis": "Y", "value": -0.2 },
+        "pipetteYMax": { "axis": "Y", "value": 0.2 },
+        "pipetteZBottom": { "axis": "Z", "value": 10.5 },
+        "pipettePatchZBottom": { "axis": "Z", "value": 13.75 },
+        "pipettePatchZTop": { "axis": "Z", "value": 20.25 },
+        "pipetteZTop": { "axis": "Z", "value": 23.5 }
+      }
+    }
   },
   "materials": {
     "nucleus": { "type": "viscoelastic", "E": 20, "nu": 0.34, "eta": 4.2, "alphaNonlinear": 0.12 },

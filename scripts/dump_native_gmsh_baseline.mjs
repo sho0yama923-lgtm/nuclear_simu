@@ -32,7 +32,7 @@ function parseArgs(argv) {
 async function loadNativeModule() {
   const distPath = path.resolve("generated/dist/febio/native/index.js");
   const sourcePath = path.resolve("src/febio/native/index.ts");
-  const modulePath = fs.existsSync(distPath) ? distPath : sourcePath;
+  const modulePath = fs.existsSync(sourcePath) ? sourcePath : distPath;
   return import(pathToFileURL(modulePath).href);
 }
 
@@ -43,7 +43,11 @@ const mesh = native.buildNativeMesh(caseSpec);
 const msh = native.serializeNativeMeshToGmshV2(mesh);
 const geo = native.buildGmshBaselineGeo(mesh, { mshPath: "native-baseline.msh" });
 const editableGeo = native.buildEditableGmshBlockGeo(mesh);
-const parametricGeo = native.buildParametricEditableGmshBlockGeo(mesh);
+const parametricGeo = native.buildParametricEditableGmshBlockGeo(mesh, caseSpec.geometry?.gmshPythonApi || {});
+const pythonApiScript = native.buildGmshPythonApiBlockScript(mesh, {
+  ...(caseSpec.geometry?.gmshPythonApi || {}),
+  outputMshPath: "native-python-api-block.msh",
+});
 const parsed = native.parseGmshMshV2(msh);
 const roundTrip = native.convertGmshMshToNativeMesh(parsed, mesh);
 const validation = native.validateNativeMesh(roundTrip);
@@ -53,6 +57,7 @@ writeFile(path.join(outDir, "native-baseline.mesh.json"), JSON.stringify(mesh, n
 writeFile(path.join(outDir, "native-baseline.geo"), geo);
 writeFile(path.join(outDir, "native-editable-block.geo"), editableGeo);
 writeFile(path.join(outDir, "native-parametric-block.geo"), parametricGeo);
+writeFile(path.join(outDir, "native-python-api-block.py"), pythonApiScript);
 writeFile(path.join(outDir, "native-baseline.msh"), msh);
 writeFile(path.join(outDir, "native-baseline.roundtrip.mesh.json"), JSON.stringify(roundTrip, null, 2));
 writeFile(path.join(outDir, "native-baseline.validation.json"), JSON.stringify(validation, null, 2));

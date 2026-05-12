@@ -9,6 +9,7 @@ export {
   buildEditableGmshBlockGeo,
   buildGmshBaselineGeo,
   buildGmshBaselineNativeMesh,
+  buildGmshPythonApiBlockScript,
   buildParametricEditableGmshBlockGeo,
   convertGmshMshToNativeMesh,
   parseGmshMshV2,
