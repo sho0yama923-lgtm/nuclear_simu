@@ -2,79 +2,79 @@
   "caseName": "S10_pipette_nc_refined",
   "outputNameTag": "S10-I",
   "baseName": "S10-I_S10_pipette_nc_refined",
-  "generatedAt": "2026-05-08T08:08:01.206Z",
-  "parameterDigest": "fdig_5fdf08a6",
+  "generatedAt": "2026-05-12T05:56:17.315Z",
+  "parameterDigest": "fdig_d8da09bf",
   "exportReady": true,
   "solverMetadata": {
     "solverMode": "febio",
     "source": "febio-native-only"
   },
   "files": {
-    "feb": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined.feb",
-    "effectiveNativeSpec": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined_effective_native_spec.json",
-    "nativeModel": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined_native_model.json",
-    "manifest": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined_manifest.json",
-    "readme": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined_README.txt",
-    "expectedLog": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined.log",
-    "expectedXplt": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined.xplt",
-    "expectedResultJson": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined_result.json"
+    "feb": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined.feb",
+    "effectiveNativeSpec": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined_effective_native_spec.json",
+    "nativeModel": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined_native_model.json",
+    "manifest": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined_manifest.json",
+    "readme": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined_README.txt",
+    "expectedLog": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined.log",
+    "expectedXplt": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined.xplt",
+    "expectedResultJson": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined_result.json"
   },
   "expectedArtifacts": {
-    "logPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined.log",
-    "xpltPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined.xplt",
+    "logPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined.log",
+    "xpltPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined.xplt",
     "csvOutputPaths": [
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_interface_nc_left.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_interface_nc_right.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_interface_cell_dish.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_pipette_cell_contact.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_pipette_contact.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nucleus_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_cytoplasm_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_pipette_suction_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_pipette_suction_patch_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_pipette_contact_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_left_nucleus_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_left_cytoplasm_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_right_nucleus_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_right_cytoplasm_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_top_nucleus_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_top_cytoplasm_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_bottom_nucleus_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_bottom_cytoplasm_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_rigid_pipette.csv"
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_interface_nc_left.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_interface_nc_right.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_interface_cell_dish.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_pipette_cell_contact.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_pipette_contact.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nucleus_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_cytoplasm_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_pipette_suction_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_pipette_suction_patch_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_pipette_contact_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_left_nucleus_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_left_cytoplasm_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_right_nucleus_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_right_cytoplasm_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_top_nucleus_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_top_cytoplasm_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_bottom_nucleus_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_bottom_cytoplasm_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_rigid_pipette.csv"
     ],
-    "resultJsonPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined_result.json"
+    "resultJsonPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined_result.json"
   },
   "commands": {
-    "febioCli": "febio4 -i \"/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined.feb\"",
-    "repositoryRunner": "powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile \"/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined.feb\""
+    "febioCli": "febio4 -i \"/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined.feb\"",
+    "repositoryRunner": "powershell -ExecutionPolicy Bypass -File scripts/run_febio_case.ps1 -FebFile \"/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined.feb\""
   },
   "studioConfirmation": {
-    "febPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined.feb",
-    "runDirectory": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined",
-    "logPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined.log",
-    "xpltPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined.xplt",
-    "resultPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/S10-I_S10_pipette_nc_refined_result.json",
+    "febPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined.feb",
+    "runDirectory": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api",
+    "logPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined.log",
+    "xpltPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined.xplt",
+    "resultPath": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/S10-I_S10_pipette_nc_refined_result.json",
     "outputCsv": [
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_interface_nc_left.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_interface_nc_right.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_interface_cell_dish.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_pipette_cell_contact.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_pipette_contact.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nucleus_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_cytoplasm_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_pipette_suction_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_pipette_suction_patch_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_pipette_contact_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_left_nucleus_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_left_cytoplasm_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_right_nucleus_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_right_cytoplasm_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_top_nucleus_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_top_cytoplasm_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_bottom_nucleus_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_nc_bottom_cytoplasm_nodes.csv",
-      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined/febio_rigid_pipette.csv"
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_interface_nc_left.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_interface_nc_right.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_interface_cell_dish.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_pipette_cell_contact.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_pipette_contact.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nucleus_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_cytoplasm_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_pipette_suction_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_pipette_suction_patch_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_pipette_contact_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_left_nucleus_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_left_cytoplasm_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_right_nucleus_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_right_cytoplasm_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_top_nucleus_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_top_cytoplasm_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_bottom_nucleus_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_nc_bottom_cytoplasm_nodes.csv",
+      "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/febio_rigid_pipette.csv"
     ]
   },
   "validation": {
@@ -748,7 +748,7 @@
         "pipetteSuctionSeparatedFromNucleusRight": false
       },
       "meshLevelDiagnostics": {
-        "meshMode": "s10-pipette-nc-refined",
+        "meshMode": "gmsh-python-api-edited",
         "elementCount": 19,
         "nodeCount": 96,
         "faceCount": 45,
@@ -1099,10 +1099,18 @@
               ]
             }
           ],
-          "nativeIdRecovery": "",
+          "nativeIdRecovery": "template-preserved-for-duplicate-coordinate-baseline",
           "note": "duplicate-coordinate native nodes are intentional at material/contact boundaries; Gmsh imports may renumber them, so template native-id recovery is required for baseline comparisons"
         },
-        "gmsh": null
+        "gmsh": {
+          "format": "gmsh-msh-v2-ascii",
+          "physicalGroupCount": 25,
+          "source": "gmsh-v2-ascii",
+          "nativeIdRecovery": "template-preserved-for-duplicate-coordinate-baseline",
+          "sourceFile": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/native-python-api-block.msh",
+          "apiScript": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/native-python-api-block.py",
+          "templateCase": "S10_pipette_nc_refined"
+        }
       },
       "conventionWarnings": []
     },

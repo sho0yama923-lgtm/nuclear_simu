@@ -14,7 +14,7 @@ function buildBaseName(model) {
 export function buildNativeFebioExport(caseSpec = {}, options = {}) {
   const model = buildNativeFebioModel(caseSpec, { meshOverride: options.meshOverride });
   const febXml = serializeNativeModelToFebioXml(model);
-  const baseName = buildBaseName(model);
+  const baseName = options.baseName ? cleanCaseName(options.baseName) : buildBaseName(model);
   const outDir = options.outDir || ".";
   const files = {
     feb: `${outDir}/${baseName}.feb`,

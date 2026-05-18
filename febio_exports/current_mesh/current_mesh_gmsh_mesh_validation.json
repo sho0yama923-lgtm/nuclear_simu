@@ -1,0 +1,1102 @@
+{
+  "valid": true,
+  "invalidElements": [],
+  "aspectRatioWarnings": [],
+  "requiredDomains": {
+    "nucleus": "present",
+    "cytoplasm": "present",
+    "dish": "present",
+    "pipette": "present"
+  },
+  "requiredNodeSets": {
+    "dish_fixed_nodes": "present",
+    "pipette_contact_nodes": "present",
+    "nc_left_nucleus_nodes": "present",
+    "nc_right_nucleus_nodes": "present",
+    "nc_top_nucleus_nodes": "present",
+    "nc_bottom_nucleus_nodes": "present",
+    "nc_left_cytoplasm_nodes": "present",
+    "nc_right_cytoplasm_nodes": "present",
+    "nc_top_cytoplasm_nodes": "present",
+    "nc_bottom_cytoplasm_nodes": "present",
+    "cd_left_cell_nodes": "present",
+    "cd_center_cell_nodes": "present",
+    "cd_right_cell_nodes": "present"
+  },
+  "requiredSurfaces": {
+    "nucleus_interface_surface": true,
+    "nucleus_interface_left_surface": true,
+    "nucleus_interface_right_surface": true,
+    "nucleus_interface_top_surface": true,
+    "nucleus_interface_bottom_surface": true,
+    "cytoplasm_interface_surface": true,
+    "cytoplasm_interface_left_surface": true,
+    "cytoplasm_interface_right_surface": true,
+    "cytoplasm_interface_top_surface": true,
+    "cytoplasm_interface_bottom_surface": true,
+    "cell_dish_surface": true,
+    "dish_contact_surface": true,
+    "cell_dish_left_surface": true,
+    "cell_dish_center_surface": true,
+    "cell_dish_right_surface": true,
+    "pipette_suction_surface": true,
+    "pipette_contact_surface": true
+  },
+  "requiredSurfacePairs": {
+    "nucleus_cytoplasm_pair": {
+      "present": true,
+      "primary": true,
+      "secondary": true,
+      "surfacesReady": true
+    },
+    "cell_dish_pair": {
+      "present": true,
+      "primary": true,
+      "secondary": true,
+      "surfacesReady": true
+    },
+    "pipette_nucleus_pair": {
+      "present": true,
+      "primary": true,
+      "secondary": true,
+      "surfacesReady": true
+    },
+    "pipette_cell_pair": {
+      "present": true,
+      "primary": true,
+      "secondary": true,
+      "surfacesReady": true
+    }
+  },
+  "coordinateConvention": {
+    "axes": {
+      "x": {
+        "meaning": "aspiration/manipulation axis",
+        "positive": "from cell center toward the pipette/barrel side",
+        "negative": "from pipette mouth toward cell interior"
+      },
+      "y": {
+        "meaning": "section thickness / out-of-plane axis",
+        "positive": "one side of the thin 3D section",
+        "negative": "opposite side of the thin 3D section"
+      },
+      "z": {
+        "meaning": "dish-to-apical vertical axis",
+        "positive": "away from dish / apical",
+        "negative": "toward dish / basal"
+      }
+    },
+    "pressure": {
+      "suctionSurface": "pipette_suction_surface",
+      "localSuctionPatch": "pipette_suction_patch",
+      "surfaceOwnership": "deformable-side capture surface",
+      "rigidMouthSurface": "pipette_contact_surface",
+      "currentSuctionNormal": "-x",
+      "negativePressureEffect": "intended to pull toward +x, into the pipette/barrel side"
+    },
+    "contactPairs": {
+      "nucleus_cytoplasm_pair": {
+        "primary": "cytoplasm_interface_surface",
+        "secondary": "nucleus_interface_surface"
+      },
+      "nucleus_cytoplasm_left_pair": {
+        "primary": "cytoplasm_interface_left_surface",
+        "secondary": "nucleus_interface_left_surface"
+      },
+      "nucleus_cytoplasm_right_pair": {
+        "primary": "cytoplasm_interface_right_surface",
+        "secondary": "nucleus_interface_right_surface"
+      },
+      "nucleus_cytoplasm_top_pair": {
+        "primary": "cytoplasm_interface_top_surface",
+        "secondary": "nucleus_interface_top_surface"
+      },
+      "nucleus_cytoplasm_bottom_pair": {
+        "primary": "cytoplasm_interface_bottom_surface",
+        "secondary": "nucleus_interface_bottom_surface"
+      },
+      "cell_dish_pair": {
+        "primary": "cell_dish_surface",
+        "secondary": "dish_contact_surface"
+      },
+      "pipette_nucleus_pair": {
+        "primary": "nucleus_interface_right_surface",
+        "secondary": "pipette_contact_surface"
+      },
+      "pipette_cell_pair": {
+        "primary": "pipette_suction_surface",
+        "secondary": "pipette_contact_surface"
+      }
+    }
+  },
+  "surfaceNormalDiagnostics": {
+    "entries": {
+      "nucleus_interface_left_surface": {
+        "normal": [
+          -1,
+          0,
+          0
+        ],
+        "actual": "-x",
+        "expected": "-x",
+        "matchesConvention": true
+      },
+      "nucleus_interface_right_surface": {
+        "normal": [
+          -1,
+          0,
+          0
+        ],
+        "actual": "-x",
+        "expected": "-x",
+        "matchesConvention": true
+      },
+      "nucleus_interface_top_surface": {
+        "normal": [
+          0,
+          0,
+          1
+        ],
+        "actual": "+z",
+        "expected": "+z",
+        "matchesConvention": true
+      },
+      "nucleus_interface_bottom_surface": {
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "actual": "-z",
+        "expected": "-z",
+        "matchesConvention": true
+      },
+      "cytoplasm_interface_left_surface": {
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "actual": "+x",
+        "expected": "+x",
+        "matchesConvention": true
+      },
+      "cytoplasm_interface_right_surface": {
+        "normal": [
+          1,
+          0,
+          0
+        ],
+        "actual": "+x",
+        "expected": "+x",
+        "matchesConvention": true
+      },
+      "cytoplasm_interface_top_surface": {
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "actual": "-z",
+        "expected": "-z",
+        "matchesConvention": true
+      },
+      "cytoplasm_interface_bottom_surface": {
+        "normal": [
+          0,
+          0,
+          1
+        ],
+        "actual": "+z",
+        "expected": "+z",
+        "matchesConvention": true
+      },
+      "cell_dish_left_surface": {
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "actual": "-z",
+        "expected": "-z",
+        "matchesConvention": true
+      },
+      "cell_dish_center_surface": {
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "actual": "-z",
+        "expected": "-z",
+        "matchesConvention": true
+      },
+      "cell_dish_right_surface": {
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "actual": "-z",
+        "expected": "-z",
+        "matchesConvention": true
+      },
+      "dish_contact_surface": {
+        "normal": [
+          0,
+          0,
+          1
+        ],
+        "actual": "+z",
+        "expected": "+z",
+        "matchesConvention": true
+      },
+      "pipette_suction_surface": {
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "actual": "-z",
+        "expected": "-z",
+        "matchesConvention": true
+      },
+      "pipette_suction_patch": {
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "actual": "-z",
+        "expected": "-z",
+        "matchesConvention": true
+      },
+      "pipette_contact_surface": {
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "actual": "-z",
+        "expected": "-z",
+        "matchesConvention": true
+      }
+    },
+    "warnings": []
+  },
+  "contactPairDiagnostics": {
+    "checks": {
+      "nc_left": {
+        "primary": "cytoplasm_interface_left_surface",
+        "secondary": "nucleus_interface_left_surface",
+        "activePrimary": "cytoplasm_interface_left_surface",
+        "activeSecondary": "nucleus_interface_left_surface",
+        "pair": null,
+        "primaryNormal": "+x",
+        "secondaryNormal": "-x",
+        "dot": -1,
+        "primaryCentroid": [
+          -14,
+          0,
+          17
+        ],
+        "secondaryCentroid": [
+          -14,
+          0,
+          17
+        ],
+        "centroidDelta": [
+          0,
+          0,
+          0
+        ],
+        "signedNormalGap": 0,
+        "normalGapMagnitude": 0,
+        "tangentialOffset": [
+          0,
+          0,
+          0
+        ],
+        "tangentialOffsetMagnitude": 0,
+        "expected": "opposed",
+        "aligned": true
+      },
+      "nc_right": {
+        "primary": "cytoplasm_interface_right_surface",
+        "secondary": "nucleus_interface_right_surface",
+        "activePrimary": "cytoplasm_interface_right_surface",
+        "activeSecondary": "nucleus_interface_right_surface",
+        "pair": null,
+        "primaryNormal": "+x",
+        "secondaryNormal": "-x",
+        "dot": -1,
+        "primaryCentroid": [
+          14,
+          0,
+          17
+        ],
+        "secondaryCentroid": [
+          14,
+          0,
+          17
+        ],
+        "centroidDelta": [
+          0,
+          0,
+          0
+        ],
+        "signedNormalGap": 0,
+        "normalGapMagnitude": 0,
+        "tangentialOffset": [
+          0,
+          0,
+          0
+        ],
+        "tangentialOffsetMagnitude": 0,
+        "expected": "opposed",
+        "aligned": true
+      },
+      "nc_top": {
+        "primary": "cytoplasm_interface_top_surface",
+        "secondary": "nucleus_interface_top_surface",
+        "activePrimary": "cytoplasm_interface_top_surface",
+        "activeSecondary": "nucleus_interface_top_surface",
+        "pair": null,
+        "primaryNormal": "-z",
+        "secondaryNormal": "+z",
+        "dot": -1,
+        "primaryCentroid": [
+          0,
+          0,
+          26
+        ],
+        "secondaryCentroid": [
+          0,
+          0,
+          26
+        ],
+        "centroidDelta": [
+          0,
+          0,
+          0
+        ],
+        "signedNormalGap": 0,
+        "normalGapMagnitude": 0,
+        "tangentialOffset": [
+          0,
+          0,
+          0
+        ],
+        "tangentialOffsetMagnitude": 0,
+        "expected": "opposed",
+        "aligned": true
+      },
+      "nc_bottom": {
+        "primary": "cytoplasm_interface_bottom_surface",
+        "secondary": "nucleus_interface_bottom_surface",
+        "activePrimary": "cytoplasm_interface_bottom_surface",
+        "activeSecondary": "nucleus_interface_bottom_surface",
+        "pair": null,
+        "primaryNormal": "+z",
+        "secondaryNormal": "-z",
+        "dot": -1,
+        "primaryCentroid": [
+          0,
+          0,
+          8
+        ],
+        "secondaryCentroid": [
+          0,
+          0,
+          8
+        ],
+        "centroidDelta": [
+          0,
+          0,
+          0
+        ],
+        "signedNormalGap": 0,
+        "normalGapMagnitude": 0,
+        "tangentialOffset": [
+          0,
+          0,
+          0
+        ],
+        "tangentialOffsetMagnitude": 0,
+        "expected": "opposed",
+        "aligned": true
+      },
+      "cell_dish_left": {
+        "primary": "cell_dish_left_surface",
+        "secondary": "dish_contact_surface",
+        "activePrimary": "cell_dish_left_surface",
+        "activeSecondary": "dish_contact_surface",
+        "pair": null,
+        "primaryNormal": "-z",
+        "secondaryNormal": "+z",
+        "dot": -1,
+        "primaryCentroid": [
+          -20,
+          0,
+          0
+        ],
+        "secondaryCentroid": [
+          0,
+          0,
+          0
+        ],
+        "centroidDelta": [
+          20,
+          0,
+          0
+        ],
+        "signedNormalGap": 0,
+        "normalGapMagnitude": 0,
+        "tangentialOffset": [
+          20,
+          0,
+          0
+        ],
+        "tangentialOffsetMagnitude": 20,
+        "expected": "opposed",
+        "aligned": true
+      },
+      "cell_dish_center": {
+        "primary": "cell_dish_center_surface",
+        "secondary": "dish_contact_surface",
+        "activePrimary": "cell_dish_center_surface",
+        "activeSecondary": "dish_contact_surface",
+        "pair": null,
+        "primaryNormal": "-z",
+        "secondaryNormal": "+z",
+        "dot": -1,
+        "primaryCentroid": [
+          0,
+          0,
+          0
+        ],
+        "secondaryCentroid": [
+          0,
+          0,
+          0
+        ],
+        "centroidDelta": [
+          0,
+          0,
+          0
+        ],
+        "signedNormalGap": 0,
+        "normalGapMagnitude": 0,
+        "tangentialOffset": [
+          0,
+          0,
+          0
+        ],
+        "tangentialOffsetMagnitude": 0,
+        "expected": "opposed",
+        "aligned": true
+      },
+      "cell_dish_right": {
+        "primary": "cell_dish_right_surface",
+        "secondary": "dish_contact_surface",
+        "activePrimary": "cell_dish_right_surface",
+        "activeSecondary": "dish_contact_surface",
+        "pair": null,
+        "primaryNormal": "-z",
+        "secondaryNormal": "+z",
+        "dot": -1,
+        "primaryCentroid": [
+          20,
+          0,
+          0
+        ],
+        "secondaryCentroid": [
+          0,
+          0,
+          0
+        ],
+        "centroidDelta": [
+          -20,
+          0,
+          0
+        ],
+        "signedNormalGap": 0,
+        "normalGapMagnitude": 0,
+        "tangentialOffset": [
+          -20,
+          0,
+          0
+        ],
+        "tangentialOffsetMagnitude": 20,
+        "expected": "opposed",
+        "aligned": true
+      },
+      "pipette_cell": {
+        "primary": "pipette_suction_surface",
+        "secondary": "pipette_contact_surface",
+        "activePrimary": "pipette_suction_surface",
+        "activeSecondary": "pipette_contact_surface",
+        "pair": "pipette_cell_pair",
+        "primaryNormal": "-z",
+        "secondaryNormal": "-z",
+        "dot": 1,
+        "primaryCentroid": [
+          0,
+          0,
+          26
+        ],
+        "secondaryCentroid": [
+          0,
+          0,
+          26
+        ],
+        "centroidDelta": [
+          0,
+          0,
+          0
+        ],
+        "signedNormalGap": 0,
+        "normalGapMagnitude": 0,
+        "tangentialOffset": [
+          0,
+          0,
+          0
+        ],
+        "tangentialOffsetMagnitude": 0,
+        "expected": "same",
+        "aligned": true
+      }
+    },
+    "warnings": []
+  },
+  "pressureDiagnostics": {
+    "suctionSurface": "pipette_suction_patch",
+    "legacySuctionSurface": "pipette_suction_surface",
+    "localSuctionPatch": {
+      "surface": "pipette_suction_patch",
+      "legacySurface": "pipette_suction_surface",
+      "area": 13,
+      "centroid": [
+        0,
+        0,
+        26
+      ],
+      "normal": [
+        0,
+        0,
+        -1
+      ],
+      "normalAxis": "-z",
+      "nodeCount": 4,
+      "faceCount": 1,
+      "nodeIds": [
+        78,
+        79,
+        83,
+        84
+      ],
+      "faceIds": [
+        1
+      ],
+      "pressure": -0.7,
+      "pressureResultant": 9.1,
+      "relationToPipetteMouth": "centered on pipette axis and evaluated against pipette_contact_surface centroid"
+    },
+    "surfaceOwnership": "deformable-side capture surface",
+    "rigidMouthSurface": "pipette_contact_surface",
+    "suctionSurfaceMode": "top-nucleus-patch",
+    "suctionNormal": "-z",
+    "expectedSuctionNormal": "-z",
+    "negativePressureEffect": "negative pressure on the top suction patch is intended to pull toward +z, into the pipette above the cell",
+    "couplingReadiness": {
+      "ready": true,
+      "suctionCentroid": [
+        0,
+        0,
+        26
+      ],
+      "rigidMouthCentroid": [
+        0,
+        0,
+        26
+      ],
+      "centroidDelta": [
+        0,
+        0,
+        0
+      ],
+      "signedNormalGap": 0,
+      "normalGapMagnitude": 0,
+      "tangentialOffset": [
+        0,
+        0,
+        0
+      ],
+      "tangentialOffsetMagnitude": 0,
+      "maxTangentialOffsetForReady": 0.1,
+      "interpretation": "active pipette suction pressure surface is normal-aligned and tangentially colocated with the rigid mouth surface"
+    },
+    "valid": true,
+    "warnings": []
+  },
+  "surfaceOverlapDiagnostics": {
+    "duplicateNodeSets": [
+      {
+        "nodeSignature": "78,79,83,84",
+        "surfaces": [
+          "pipette_suction_surface",
+          "pipette_suction_patch"
+        ]
+      },
+      {
+        "nodeSignature": "89,90,91,92",
+        "surfaces": [
+          "pipette_contact_surface",
+          "pipette_mouth_surface",
+          "pipette_mouth_patch"
+        ]
+      }
+    ],
+    "pipetteSuctionOverlaps": [
+      "pipette_suction_patch"
+    ],
+    "pipetteSuctionSeparatedFromNucleusRight": true
+  },
+  "meshLevelDiagnostics": {
+    "meshMode": "gmsh-edited",
+    "elementCount": 22,
+    "nodeCount": 100,
+    "faceCount": 57,
+    "elementCountByMaterial": {
+      "cytoplasm": 12,
+      "dish": 5,
+      "nucleus": 3,
+      "pipette": 2
+    },
+    "faceCountBySurface": {
+      "nucleus_interface_surface": 8,
+      "nucleus_interface_left_surface": 1,
+      "nucleus_interface_right_surface": 1,
+      "nucleus_interface_top_surface": 3,
+      "nucleus_interface_bottom_surface": 3,
+      "cytoplasm_interface_surface": 8,
+      "cytoplasm_interface_left_surface": 1,
+      "cytoplasm_interface_right_surface": 1,
+      "cytoplasm_interface_top_surface": 3,
+      "cytoplasm_interface_bottom_surface": 3,
+      "cell_dish_surface": 5,
+      "dish_contact_surface": 5,
+      "cell_dish_left_surface": 1,
+      "cell_dish_center_surface": 3,
+      "cell_dish_right_surface": 1,
+      "dish_contact_left_surface": 1,
+      "dish_contact_center_surface": 3,
+      "dish_contact_right_surface": 1,
+      "pipette_suction_surface": 1,
+      "pipette_suction_patch": 1,
+      "pipette_contact_surface": 1,
+      "pipette_mouth_surface": 1,
+      "pipette_mouth_patch": 1
+    },
+    "ncRegionDiagnostics": {
+      "byRegion": {
+        "left": {
+          "nucleusSurface": "nucleus_interface_left_surface",
+          "cytoplasmSurface": "cytoplasm_interface_left_surface",
+          "nucleusFaceCount": 1,
+          "cytoplasmFaceCount": 1,
+          "nucleusNodeCount": 4,
+          "cytoplasmNodeCount": 4,
+          "nodePairMappingCount": 4,
+          "nodePairs": [
+            {
+              "nucleusNodeId": 73,
+              "cytoplasmNodeId": 6
+            },
+            {
+              "nucleusNodeId": 76,
+              "cytoplasmNodeId": 7
+            },
+            {
+              "nucleusNodeId": 77,
+              "cytoplasmNodeId": 10
+            },
+            {
+              "nucleusNodeId": 80,
+              "cytoplasmNodeId": 11
+            }
+          ],
+          "solverActiveFaceReady": true
+        },
+        "right": {
+          "nucleusSurface": "nucleus_interface_right_surface",
+          "cytoplasmSurface": "cytoplasm_interface_right_surface",
+          "nucleusFaceCount": 1,
+          "cytoplasmFaceCount": 1,
+          "nucleusNodeCount": 4,
+          "cytoplasmNodeCount": 4,
+          "nodePairMappingCount": 4,
+          "nodePairs": [
+            {
+              "nucleusNodeId": 85,
+              "cytoplasmNodeId": 51
+            },
+            {
+              "nucleusNodeId": 86,
+              "cytoplasmNodeId": 52
+            },
+            {
+              "nucleusNodeId": 87,
+              "cytoplasmNodeId": 53
+            },
+            {
+              "nucleusNodeId": 88,
+              "cytoplasmNodeId": 54
+            }
+          ],
+          "solverActiveFaceReady": true
+        },
+        "top": {
+          "nucleusSurface": "nucleus_interface_top_surface",
+          "cytoplasmSurface": "cytoplasm_interface_top_surface",
+          "nucleusFaceCount": 3,
+          "cytoplasmFaceCount": 3,
+          "nucleusNodeCount": 8,
+          "cytoplasmNodeCount": 8,
+          "nodePairMappingCount": 8,
+          "nodePairs": [
+            {
+              "nucleusNodeId": 77,
+              "cytoplasmNodeId": 10
+            },
+            {
+              "nucleusNodeId": 78,
+              "cytoplasmNodeId": 29
+            },
+            {
+              "nucleusNodeId": 79,
+              "cytoplasmNodeId": 30
+            },
+            {
+              "nucleusNodeId": 80,
+              "cytoplasmNodeId": 11
+            },
+            {
+              "nucleusNodeId": 83,
+              "cytoplasmNodeId": 41
+            },
+            {
+              "nucleusNodeId": 84,
+              "cytoplasmNodeId": 42
+            },
+            {
+              "nucleusNodeId": 87,
+              "cytoplasmNodeId": 53
+            },
+            {
+              "nucleusNodeId": 88,
+              "cytoplasmNodeId": 54
+            }
+          ],
+          "solverActiveFaceReady": true
+        },
+        "bottom": {
+          "nucleusSurface": "nucleus_interface_bottom_surface",
+          "cytoplasmSurface": "cytoplasm_interface_bottom_surface",
+          "nucleusFaceCount": 3,
+          "cytoplasmFaceCount": 3,
+          "nucleusNodeCount": 8,
+          "cytoplasmNodeCount": 8,
+          "nodePairMappingCount": 8,
+          "nodePairs": [
+            {
+              "nucleusNodeId": 73,
+              "cytoplasmNodeId": 6
+            },
+            {
+              "nucleusNodeId": 74,
+              "cytoplasmNodeId": 27
+            },
+            {
+              "nucleusNodeId": 75,
+              "cytoplasmNodeId": 28
+            },
+            {
+              "nucleusNodeId": 76,
+              "cytoplasmNodeId": 7
+            },
+            {
+              "nucleusNodeId": 81,
+              "cytoplasmNodeId": 39
+            },
+            {
+              "nucleusNodeId": 82,
+              "cytoplasmNodeId": 40
+            },
+            {
+              "nucleusNodeId": 85,
+              "cytoplasmNodeId": 51
+            },
+            {
+              "nucleusNodeId": 86,
+              "cytoplasmNodeId": 52
+            }
+          ],
+          "solverActiveFaceReady": true
+        }
+      },
+      "totalNodePairMappingCount": 24,
+      "solverActiveRegions": [
+        "left",
+        "right",
+        "top",
+        "bottom"
+      ]
+    },
+    "duplicateCoordinateDiagnostics": {
+      "groupCount": 32,
+      "nodeCount": 68,
+      "groups": [
+        {
+          "coordinate": "-26.0000000000000,-0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            1,
+            21
+          ]
+        },
+        {
+          "coordinate": "-14.0000000000000,-0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            2,
+            22
+          ]
+        },
+        {
+          "coordinate": "-14.0000000000000,0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            3,
+            23
+          ]
+        },
+        {
+          "coordinate": "-26.0000000000000,0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            4,
+            24
+          ]
+        },
+        {
+          "coordinate": "-14.0000000000000,-0.500000000000000,8.00000000000000",
+          "nodeIds": [
+            6,
+            73
+          ]
+        },
+        {
+          "coordinate": "-14.0000000000000,0.500000000000000,8.00000000000000",
+          "nodeIds": [
+            7,
+            76
+          ]
+        },
+        {
+          "coordinate": "-14.0000000000000,-0.500000000000000,26.0000000000000",
+          "nodeIds": [
+            10,
+            77
+          ]
+        },
+        {
+          "coordinate": "-14.0000000000000,0.500000000000000,26.0000000000000",
+          "nodeIds": [
+            11,
+            80
+          ]
+        },
+        {
+          "coordinate": "-6.50000000000000,-0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            25,
+            35
+          ]
+        },
+        {
+          "coordinate": "-6.50000000000000,0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            26,
+            36
+          ]
+        },
+        {
+          "coordinate": "-6.50000000000000,-0.500000000000000,8.00000000000000",
+          "nodeIds": [
+            27,
+            74
+          ]
+        },
+        {
+          "coordinate": "-6.50000000000000,0.500000000000000,8.00000000000000",
+          "nodeIds": [
+            28,
+            75
+          ]
+        },
+        {
+          "coordinate": "-6.50000000000000,-0.500000000000000,26.0000000000000",
+          "nodeIds": [
+            29,
+            78,
+            89
+          ]
+        },
+        {
+          "coordinate": "-6.50000000000000,0.500000000000000,26.0000000000000",
+          "nodeIds": [
+            30,
+            79,
+            92
+          ]
+        },
+        {
+          "coordinate": "-6.50000000000000,-0.500000000000000,34.0000000000000",
+          "nodeIds": [
+            31,
+            93
+          ]
+        },
+        {
+          "coordinate": "-6.50000000000000,0.500000000000000,34.0000000000000",
+          "nodeIds": [
+            32,
+            96
+          ]
+        },
+        {
+          "coordinate": "6.50000000000000,-0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            37,
+            47
+          ]
+        },
+        {
+          "coordinate": "6.50000000000000,0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            38,
+            48
+          ]
+        },
+        {
+          "coordinate": "6.50000000000000,-0.500000000000000,8.00000000000000",
+          "nodeIds": [
+            39,
+            81
+          ]
+        },
+        {
+          "coordinate": "6.50000000000000,0.500000000000000,8.00000000000000",
+          "nodeIds": [
+            40,
+            82
+          ]
+        },
+        {
+          "coordinate": "6.50000000000000,-0.500000000000000,26.0000000000000",
+          "nodeIds": [
+            41,
+            83,
+            90
+          ]
+        },
+        {
+          "coordinate": "6.50000000000000,0.500000000000000,26.0000000000000",
+          "nodeIds": [
+            42,
+            84,
+            91
+          ]
+        },
+        {
+          "coordinate": "6.50000000000000,-0.500000000000000,34.0000000000000",
+          "nodeIds": [
+            43,
+            94
+          ]
+        },
+        {
+          "coordinate": "6.50000000000000,0.500000000000000,34.0000000000000",
+          "nodeIds": [
+            44,
+            95
+          ]
+        },
+        {
+          "coordinate": "14.0000000000000,-0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            49,
+            59
+          ]
+        },
+        {
+          "coordinate": "14.0000000000000,0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            50,
+            60
+          ]
+        },
+        {
+          "coordinate": "14.0000000000000,-0.500000000000000,8.00000000000000",
+          "nodeIds": [
+            51,
+            85
+          ]
+        },
+        {
+          "coordinate": "14.0000000000000,0.500000000000000,8.00000000000000",
+          "nodeIds": [
+            52,
+            86
+          ]
+        },
+        {
+          "coordinate": "14.0000000000000,-0.500000000000000,26.0000000000000",
+          "nodeIds": [
+            53,
+            87
+          ]
+        },
+        {
+          "coordinate": "14.0000000000000,0.500000000000000,26.0000000000000",
+          "nodeIds": [
+            54,
+            88
+          ]
+        },
+        {
+          "coordinate": "26.0000000000000,-0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            61,
+            71
+          ]
+        },
+        {
+          "coordinate": "26.0000000000000,0.500000000000000,0.00000000000000",
+          "nodeIds": [
+            62,
+            72
+          ]
+        }
+      ],
+      "nativeIdRecovery": "template-preserved-for-duplicate-coordinate-baseline",
+      "note": "duplicate-coordinate native nodes are intentional at material/contact boundaries; Gmsh imports may renumber them, so template native-id recovery is required for baseline comparisons"
+    },
+    "gmsh": {
+      "format": "gmsh-msh-v2-ascii",
+      "physicalGroupCount": 27,
+      "source": "gmsh-v2-ascii",
+      "nativeIdRecovery": "template-preserved-for-duplicate-coordinate-baseline",
+      "sourceFile": "/home/xiogo/projects/nuclear_simu/generated/gmsh_current/mesh.msh",
+      "templateCase": "S10_pipette_nc_refined"
+    }
+  },
+  "conventionWarnings": []
+}

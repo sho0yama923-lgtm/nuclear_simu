@@ -43,15 +43,15 @@ const DEFAULT_PHYSICAL_GROUP_REGISTRY = {
 };
 
 const GMSH_PYTHON_API_EDIT_GUIDE = [
-  "Edit guide:",
-  "- geometry.gmshPythonApi.coordinateAliases controls readable coordinate handles in generated .geo/.py output.",
-  "  Example: pipetteZBottom -> Z_10p5 means points using pipetteZBottom move when that alias target changes.",
-  "- geometry.gmshPythonApi.transfiniteCurveDivisions controls block edge subdivision count in generated Python API output.",
-  "  Increase it to refine every transfinite curve uniformly; keep it at 2 to preserve one hex per block edge.",
-  "- DEFAULT_PHYSICAL_GROUP_REGISTRY controls stable Gmsh Physical Group IDs for FEBio-facing names.",
-  "  Change IDs only as a deliberate compatibility migration because .msh parsing depends on these names.",
-  "- buildProjectGmshBlockLayout is the readable geometry map: cytoplasm/nucleus/pipette/dish boxes and partitions.",
-  "  It documents the intended editing model; low-level tag emission below still preserves native round-trip IDs.",
+  "編集ガイド:",
+  "- geometry.gmshPythonApi.coordinateAliases は、生成される .geo/.py で読みやすい座標名を指定する。",
+  "  生成ファイルでは数値由来の座標名より、cellLeftX / nucleusBottomZ / pipetteMouthX のような意味名を優先する。",
+  "- geometry.gmshPythonApi.transfiniteCurveDivisions は、Python API 出力でブロック辺を何分割するかを指定する。",
+  "  全ての transfinite curve を一様に細かくする場合は値を増やす。2 のままなら各ブロック辺は 1 要素相当になる。",
+  "- DEFAULT_PHYSICAL_GROUP_REGISTRY は、FEBio 側で使う Gmsh Physical Group ID を固定する。",
+  "  .msh の読み取りは Physical 名に依存するため、ID 変更は互換性移行として明示的に行う。",
+  "- buildProjectGmshBlockLayout は、cytoplasm/nucleus/pipette/dish の箱と分割を読むための形状マップ。",
+  "  ここで編集モデルを表し、下流の低レベル tag 出力では native 往復検証用の ID を保持する。",
 ];
 
 function clone(value) {
@@ -110,6 +110,15 @@ function coordinateVariableName(axis, value) {
 
 function coordinateVariableKey(axis, value) {
   return `${axis}:${formatGmshNumber(value)}`;
+}
+
+function coordinateAlias(name, axis, value, priority = 0) {
+  return {
+    name,
+    axis: String(axis || "").toUpperCase(),
+    value: Number(value),
+    priority,
+  };
 }
 
 function coordinateKey(node) {
@@ -591,7 +600,7 @@ export function buildEditableGmshBlockGeo(mesh, options = {}) {
         lineRef(faceNodes[3], faceNodes[0]),
       ];
       lines.push(`Curve Loop(${loopId}) = {${refs.join(", ")}};`);
-      lines.push(`Plane Surface(${surfaceId}) = {${loopId}}; // owner element ${ownerElementId}`);
+      lines.push(`Plane Surface(${surfaceId}) = {${loopId}}; // 所有要素 ${ownerElementId}`);
       lines.push(`Transfinite Surface {${surfaceId}};`);
       lines.push(`Recombine Surface {${surfaceId}};`);
       surface = { id: surfaceId, names: surfaceNameByFaceKey.get(key) || [] };
@@ -650,14 +659,15 @@ export function buildParametricEditableGmshBlockGeo(mesh, options = {}) {
     });
   });
 
-  const { coordinateValues, aliases, coordinateExpression } = collectParametricCoordinateExpressions(mesh, editingLayout.coordinateAliases);
+  const { coordinateValues, aliases, coordinateExpression } = collectParametricCoordinateExpressions(mesh, editingLayout.coordinateAliases, editingLayout);
+  const editBlocks = collectEditBlockDescriptors(mesh);
 
   const lines = [
-    "// Parametric editable Gmsh block geometry generated from the FEBio native mesh.",
-    "// This keeps the current quad/hex block topology, but exposes rectangle/block coordinates as variables.",
-    "// Edit source of truth: febio_cases/native/*.native.json geometry.gmshPythonApi.",
-    "// Alias effect: changing an alias target changes every Point that references that alias.",
-    "// Topology/Physical names remain generator-owned to preserve native round-trip validation.",
+    "// FEBio native mesh から生成した、パラメトリック編集用 Gmsh ブロック形状。",
+    "// 現在の quad/hex ブロック構造は維持し、長方形/ブロックの座標を変数として編集できるようにする。",
+    "// 編集元: febio_cases/native/*.native.json の geometry.gmshPythonApi。",
+    "// alias の効果: alias の値を変えると、その alias を参照する全ての Point が同時に動く。",
+    "// Topology と Physical 名は native 往復検証を保つため generator 側で管理する。",
     ...GMSH_PYTHON_API_EDIT_GUIDE.map((line) => `// ${line}`),
     "Mesh.MshFileVersion = 2.2;",
     "Mesh.SaveAll = 0;",
@@ -665,24 +675,27 @@ export function buildParametricEditableGmshBlockGeo(mesh, options = {}) {
     "",
     "lc = " + formatGmshNumber(characteristicLength) + ";",
     "",
-    "// Coordinate planes used by the rectangular block layout.",
+    "// 長方形ブロック配置で使う座標面。",
   ];
 
   Object.entries(coordinateValues).forEach(([axis, values]) => {
     values.forEach((value) => {
+      if (coordinateExpression(axis, value) !== coordinateVariableName(axis, value)) return;
       lines.push(`${coordinateVariableName(axis, value)} = ${formatGmshNumber(value)};`);
     });
   });
   lines.push(
     "",
-    "// Coordinate aliases from native case JSON / generator options.",
+    "// native case JSON / generator options から来る座標 alias。",
   );
   aliases.forEach((alias) => {
-    lines.push(`${alias.name} = ${coordinateVariableName(alias.axis, alias.value)};`);
+    lines.push(`${alias.name} = ${formatGmshNumber(alias.value)};`);
   });
   lines.push(
     "",
   );
+  pushEditBlockMap(lines, editBlocks, coordinateExpression);
+  lines.push("");
 
   (mesh.nodes || []).forEach((node) => {
     lines.push(`Point(${node.id}) = {${coordinateExpression("X", node.x)}, ${coordinateExpression("Y", node.y)}, ${coordinateExpression("Z", node.z)}, lc};`);
@@ -720,7 +733,7 @@ export function buildParametricEditableGmshBlockGeo(mesh, options = {}) {
         lineRef(faceNodes[3], faceNodes[0]),
       ];
       lines.push(`Curve Loop(${loopId}) = {${refs.join(", ")}};`);
-      lines.push(`Plane Surface(${surfaceId}) = {${loopId}}; // owner element ${ownerElementId}`);
+      lines.push(`Plane Surface(${surfaceId}) = {${loopId}}; // 所有要素 ${ownerElementId}`);
       lines.push(`Transfinite Surface {${surfaceId}};`);
       lines.push(`Recombine Surface {${surfaceId}};`);
       surface = { id: surfaceId, names: surfaceNameByFaceKey.get(key) || [] };
@@ -737,6 +750,8 @@ export function buildParametricEditableGmshBlockGeo(mesh, options = {}) {
   lines.push("");
   (mesh.elements || []).forEach((element) => {
     if (element.type !== "hex8") return;
+    const editBlock = editBlocks.find((descriptor) => descriptor.elementId === element.id);
+    if (editBlock) lines.push(`// ${editBlock.id}: 材料=${element.material}`);
     const faceSurfaceIds = HEX_FACE_NODES.map((face) => surfaceForFace(face.map((index) => element.nodes[index]), element.id));
     const surfaceLoopId = 30000 + element.id;
     lines.push(`Surface Loop(${surfaceLoopId}) = {${faceSurfaceIds.join(", ")}};`);
@@ -772,23 +787,70 @@ function normalizeCoordinateAliases(aliases = {}) {
       name: String(entry?.name || ""),
       axis: String(entry?.axis || "").toUpperCase(),
       value: Number(entry?.value),
+      priority: Number(entry?.priority || 0),
     })).filter((entry) => isPythonIdentifier(entry.name) && ["X", "Y", "Z"].includes(entry.axis) && Number.isFinite(entry.value));
   }
   return Object.entries(aliases || {}).map(([name, entry]) => ({
     name,
     axis: String(entry?.axis || "").toUpperCase(),
     value: Number(entry?.value),
+    priority: Number(entry?.priority || 0),
   })).filter((entry) => isPythonIdentifier(entry.name) && ["X", "Y", "Z"].includes(entry.axis) && Number.isFinite(entry.value));
 }
 
-function collectParametricCoordinateExpressions(mesh, aliases = {}) {
+function collectSemanticCoordinateAliases(editingLayout = {}) {
+  const { cytoplasm, nucleus, pipette, dish } = editingLayout.boxes || {};
+  return [
+    ...(cytoplasm ? [
+      coordinateAlias("cellLeftX", "X", cytoplasm.left, 10),
+      coordinateAlias("cellRightX", "X", cytoplasm.right, 10),
+      coordinateAlias("sectionMinY", "Y", cytoplasm.front, 10),
+      coordinateAlias("sectionMaxY", "Y", cytoplasm.back, 10),
+      coordinateAlias("cellBottomZ", "Z", cytoplasm.bottom, 10),
+      coordinateAlias("cellTopZ", "Z", cytoplasm.top, 10),
+    ] : []),
+    ...(nucleus ? [
+      coordinateAlias("nucleusLeftX", "X", nucleus.left, 20),
+      coordinateAlias("nucleusRightX", "X", nucleus.right, 20),
+      coordinateAlias("nucleusBottomZ", "Z", nucleus.bottom, 20),
+      coordinateAlias("nucleusTopZ", "Z", nucleus.top, 20),
+    ] : []),
+    ...(pipette ? [
+      coordinateAlias("pipetteMouthX", "X", pipette.left, 30),
+      coordinateAlias("pipetteOuterX", "X", pipette.right, 30),
+      coordinateAlias("pipetteYMin", "Y", pipette.front, 30),
+      coordinateAlias("pipetteYMax", "Y", pipette.back, 30),
+      coordinateAlias("pipetteZBottom", "Z", pipette.bottom, 30),
+      coordinateAlias("pipetteZTop", "Z", pipette.top, 30),
+    ] : []),
+    ...(dish ? [
+      coordinateAlias("dishLeftX", "X", dish.left, 5),
+      coordinateAlias("dishRightX", "X", dish.right, 5),
+      coordinateAlias("dishBottomZ", "Z", dish.bottom, 30),
+      coordinateAlias("dishTopZ", "Z", dish.top, 15),
+    ] : []),
+  ];
+}
+
+function collectParametricCoordinateExpressions(mesh, aliases = {}, editingLayout = {}) {
   const coordinateValues = {
     X: [...new Set((mesh.nodes || []).map((node) => node.x))].sort((a, b) => a - b),
     Y: [...new Set((mesh.nodes || []).map((node) => node.y))].sort((a, b) => a - b),
     Z: [...new Set((mesh.nodes || []).map((node) => node.z))].sort((a, b) => a - b),
   };
-  const normalizedAliases = normalizeCoordinateAliases(aliases)
-    .filter((entry) => coordinateValues[entry.axis].some((value) => coordinateVariableKey(entry.axis, value) === coordinateVariableKey(entry.axis, entry.value)));
+  const explicitAliases = normalizeCoordinateAliases(aliases).map((entry) => ({ ...entry, priority: Number(entry.priority || 100) }));
+  const semanticAliases = collectSemanticCoordinateAliases(editingLayout);
+  const bestAliasByCoordinate = new Map();
+  [...semanticAliases, ...explicitAliases].forEach((entry) => {
+    if (!coordinateValues[entry.axis]?.some((value) => coordinateVariableKey(entry.axis, value) === coordinateVariableKey(entry.axis, entry.value))) return;
+    const key = coordinateVariableKey(entry.axis, entry.value);
+    const current = bestAliasByCoordinate.get(key);
+    if (!current || entry.priority >= current.priority) bestAliasByCoordinate.set(key, entry);
+  });
+  const normalizedAliases = [...bestAliasByCoordinate.values()].sort((a, b) => {
+    if (a.axis !== b.axis) return a.axis.localeCompare(b.axis);
+    return a.name.localeCompare(b.name);
+  });
   const aliasByCoordinate = new Map(normalizedAliases.map((entry) => [coordinateVariableKey(entry.axis, entry.value), entry.name]));
   return {
     coordinateValues,
@@ -797,6 +859,69 @@ function collectParametricCoordinateExpressions(mesh, aliases = {}) {
       return aliasByCoordinate.get(coordinateVariableKey(axis, value)) || coordinateVariableName(axis, value);
     },
   };
+}
+
+const EDIT_BLOCK_PREFIX_BY_MATERIAL = {
+  cytoplasm: "cyto",
+  nucleus: "nuc",
+  pipette: "pip",
+  dish: "dish",
+};
+
+function editBlockPrefix(material) {
+  return EDIT_BLOCK_PREFIX_BY_MATERIAL[material] || String(material || "block").replace(/[^A-Za-z0-9_]/g, "_") || "block";
+}
+
+function elementBounds(element, nodeById) {
+  const nodes = (element.nodes || []).map((id) => nodeById.get(id)).filter(Boolean);
+  if (!nodes.length) return null;
+  return {
+    x: [Math.min(...nodes.map((node) => node.x)), Math.max(...nodes.map((node) => node.x))],
+    y: [Math.min(...nodes.map((node) => node.y)), Math.max(...nodes.map((node) => node.y))],
+    z: [Math.min(...nodes.map((node) => node.z)), Math.max(...nodes.map((node) => node.z))],
+  };
+}
+
+function collectEditBlockDescriptors(mesh) {
+  const nodeById = new Map((mesh.nodes || []).map((node) => [node.id, node]));
+  const countsByMaterial = new Map();
+  return (mesh.elements || [])
+    .filter((element) => element.type === "hex8")
+    .map((element) => {
+      const material = element.material || "block";
+      const nextCount = (countsByMaterial.get(material) || 0) + 1;
+      countsByMaterial.set(material, nextCount);
+      return {
+        id: `${editBlockPrefix(material)}_${nextCount}`,
+        elementId: element.id,
+        material,
+        bounds: elementBounds(element, nodeById),
+      };
+    })
+    .filter((descriptor) => descriptor.bounds);
+}
+
+function pushEditBlockMap(lines, descriptors, coordinateExpression, commentPrefix = "//") {
+  lines.push(
+    `${commentPrefix} ブロック編集マップ。右辺の座標面または alias を編集する。width/depth/height は確認用の派生値。`,
+    `${commentPrefix} 軸の向き: x = 吸引/操作方向, y = 断面厚み方向, z = dish から apical 方向。`,
+  );
+  descriptors.forEach((descriptor) => {
+    const { id, elementId, material, bounds } = descriptor;
+    lines.push(
+      `${commentPrefix} ${id}: 要素=${elementId}, 材料=${material}`,
+      `${id}_x_min = ${coordinateExpression("X", bounds.x[0])};`,
+      `${id}_x_max = ${coordinateExpression("X", bounds.x[1])};`,
+      `${id}_y_min = ${coordinateExpression("Y", bounds.y[0])};`,
+      `${id}_y_max = ${coordinateExpression("Y", bounds.y[1])};`,
+      `${id}_z_min = ${coordinateExpression("Z", bounds.z[0])};`,
+      `${id}_z_max = ${coordinateExpression("Z", bounds.z[1])};`,
+      `${id}_width = ${id}_x_max - ${id}_x_min;`,
+      `${id}_depth = ${id}_y_max - ${id}_y_min;`,
+      `${id}_height = ${id}_z_max - ${id}_z_min;`,
+      "",
+    );
+  });
 }
 
 function collectBlockTopology(mesh) {
@@ -877,16 +1002,16 @@ export function buildGmshPythonApiBlockScript(mesh, options = {}) {
   const transfiniteCurveDivisions = Number.isInteger(requestedTransfiniteCurveDivisions) && requestedTransfiniteCurveDivisions >= 2
     ? requestedTransfiniteCurveDivisions
     : 2;
-  const outputMshPath = String(options.outputMshPath || "native-python-api-block.msh").split(/[\\/]/).filter(Boolean).pop() || "native-python-api-block.msh";
+  const outputMshPath = String(options.outputMshPath || "mesh.msh").split(/[\\/]/).filter(Boolean).pop() || "mesh.msh";
   const editingLayout = buildProjectGmshBlockLayout(mesh, options);
-  const { coordinateValues, aliases, coordinateExpression } = collectParametricCoordinateExpressions(mesh, editingLayout.coordinateAliases);
+  const { coordinateValues, aliases, coordinateExpression } = collectParametricCoordinateExpressions(mesh, editingLayout.coordinateAliases, editingLayout);
   const topology = collectBlockTopology(mesh);
   const physicalGroups = collectPhysicalGroups(mesh, options.physicalGroupRegistry || DEFAULT_PHYSICAL_GROUP_REGISTRY);
   const physicalIdsByName = new Map(physicalGroups.map((group) => [`${group.dimension}:${group.name}`, group.id]));
 
   const lines = [
-    "# Generated Gmsh Python API block mesh for the FEBio native mesh.",
-    "# DO NOT EDIT: regenerate from the native case JSON / generator options.",
+    "# FEBio native mesh から生成した Gmsh Python API ブロックメッシュ。",
+    "# 手編集非推奨: native case JSON / generator options から再生成する。",
     ...GMSH_PYTHON_API_EDIT_GUIDE.map((line) => `# ${line}`),
     "from pathlib import Path",
     "import sys",
@@ -914,20 +1039,21 @@ export function buildGmshPythonApiBlockScript(mesh, options = {}) {
     "        raise SystemExit(f\"Physical Group {dimension}:{name} references missing entity tag(s): {missing}\")",
     "    return tags",
     "",
-    "# Coordinate planes used by the rectangular block layout.",
+    "# 長方形ブロック配置で使う座標面。",
   ];
 
   Object.entries(coordinateValues).forEach(([axis, values]) => {
     values.forEach((value) => {
+      if (coordinateExpression(axis, value) !== coordinateVariableName(axis, value)) return;
       lines.push(`${coordinateVariableName(axis, value)} = ${formatGmshNumber(value)}`);
     });
   });
   lines.push(
     "",
-    "# Coordinate aliases from native case JSON / generator options.",
+    "# native case JSON / generator options から来る座標 alias。",
   );
   aliases.forEach((alias) => {
-    lines.push(`${alias.name} = ${coordinateVariableName(alias.axis, alias.value)}`);
+    lines.push(`${alias.name} = ${formatGmshNumber(alias.value)}`);
   });
   lines.push(
     "",
@@ -980,7 +1106,7 @@ export function buildGmshPythonApiBlockScript(mesh, options = {}) {
   lines.push("");
   topology.surfaces.forEach((surface) => {
     lines.push(`gmsh.model.geo.addCurveLoop(${JSON.stringify(surface.refs)}, ${surface.loopId})`);
-    lines.push(`gmsh.model.geo.addPlaneSurface([${surface.loopId}], ${surface.id})  # owner element ${surface.ownerElementId}`);
+    lines.push(`gmsh.model.geo.addPlaneSurface([${surface.loopId}], ${surface.id})  # 所有要素 ${surface.ownerElementId}`);
   });
   lines.push("");
   topology.volumes.forEach((volume) => {

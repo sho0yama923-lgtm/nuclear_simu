@@ -31,6 +31,8 @@ The active native path reports this direction through `validateNativeMesh().surf
 - The target physical `pipette_suction_surface` is the nucleus-side capture face, with normal expected to be `-x`.
 - In S10-A, the broad `pipette_suction_surface` remains as a legacy / comparison surface, while pressure is applied to `pipette_suction_patch`.
 - Negative suction pressure is intended to pull toward `+x`, into the pipette / barrel side.
+- S10-I top-suction meshes set `meshMode="s10-top-pipette-reference"`. In that mode, `pipette_suction_patch` and `pipette_contact_surface` are top surfaces with normal expected to be `-z`, and negative suction pressure is intended to pull toward `+z` into the pipette above the cell.
+- S10-I top-suction aspiration uses `mouthPlaneZ` and `inwardAxis="+z"` instead of the older side-entry `mouthPlaneX` / `-x` convention.
 - S8-G and later outer-cell suction surfaces are diagnostic bridges for force-channel activation and Studio winding checks. They must not be promoted to the final suction convention without an explicit model decision.
 
 ## Contact Pair Convention
@@ -42,6 +44,8 @@ The active native path reports this direction through `validateNativeMesh().surf
 Local paired surfaces should generally have opposed normals. The active validator records pair alignment through `validateNativeMesh().contactPairDiagnostics`.
 
 `pipette_nucleus_pair` remains a model-side reference path for capture-hold comparisons in the coarse debug mesh. The pressure-driven pipette coupling to inspect in Studio remains `pipette_cell_contact` on `pipette_cell_pair`, with pressure on the nucleus-side `pipette_suction_surface` for the target physical model.
+
+For S10-I top-suction, the active NC comparison region is `top`; side-entry S10-B/H comparisons remain `left/right` evidence and should not be conflated with top-suction solver behavior.
 
 `cell_dish_pair` is kept with corrected opposed winding and remains available for diagnostics and output surfaces. The current coarse debug mesh omits solver-active `cell_dish_interface`, because activating the corrected tied contact causes negative-jacobian instability during lift. Re-enable it only with a refined cell-dish mesh.
 

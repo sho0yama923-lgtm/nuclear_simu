@@ -1,5 +1,6 @@
 generated/
 tmp/
+.tools/
 .DS_Store
 **/.DS_Store
 

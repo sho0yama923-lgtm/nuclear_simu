@@ -31,30 +31,37 @@ febio_cases/native/S10_local_suction_patch_nc_right_refined.native.json
 febio_cases/native/S10_local_suction_patch_nc_right_refined_pressure_1p0.native.json
 febio_cases/native/S10_local_suction_patch_nc_right_refined_pressure_1p3.native.json
 febio_cases/native/S10_local_suction_patch_nc_right_refined_pressure_1p55.native.json
+febio_cases/native/S10_gmsh_baseline.native.json
+febio_cases/native/S10_gmsh_nc_right_refined.native.json
+febio_cases/native/S10_pipette_nc_refined.native.json
 scripts/export_febio_native_case.mjs
+scripts/dump_native_gmsh_baseline.mjs
+scripts/export_febio_from_gmsh_mesh.mjs
+scripts/export_febio_from_gmsh_python_api.mjs
 scripts/diagnose_febio_native_run.mjs
 src/febio/native/
 tests/febio-native-pipeline.test.mjs
-febio_exports/S7_native_baseline/
-febio_exports/S8_pipette_aligned/
-febio_exports/S8_pipette_capture_hold/
-febio_exports/S8_pipette_capture_hold_gentle/
-febio_exports/S8_pipette_cell_reversed_pair/
-febio_exports/S8_pipette_outer_cell_surface/
-febio_exports/S8_pipette_outer_cell_surface_gentle/
-febio_exports/S8_pipette_outer_cell_surface_soft_contact/
-febio_exports/S8_pipette_outer_cell_surface_low_pressure/
-febio_exports/S8_pipette_outer_cell_surface_fine_inward/
-febio_exports/S8_pipette_outer_cell_surface_delayed_inward/
-febio_exports/S8_pipette_nucleus_pressure_return/
-febio_exports/S10_local_suction_patch/
-febio_exports/S10_local_suction_patch_nc_right_refined/
-febio_exports/S10_local_suction_patch_nc_right_refined_pressure_1p0/
-febio_exports/S10_local_suction_patch_nc_right_refined_pressure_1p3/
-febio_exports/S10_local_suction_patch_nc_right_refined_pressure_1p55/
+febio_exports/current_mesh/
+generated/gmsh_current/mesh.geo
+generated/gmsh_current/mesh.msh
+generated/gmsh_current/mesh.validation.json
+legacy/retired_generated_2026-05-18/
 ```
 
-Use this path for new solver-facing work, pressure/contact changes, `.feb` serialization, output declarations, manifests, and Studio handoff artifacts.
+Use this path for new solver-facing work, pressure/contact changes, `.feb` serialization, output declarations, manifests, Gmsh rectangular-block mesh edits, and Studio handoff artifacts.
+
+The canonical manual mesh-edit path is:
+
+```text
+febio_cases/native/S10_pipette_nc_refined.native.json
+-> scripts/dump_native_gmsh_baseline.mjs
+-> generated/gmsh_current/mesh.geo
+-> generated/gmsh_current/mesh.msh
+-> scripts/export_febio_from_gmsh_mesh.mjs
+-> febio_exports/current_mesh/
+```
+
+`generated/gmsh_current/mesh.py` and `febio_exports/current_mesh_api/` are generated Python API artifacts. Keep hand edits in `mesh.geo` or in native case JSON / `src/febio/native/gmsh.ts`, not in generated Python.
 
 ## Active Policy / Resume Files
 

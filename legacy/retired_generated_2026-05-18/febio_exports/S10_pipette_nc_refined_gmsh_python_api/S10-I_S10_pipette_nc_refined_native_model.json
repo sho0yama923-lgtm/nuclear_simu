@@ -12,7 +12,7 @@
     ]
   },
   "caseName": "S10_pipette_nc_refined",
-  "parameterDigest": "fdig_5fdf08a6",
+  "parameterDigest": "fdig_d8da09bf",
   "coordinateSystem": {
     "unitSystem": "um-nN-s",
     "length": "um",
@@ -48,7 +48,44 @@
           "z": 17
         }
       },
-      "meshMode": "s10-pipette-nc-refined"
+      "meshMode": "s10-pipette-nc-refined",
+      "gmshPythonApi": {
+        "transfiniteCurveDivisions": 2,
+        "coordinateAliases": {
+          "pipetteMouthX": {
+            "axis": "X",
+            "value": 14
+          },
+          "pipetteOuterX": {
+            "axis": "X",
+            "value": 27
+          },
+          "pipetteYMin": {
+            "axis": "Y",
+            "value": -0.2
+          },
+          "pipetteYMax": {
+            "axis": "Y",
+            "value": 0.2
+          },
+          "pipetteZBottom": {
+            "axis": "Z",
+            "value": 10.5
+          },
+          "pipettePatchZBottom": {
+            "axis": "Z",
+            "value": 13.75
+          },
+          "pipettePatchZTop": {
+            "axis": "Z",
+            "value": 20.25
+          },
+          "pipetteZTop": {
+            "axis": "Z",
+            "value": 23.5
+          }
+        }
+      }
     },
     "materials": {
       "nucleus": {
@@ -224,7 +261,7 @@
   "exportReady": true,
   "geometry": {
     "mesh": {
-      "meshMode": "s10-pipette-nc-refined",
+      "meshMode": "gmsh-python-api-edited",
       "bounds": {
         "cellLeft": -26,
         "cellRight": 26,
@@ -1874,6 +1911,15 @@
             23.5
           ]
         }
+      },
+      "gmsh": {
+        "format": "gmsh-msh-v2-ascii",
+        "physicalGroupCount": 25,
+        "source": "gmsh-v2-ascii",
+        "nativeIdRecovery": "template-preserved-for-duplicate-coordinate-baseline",
+        "sourceFile": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/native-python-api-block.msh",
+        "apiScript": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/native-python-api-block.py",
+        "templateCase": "S10_pipette_nc_refined"
       }
     },
     "meshValidation": {
@@ -2540,7 +2586,7 @@
         "pipetteSuctionSeparatedFromNucleusRight": false
       },
       "meshLevelDiagnostics": {
-        "meshMode": "s10-pipette-nc-refined",
+        "meshMode": "gmsh-python-api-edited",
         "elementCount": 19,
         "nodeCount": 96,
         "faceCount": 45,
@@ -2891,10 +2937,18 @@
               ]
             }
           ],
-          "nativeIdRecovery": "",
+          "nativeIdRecovery": "template-preserved-for-duplicate-coordinate-baseline",
           "note": "duplicate-coordinate native nodes are intentional at material/contact boundaries; Gmsh imports may renumber them, so template native-id recovery is required for baseline comparisons"
         },
-        "gmsh": null
+        "gmsh": {
+          "format": "gmsh-msh-v2-ascii",
+          "physicalGroupCount": 25,
+          "source": "gmsh-v2-ascii",
+          "nativeIdRecovery": "template-preserved-for-duplicate-coordinate-baseline",
+          "sourceFile": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/native-python-api-block.msh",
+          "apiScript": "/home/xiogo/projects/nuclear_simu/febio_exports/S10_pipette_nc_refined_gmsh_python_api/native-python-api-block.py",
+          "templateCase": "S10_pipette_nc_refined"
+        }
       },
       "conventionWarnings": []
     },

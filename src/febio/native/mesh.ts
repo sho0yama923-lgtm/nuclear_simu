@@ -22,11 +22,289 @@ function geometryForNativeMesh(spec) {
 }
 
 export function buildNativeMesh(spec) {
+  if (spec.geometry?.meshMode === "s10-top-pipette-reference") {
+    return buildTopPipetteReferenceMesh(spec);
+  }
   const nativeMesh = refineNativeNucleusCytoplasmCoupling(refineNativeCellDishGeometry(applyNativeSolverSurfaceConventions(buildRefinedFebioGeometry(geometryForNativeMesh(spec)), spec)), spec);
   if (spec.geometry?.meshMode === "s10-gmsh-baseline") {
     return buildGmshBaselineNativeMesh(nativeMesh);
   }
   return nativeMesh;
+}
+
+function buildTopPipetteReferenceMesh(spec = {}) {
+  const cellWidth = spec.geometry?.cytoplasm?.width ?? 52;
+  const cellHeight = spec.geometry?.cytoplasm?.height ?? 34;
+  const nucleusWidth = spec.geometry?.nucleus?.width ?? 28;
+  const nucleusHeight = spec.geometry?.nucleus?.height ?? 18;
+  const nucleusCenterX = spec.geometry?.nucleus?.center?.x ?? 0;
+  const nucleusCenterZ = spec.geometry?.nucleus?.center?.z ?? 17;
+  const pipetteRadius = spec.geometry?.pipette?.radius ?? 6.5;
+  const cellLeft = -cellWidth / 2;
+  const cellRight = cellWidth / 2;
+  const cellTop = cellHeight;
+  const nucleusLeft = nucleusCenterX - nucleusWidth / 2;
+  const nucleusRight = nucleusCenterX + nucleusWidth / 2;
+  const nucleusBottom = nucleusCenterZ - nucleusHeight / 2;
+  const nucleusTop = nucleusCenterZ + nucleusHeight / 2;
+  const dishBottom = -Math.max(cellHeight * 0.08, 1);
+  const patchHalfWidth = Math.min(pipetteRadius, nucleusWidth * 0.25);
+  const patchLeft = Math.max(nucleusLeft, nucleusCenterX - patchHalfWidth);
+  const patchRight = Math.min(nucleusRight, nucleusCenterX + patchHalfWidth);
+  const pipetteBottom = nucleusTop;
+  const pipetteTop = cellTop + Math.max(pipetteRadius * 2, 6);
+  const yMin = -0.5;
+  const yMax = 0.5;
+
+  let nextNodeId = 1;
+  let nextElementId = 1;
+  let nextFacetId = 1;
+  const nodes = [];
+  const elements = [];
+  const nodeByKey = new Map();
+
+  function node(material, x, y, z) {
+    const key = `${material}|${[x, y, z].map((value) => Number(value).toPrecision(15)).join("|")}`;
+    const existing = nodeByKey.get(key);
+    if (existing) return existing;
+    const id = nextNodeId++;
+    nodes.push(buildNode(id, x, y, z));
+    nodeByKey.set(key, id);
+    return id;
+  }
+
+  function addBox(material, x0, x1, z0, z1) {
+    if (!(x1 > x0) || !(z1 > z0)) return null;
+    const ids = [
+      node(material, x0, yMin, z0),
+      node(material, x1, yMin, z0),
+      node(material, x1, yMax, z0),
+      node(material, x0, yMax, z0),
+      node(material, x0, yMin, z1),
+      node(material, x1, yMin, z1),
+      node(material, x1, yMax, z1),
+      node(material, x0, yMax, z1),
+    ];
+    const element = buildHex(nextElementId++, material, ids);
+    elements.push(element);
+    return element;
+  }
+
+  function facet(nodesForFacet) {
+    return buildFacet(nextFacetId++, nodesForFacet);
+  }
+
+  const xCuts = [cellLeft, nucleusLeft, patchLeft, patchRight, nucleusRight, cellRight];
+  const elementSets = { cytoplasm: [], nucleus: [], pipette: [], dish: [] };
+  const cytoplasmBottom = [];
+  const cytoplasmTopOverNucleus = [];
+  const nucleusElements = [];
+  const dishElements = [];
+
+  for (let index = 0; index < xCuts.length - 1; index += 1) {
+    const x0 = xCuts[index];
+    const x1 = xCuts[index + 1];
+    const bottom = addBox("cytoplasm", x0, x1, 0, nucleusBottom);
+    const top = addBox("cytoplasm", x0, x1, nucleusTop, cellTop);
+    if (bottom) {
+      elementSets.cytoplasm.push(bottom.id);
+      cytoplasmBottom.push(bottom);
+    }
+    if (top) {
+      elementSets.cytoplasm.push(top.id);
+      if (x0 >= nucleusLeft && x1 <= nucleusRight) cytoplasmTopOverNucleus.push(top);
+    }
+    if (x1 <= nucleusLeft || x0 >= nucleusRight) {
+      const side = addBox("cytoplasm", x0, x1, nucleusBottom, nucleusTop);
+      if (side) elementSets.cytoplasm.push(side.id);
+    }
+    const dish = addBox("dish", x0, x1, dishBottom, 0);
+    if (dish) {
+      elementSets.dish.push(dish.id);
+      dishElements.push(dish);
+    }
+  }
+
+  [[nucleusLeft, patchLeft], [patchLeft, patchRight], [patchRight, nucleusRight]].forEach(([x0, x1]) => {
+    const element = addBox("nucleus", x0, x1, nucleusBottom, nucleusTop);
+    if (element) {
+      elementSets.nucleus.push(element.id);
+      nucleusElements.push(element);
+    }
+  });
+
+  const pipetteLower = addBox("pipette", patchLeft, patchRight, pipetteBottom, cellTop);
+  const pipetteUpper = addBox("pipette", patchLeft, patchRight, cellTop, pipetteTop);
+  [pipetteLower, pipetteUpper].filter(Boolean).forEach((element) => elementSets.pipette.push(element.id));
+
+  function bottomFace(element) { return [element.nodes[0], element.nodes[3], element.nodes[2], element.nodes[1]]; }
+  function topFace(element) { return [element.nodes[4], element.nodes[5], element.nodes[6], element.nodes[7]]; }
+  function topFaceNegativeZ(element) { return [element.nodes[4], element.nodes[7], element.nodes[6], element.nodes[5]]; }
+  function leftFaceNegativeX(element) { return [element.nodes[0], element.nodes[4], element.nodes[7], element.nodes[3]]; }
+  function rightFaceNegativeX(element) { return [element.nodes[1], element.nodes[5], element.nodes[6], element.nodes[2]]; }
+  function leftFacePositiveX(element) { return [element.nodes[0], element.nodes[3], element.nodes[7], element.nodes[4]]; }
+  function rightFacePositiveX(element) { return [element.nodes[1], element.nodes[2], element.nodes[6], element.nodes[5]]; }
+
+  const nucleusLeftElement = nucleusElements[0];
+  const nucleusPatchElement = nucleusElements[1];
+  const nucleusRightElement = nucleusElements[2];
+  const topCytoLeft = cytoplasmTopOverNucleus[0];
+  const topCytoPatch = cytoplasmTopOverNucleus[1];
+  const topCytoRight = cytoplasmTopOverNucleus[2];
+  const middleLeftCyto = elements.find((element) => element.material === "cytoplasm" && nodeById({ nodes }, element.nodes[1])?.x === nucleusLeft && nodeById({ nodes }, element.nodes[1])?.z === nucleusBottom);
+  const middleRightCyto = elements.find((element) => element.material === "cytoplasm" && nodeById({ nodes }, element.nodes[0])?.x === nucleusRight && nodeById({ nodes }, element.nodes[0])?.z === nucleusBottom);
+
+  const suctionPatchFacet = facet(topFaceNegativeZ(nucleusPatchElement));
+  const pipetteMouthFacet = facet(bottomFace(pipetteLower));
+  const cellDishFacets = cytoplasmBottom.map((element) => facet(bottomFace(element)));
+  const dishContactFacets = dishElements.map((element) => facet(topFace(element)));
+  const nucleusTopFacets = nucleusElements.map((element) => facet(topFace(element)));
+  const cytoplasmTopNcFacets = [topCytoLeft, topCytoPatch, topCytoRight].filter(Boolean).map((element) => facet(bottomFace(element)));
+  const nucleusBottomFacets = nucleusElements.map((element) => facet(bottomFace(element)));
+
+  const surfaces = {
+    nucleus_interface_surface: [
+      facet(leftFaceNegativeX(nucleusLeftElement)),
+      facet(rightFaceNegativeX(nucleusRightElement)),
+      ...nucleusTopFacets,
+      ...nucleusBottomFacets,
+    ],
+    nucleus_interface_left_surface: [facet(leftFaceNegativeX(nucleusLeftElement))],
+    nucleus_interface_right_surface: [facet(rightFaceNegativeX(nucleusRightElement))],
+    nucleus_interface_top_surface: nucleusTopFacets,
+    nucleus_interface_bottom_surface: nucleusBottomFacets,
+    cytoplasm_interface_surface: [
+      facet(rightFacePositiveX(middleLeftCyto)),
+      facet(leftFacePositiveX(middleRightCyto)),
+      ...cytoplasmTopNcFacets,
+      ...cytoplasmBottom.filter((element) => {
+        const x0 = nodeById({ nodes }, element.nodes[0])?.x;
+        const x1 = nodeById({ nodes }, element.nodes[1])?.x;
+        return x0 >= nucleusLeft && x1 <= nucleusRight;
+      }).map((element) => facet(topFace(element))),
+    ],
+    cytoplasm_interface_left_surface: [facet(rightFacePositiveX(middleLeftCyto))],
+    cytoplasm_interface_right_surface: [facet(leftFacePositiveX(middleRightCyto))],
+    cytoplasm_interface_top_surface: cytoplasmTopNcFacets,
+    cytoplasm_interface_bottom_surface: cytoplasmBottom.filter((element) => {
+      const x0 = nodeById({ nodes }, element.nodes[0])?.x;
+      const x1 = nodeById({ nodes }, element.nodes[1])?.x;
+      return x0 >= nucleusLeft && x1 <= nucleusRight;
+    }).map((element) => facet(topFace(element))),
+    cell_dish_surface: cellDishFacets,
+    dish_contact_surface: dishContactFacets,
+    cell_dish_left_surface: cellDishFacets.filter((_, index) => index === 0),
+    cell_dish_center_surface: cellDishFacets.filter((_, index) => index > 0 && index < cellDishFacets.length - 1),
+    cell_dish_right_surface: cellDishFacets.filter((_, index) => index === cellDishFacets.length - 1),
+    dish_contact_left_surface: dishContactFacets.filter((_, index) => index === 0),
+    dish_contact_center_surface: dishContactFacets.filter((_, index) => index > 0 && index < dishContactFacets.length - 1),
+    dish_contact_right_surface: dishContactFacets.filter((_, index) => index === dishContactFacets.length - 1),
+    pipette_suction_surface: [suctionPatchFacet],
+    pipette_suction_patch: [suctionPatchFacet],
+    pipette_contact_surface: [pipetteMouthFacet],
+    pipette_mouth_surface: [pipetteMouthFacet],
+    pipette_mouth_patch: [pipetteMouthFacet],
+  };
+
+  const nodesForElements = (ids) => [...new Set(elements.filter((element) => ids.includes(element.id)).flatMap((element) => element.nodes))].sort((a, b) => a - b);
+  const facetNodes = (facets) => [...new Set((facets || []).flatMap((entry) => entry.nodes || []))].sort((a, b) => a - b);
+  const nodeSets = {
+    nucleus: nodesForElements(elementSets.nucleus),
+    cytoplasm: nodesForElements(elementSets.cytoplasm),
+    dish_fixed_nodes: facetNodes(dishElements.map((element) => ({ nodes: bottomFace(element) }))),
+    pipette_contact_nodes: facetNodes([pipetteMouthFacet]),
+    pipette_suction_nodes: facetNodes([suctionPatchFacet]),
+    pipette_suction_patch_nodes: facetNodes([suctionPatchFacet]),
+    pipette_mouth_patch_nodes: facetNodes([pipetteMouthFacet]),
+    nc_left_nucleus_nodes: facetNodes(surfaces.nucleus_interface_left_surface),
+    nc_right_nucleus_nodes: facetNodes(surfaces.nucleus_interface_right_surface),
+    nc_top_nucleus_nodes: facetNodes(surfaces.nucleus_interface_top_surface),
+    nc_bottom_nucleus_nodes: facetNodes(surfaces.nucleus_interface_bottom_surface),
+    nc_left_cytoplasm_nodes: facetNodes(surfaces.cytoplasm_interface_left_surface),
+    nc_right_cytoplasm_nodes: facetNodes(surfaces.cytoplasm_interface_right_surface),
+    nc_top_cytoplasm_nodes: facetNodes(surfaces.cytoplasm_interface_top_surface),
+    nc_bottom_cytoplasm_nodes: facetNodes(surfaces.cytoplasm_interface_bottom_surface),
+    cd_left_cell_nodes: facetNodes(surfaces.cell_dish_left_surface),
+    cd_center_cell_nodes: facetNodes(surfaces.cell_dish_center_surface),
+    cd_right_cell_nodes: facetNodes(surfaces.cell_dish_right_surface),
+  };
+
+  return {
+    meshMode: "s10-top-pipette-reference",
+    bounds: {
+      cellLeft,
+      cellRight,
+      cellTop,
+      nucleusLeft,
+      nucleusRight,
+      nucleusBottom,
+      nucleusTop,
+      dishBottom,
+      pipetteLeft: patchLeft,
+      pipetteRight: patchRight,
+      pipetteContactX: nucleusCenterX,
+      pipetteBottom,
+      pipetteTop,
+      pipetteContactZ: pipetteBottom,
+    },
+    refinements: {
+      topPipetteReference: {
+        mode: "image-guided-top-suction",
+        axis: "z",
+        pressureSurface: "pipette_suction_patch",
+        patchXRange: [patchLeft, patchRight],
+        patchZ: nucleusTop,
+      },
+      localSuctionPatch: {
+        mode: "s10-top-pipette-reference",
+        pressureSurface: "pipette_suction_patch",
+        legacySurface: "pipette_suction_surface",
+        centeredOnPipetteAxis: true,
+        patchXRange: [patchLeft, patchRight],
+        patchHeight: patchRight - patchLeft,
+        declaredPressure: Number.isFinite(Number(spec.loads?.suctionPressure?.value)) ? Number(spec.loads.suctionPressure.value) : null,
+        ncTopRefined: true,
+      },
+      pipetteSuctionSurface: {
+        mode: "top-nucleus-patch",
+        pressureSurface: "pipette_suction_patch",
+        legacySurface: "pipette_suction_surface",
+        studioCompatibleWinding: false,
+      },
+      pipetteMouthPatch: {
+        mode: "s10-top-pipette-reference",
+        mouthSurface: "pipette_mouth_surface",
+        mouthPatchSurface: "pipette_mouth_patch",
+        alignedWithSuctionPatch: true,
+        patchXRange: [patchLeft, patchRight],
+      },
+      nucleusCytoplasmCoupling: {
+        mode: "separated-contact-native-comparison",
+        contactFreeForceTransfer: false,
+        separatedContactComparison: true,
+      },
+      cellDishBands: {
+        mode: "image-guided-five-band",
+        splitX: xCuts,
+        dishContactSurfaceSplit: true,
+      },
+    },
+    nodes: nodes.sort((a, b) => a.id - b.id),
+    elements: elements.sort((a, b) => a.id - b.id),
+    surfaces,
+    nodeSets,
+    elementSets,
+    surfacePairs: {
+      nucleus_cytoplasm_pair: { name: "nucleus_cytoplasm_pair", primary: "cytoplasm_interface_surface", secondary: "nucleus_interface_surface" },
+      nucleus_cytoplasm_left_pair: { name: "nucleus_cytoplasm_left_pair", primary: "cytoplasm_interface_left_surface", secondary: "nucleus_interface_left_surface" },
+      nucleus_cytoplasm_right_pair: { name: "nucleus_cytoplasm_right_pair", primary: "cytoplasm_interface_right_surface", secondary: "nucleus_interface_right_surface" },
+      nucleus_cytoplasm_top_pair: { name: "nucleus_cytoplasm_top_pair", primary: "cytoplasm_interface_top_surface", secondary: "nucleus_interface_top_surface" },
+      nucleus_cytoplasm_bottom_pair: { name: "nucleus_cytoplasm_bottom_pair", primary: "cytoplasm_interface_bottom_surface", secondary: "nucleus_interface_bottom_surface" },
+      cell_dish_pair: { name: "cell_dish_pair", primary: "cell_dish_surface", secondary: "dish_contact_surface" },
+      pipette_nucleus_pair: { name: "pipette_nucleus_pair", primary: "nucleus_interface_right_surface", secondary: "pipette_contact_surface" },
+      pipette_cell_pair: { name: "pipette_cell_pair", primary: "pipette_suction_surface", secondary: "pipette_contact_surface" },
+    },
+  };
 }
 
 function applyNativeSolverSurfaceConventions(mesh, spec = {}) {
@@ -627,6 +905,12 @@ function expectedSurfaceNormal(mesh, surfaceName) {
   if (surfaceName === "pipette_suction_surface" && mesh.refinements?.pipetteSuctionSurface?.mode === "cell-outer-right") {
     return "+x";
   }
+  if (
+    ["pipette_suction_surface", "pipette_suction_patch", "pipette_contact_surface"].includes(surfaceName) &&
+    mesh.refinements?.topPipetteReference?.axis === "z"
+  ) {
+    return "-z";
+  }
   return EXPECTED_SURFACE_NORMALS[surfaceName];
 }
 
@@ -709,6 +993,8 @@ function buildPressureDiagnostics(mesh) {
   const suctionSurfaceMode = mesh.refinements?.pipetteSuctionSurface?.mode || "nucleus-right";
   const expectedSuctionNormal = suctionSurfaceMode === "cell-outer-right"
     ? "+x"
+    : mesh.refinements?.topPipetteReference?.axis === "z"
+      ? "-z"
     : COORDINATE_CONVENTION.pressure.currentSuctionNormal;
   const suctionCentroid = surfaceCentroid(mesh, activeSuctionSurface);
   const mouthCentroid = surfaceCentroid(mesh, COORDINATE_CONVENTION.pressure.rigidMouthSurface);
@@ -753,7 +1039,9 @@ function buildPressureDiagnostics(mesh) {
     suctionSurfaceMode,
     suctionNormal,
     expectedSuctionNormal,
-    negativePressureEffect: suctionSurfaceMode === "cell-outer-right"
+    negativePressureEffect: mesh.refinements?.topPipetteReference?.axis === "z"
+      ? "negative pressure on the top suction patch is intended to pull toward +z, into the pipette above the cell"
+      : suctionSurfaceMode === "cell-outer-right"
       ? "diagnostic outer-cell comparison uses FEBioStudio-compatible +x facet winding; pressure sign is not the final S7-E suction convention"
       : COORDINATE_CONVENTION.pressure.negativePressureEffect,
     couplingReadiness: {

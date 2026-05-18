@@ -37,6 +37,10 @@ function writeFile(targetPath, content) {
   fs.writeFileSync(targetPath, content, "utf8");
 }
 
+function removeFileIfExists(targetPath) {
+  if (fs.existsSync(targetPath)) fs.rmSync(targetPath);
+}
+
 const args = parseArgs(process.argv.slice(2));
 if (!args.caseFile) throw new Error("--case febio_cases/native/<case>.native.json is required");
 
@@ -48,9 +52,9 @@ const localGmshPythonPath = path.join(projectRoot, ".tools", "python-gmsh");
 
 const casePath = path.resolve(args.caseFile);
 const caseSpec = readJsonFile(casePath);
-const outDir = path.resolve(args.outDir || path.join(projectRoot, "febio_exports", `${caseSpec.caseName || "native_case"}_gmsh_python_api`));
-const scriptPath = path.join(outDir, "native-python-api-block.py");
-const mshPath = path.join(outDir, "native-python-api-block.msh");
+const outDir = path.resolve(args.outDir || path.join(projectRoot, "febio_exports", "current_mesh_api"));
+const scriptPath = path.join(outDir, "mesh.py");
+const mshPath = path.join(outDir, "mesh.msh");
 
 const templateMesh = nativeModule.buildNativeMesh(caseSpec);
 writeFile(scriptPath, nativeModule.buildGmshPythonApiBlockScript(templateMesh, {
@@ -71,7 +75,7 @@ try {
     },
   });
 } catch (error) {
-  writeFile(path.join(outDir, "native-python-api-block.error.txt"), [
+  writeFile(path.join(outDir, "mesh.error.txt"), [
     error.stdout?.toString() || "",
     error.stderr?.toString() || error.message,
   ].filter(Boolean).join("\n"));
@@ -88,8 +92,21 @@ gmshMesh.gmsh = {
   templateCase: caseSpec.caseName,
 };
 const meshValidation = nativeModule.validateNativeMesh(gmshMesh);
-const exportBundle = nativeModule.buildNativeFebioExport(caseSpec, { outDir, meshOverride: gmshMesh });
+const exportBaseName = path.basename(outDir) === "current_mesh_api" ? "current_mesh_api" : undefined;
+const exportBundle = nativeModule.buildNativeFebioExport(caseSpec, { outDir, meshOverride: gmshMesh, baseName: exportBaseName });
 const baseName = exportBundle.baseName;
+
+if (exportBaseName) {
+  const legacyBaseName = nativeModule.buildNativeFebioExport(caseSpec, { outDir, meshOverride: gmshMesh }).baseName;
+  [
+    `${legacyBaseName}.feb`,
+    `${legacyBaseName}_effective_native_spec.json`,
+    `${legacyBaseName}_native_model.json`,
+    `${legacyBaseName}_manifest.json`,
+    `${legacyBaseName}_README.txt`,
+    `${legacyBaseName}_gmsh_mesh_validation.json`,
+  ].forEach((fileName) => removeFileIfExists(path.join(outDir, fileName)));
+}
 
 writeFile(path.join(outDir, `${baseName}.feb`), exportBundle.febXml);
 writeFile(path.join(outDir, `${baseName}_effective_native_spec.json`), JSON.stringify(exportBundle.effectiveNativeSpec, null, 2));

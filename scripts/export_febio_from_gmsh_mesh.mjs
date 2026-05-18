@@ -30,6 +30,10 @@ function writeFile(targetPath, content) {
   fs.writeFileSync(targetPath, content, "utf8");
 }
 
+function removeFileIfExists(targetPath) {
+  if (fs.existsSync(targetPath)) fs.rmSync(targetPath);
+}
+
 const args = parseArgs(process.argv.slice(2));
 if (!args.caseFile) throw new Error("--case febio_cases/native/<case>.native.json is required");
 if (!args.mshFile) throw new Error("--msh generated/.../<edited>.msh is required");
@@ -45,7 +49,7 @@ const caseSpec = readJsonFile(casePath);
 const templateMesh = nativeModule.buildNativeMesh(caseSpec);
 const parsed = nativeModule.parseGmshMshV2(fs.readFileSync(mshPath, "utf8"));
 const gmshMesh = nativeModule.convertGmshMshToNativeMesh(parsed, templateMesh);
-gmshMesh.meshMode = "gmsh-parametric-edited";
+gmshMesh.meshMode = "gmsh-edited";
 gmshMesh.gmsh = {
   ...(gmshMesh.gmsh || {}),
   sourceFile: mshPath,
@@ -53,9 +57,22 @@ gmshMesh.gmsh = {
 };
 const meshValidation = nativeModule.validateNativeMesh(gmshMesh);
 
-const outDir = path.resolve(args.outDir || path.join(projectRoot, "febio_exports", `${caseSpec.caseName}_gmsh_manual`));
-const exportBundle = nativeModule.buildNativeFebioExport(caseSpec, { outDir, meshOverride: gmshMesh });
+const outDir = path.resolve(args.outDir || path.join(projectRoot, "febio_exports", "current_mesh"));
+const exportBaseName = path.basename(outDir) === "current_mesh" ? "current_mesh" : undefined;
+const exportBundle = nativeModule.buildNativeFebioExport(caseSpec, { outDir, meshOverride: gmshMesh, baseName: exportBaseName });
 const baseName = exportBundle.baseName;
+
+if (exportBaseName) {
+  const legacyBaseName = nativeModule.buildNativeFebioExport(caseSpec, { outDir, meshOverride: gmshMesh }).baseName;
+  [
+    `${legacyBaseName}.feb`,
+    `${legacyBaseName}_effective_native_spec.json`,
+    `${legacyBaseName}_native_model.json`,
+    `${legacyBaseName}_manifest.json`,
+    `${legacyBaseName}_README.txt`,
+    `${legacyBaseName}_gmsh_mesh_validation.json`,
+  ].forEach((fileName) => removeFileIfExists(path.join(outDir, fileName)));
+}
 
 writeFile(path.join(outDir, `${baseName}.feb`), exportBundle.febXml);
 writeFile(path.join(outDir, `${baseName}_effective_native_spec.json`), JSON.stringify(exportBundle.effectiveNativeSpec, null, 2));

@@ -32,7 +32,9 @@ function buildPlotfileSurfaceTractionSpec(name, surface, interfaceGroup, region,
 
 export function buildNativeOutputs(spec, mesh) {
   const mouthPlaneX = mesh.bounds?.pipetteContactX ?? mesh.bounds?.pipetteLeft ?? spec.geometry.pipette.tip.x;
+  const mouthPlaneZ = mesh.bounds?.pipetteContactZ ?? mesh.bounds?.pipetteBottom ?? spec.geometry.pipette.tip.z;
   const pressureSurface = spec.loads?.suctionPressure?.surface || "pipette_suction_surface";
+  const topSuction = mesh.refinements?.topPipetteReference?.axis === "z";
   return {
     faceData: [
       buildFaceDataOutputSpec("nucleus_cytoplasm_interface_surface", "febio_interface_nucleus_cytoplasm.csv", "nucleus_interface_surface"),
@@ -78,8 +80,12 @@ export function buildNativeOutputs(spec, mesh) {
       payloadPath: "aspiration.length",
       historyPath: "history[].aspirationLength",
       peakPath: "peaks.peakAspirationLength",
-      reference: { surface: "pipette_contact_surface", nodeSet: "pipette_contact_nodes", mouthPlaneX, inwardAxis: "-x", sectionPlane: "x-z" },
-      definition: "Clamp to >=0 the projected distance from the pipette mouth plane to the most inward aspirated nucleus/cytoplasm node.",
+      reference: topSuction
+        ? { surface: "pipette_contact_surface", nodeSet: "pipette_contact_nodes", mouthPlaneZ, inwardAxis: "+z", sectionPlane: "x-z" }
+        : { surface: "pipette_contact_surface", nodeSet: "pipette_contact_nodes", mouthPlaneX, inwardAxis: "-x", sectionPlane: "x-z" },
+      definition: topSuction
+        ? "Clamp to >=0 the projected distance from the pipette mouth plane to the most upward aspirated nucleus/cytoplasm node."
+        : "Clamp to >=0 the projected distance from the pipette mouth plane to the most inward aspirated nucleus/cytoplasm node.",
       mapsTo: ["history[].aspirationLength", "aspiration.length", "peaks.peakAspirationLength"]
     }
   };

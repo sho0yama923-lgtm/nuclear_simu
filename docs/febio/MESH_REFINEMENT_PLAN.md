@@ -40,18 +40,19 @@ As refinement grows, point ids should not be the primary editing interface. The 
 
 Current implementation:
 
-- `native-editable-block.geo` remains available as the direct point / line / surface representation.
-- `native-parametric-block.geo` is now preferred for manual refinement.
-- `native-python-api-block.py` is the next preferred safe-edit surface because it keeps geometry handles and FEBio-facing Physical Group names in one Python API script.
+- `generated/gmsh_current/mesh.geo` is the canonical manual refinement source.
+- Older `native-editable-block.geo` / `native-parametric-block.geo` files remain comparison artifacts only.
+- `mesh.py` is the generated Python API artifact; it is useful for API-managed meshes, but not the primary hand-edit source.
 - High-value handles include:
+  - `pipetteMouthX`;
   - `pipetteOuterX`;
   - `pipetteZBottom`;
   - `pipettePatchZBottom`;
   - `pipettePatchZTop`;
   - `pipetteZTop`.
-- To make the pipette thinner in the current x-z view, first move `pipetteZBottom` and `pipetteZTop` toward the patch band instead of editing many `Point(...)` rows.
-- Physical group names must remain unchanged, especially `pipette_mouth_patch`, `pipette_suction_patch`, `nucleus_interface_right_surface`, and `cytoplasm_interface_right_surface`.
-- The first validation target after any parametric edit is: Gmsh `.geo -> .msh`, native round-trip validation, FEBio export, FEBio CLI run, and comparison against S10-I.
+- For the current top-suction S10-I mesh, pipette width in the x-z view is controlled by `pipetteMouthX` / `pipetteOuterX`, and pipette height is controlled by `pipettePatchZBottom`, `pipettePatchZTop`, and `pipetteZTop`.
+- Physical group names must remain unchanged, especially `pipette_mouth_patch`, `pipette_suction_patch`, `nucleus_interface_top_surface`, and `cytoplasm_interface_top_surface`.
+- The first validation target after any edit is: `mesh.geo -> mesh.msh`, native round-trip validation, FEBio export, FEBio CLI run, and comparison against the current tracked baseline.
 - Edited `.msh` files should be exported with `scripts/export_febio_from_gmsh_mesh.mjs` using the matching native case as the template.
 
 ## Gmsh Python API registry policy
@@ -68,10 +69,10 @@ FEBio-facing names should be assigned only through this registry. Adding or rena
 
 Current bridge:
 
-- `buildGmshPythonApiBlockScript` emits `native-python-api-block.py`.
+- `buildGmshPythonApiBlockScript` emits `mesh.py`.
 - `scripts/export_febio_from_gmsh_python_api.mjs` generates the Python API script, runs it to produce `.msh`, validates the native round-trip, and writes FEBio handoff artifacts.
 - The current local environment has Gmsh CLI `4.14.0` and a project-local Python `gmsh` package at `.tools/python-gmsh` reporting `4.15.2`. Generated Python API scripts auto-discover this local package from the project tree.
-- The unmodified S10-I Python API bridge has been run successfully and writes FEBio handoff artifacts under `febio_exports/S10_pipette_nc_refined_python_api/`.
+- The Python API bridge writes default FEBio handoff artifacts under `febio_exports/current_mesh_api/`.
 
 ## Refinement goals
 
@@ -94,7 +95,7 @@ Current implementation status:
 - S10-A (`febio_cases/native/S10_local_suction_patch.native.json`) adds `meshMode="s10-local-suction-patch"`.
 - The exported solver pressure surface is `pipette_suction_patch`.
 - The historical broad `pipette_suction_surface` remains available as a legacy / comparison surface.
-- Static export diagnostics for `febio_exports/S10_local_suction_patch/` report:
+- Historical static export diagnostics for `legacy/retired_generated_2026-05-18/febio_exports/S10_local_suction_patch/` report:
   - area `6.5 um^2`;
   - centroid `[14, 0, 17]`;
   - normal `-x`;
@@ -104,17 +105,20 @@ Current implementation status:
 - Windows FEBio CLI solver confirmation is complete for S10-A: normal termination, warning-free, active `pipette_suction_patch` pressure-load response. Studio visual confirmation remains useful for pressure-arrow and surface-orientation review.
 - S10-B (`febio_cases/native/S10_local_suction_patch_nc_right_refined.native.json`) combines the local patch with separated solver-active left/right NC comparison.
 - S10-B splits active nucleus-side left/right NC facets into bottom / patch / top bands and splits the cytoplasm right NC surface around the patch band.
-- Static export diagnostics for `febio_exports/S10_local_suction_patch_nc_right_refined/` are valid with no convention warnings and preserve the same patch area, centroid, normal, node ids, face id, and pressure resultant as S10-A.
+- Historical static export diagnostics for `legacy/retired_generated_2026-05-18/febio_exports/S10_local_suction_patch_nc_right_refined/` are valid with no convention warnings and preserve the same patch area, centroid, normal, node ids, face id, and pressure resultant as S10-A.
 - Windows FEBio CLI solver confirmation is complete for S10-B: normal termination, warning-free, active local suction pressure-load response, and active left/right NC plotfile contact force. Native NC failure output is available but inactive at baseline `-0.7 kPa` pressure.
 - S10-C/D/E add a bounded pressure-only scan on the S10-B geometry at `-1.0`, `-1.3`, and `-1.55 kPa`. These cases preserve the same local patch and separated left/right NC surfaces and are intended to bracket native NC damage onset before any physical threshold interpretation.
 - S10-G (`febio_cases/native/S10_gmsh_baseline.native.json`) validates that the S10-A local suction patch can round-trip through the Gmsh v2 ASCII baseline path and reproduce the S10-A FEBio CLI result.
 - S10-H (`febio_cases/native/S10_gmsh_nc_right_refined.native.json`) validates that the S10-B separated left/right NC refinement can round-trip through the Gmsh v2 ASCII baseline path and reproduce the S10-B FEBio CLI result.
 - `meshLevelDiagnostics` is now emitted by native mesh validation and reports element counts, face counts by surface, NC region face counts, NC node-pair mapping counts, duplicate-coordinate groups, and Gmsh native-id recovery notes.
 - `buildEditableGmshBlockGeo` emits the first hand-editable Gmsh block geometry from the native hex mesh. It writes Points, Lines, transfinite Plane Surfaces, transfinite Volumes, and Physical Groups using existing native names. This establishes an editable `.geo` bridge, but it is still a block-structured representation of the current mesh rather than the final curved / size-field refinement policy.
-- S10-I (`febio_cases/native/S10_pipette_nc_refined.native.json`) adds the first actual pipette-mouth alignment refinement. It splits the rigid pipette mouth into bottom / patch / top bands, adds `pipette_mouth_patch`, keeps `pipette_suction_patch` unchanged, and preserves the S10-H FEBio CLI result on tracked converted metrics: final aspiration delta `0`, pressure response observed nodes `4 == 4`, detachment start delta `0`, and warning-free normal termination.
-- S10-I now also emits `generated/gmsh_editable_s10i/native-parametric-block.geo`, a rectangular-block `.geo` with coordinate variables and pipette edit handles. Gmsh 4.14.0 can mesh it, parse `96` nodes and `57` physical quad/hex elements, and round-trip it through native validation.
+- S10-I (`febio_cases/native/S10_pipette_nc_refined.native.json`) originally added the first actual side-entry pipette-mouth alignment refinement. That pre-top-suction version split the rigid pipette mouth into bottom / patch / top bands, added `pipette_mouth_patch`, kept `pipette_suction_patch` unchanged, and preserved the S10-H FEBio CLI result on tracked converted metrics.
+- S10-I is now the image-guided top-suction reference mesh with `meshMode="s10-top-pipette-reference"`. It places the pipette above the nucleus, aligns `pipette_mouth_patch` with a top `pipette_suction_patch`, uses suction-patch normal `-z`, and defines aspiration into the pipette as `+z`.
+- Current S10-I static diagnostics: `100` nodes, `22` elements, top `pipette_suction_patch` centroid `[0, 0, 26]`, area `13 um^2`, pressure resultant `9.1 nN` at `-0.7 kPa`, solver-active NC contact region `top`, `conventionWarnings=[]`, and versionless export ready at `febio_exports/current_mesh/current_mesh.feb`.
+- The current top-suction S10-I export now replaces the earlier side-entry Windows FEBio CLI evidence for current solver behavior. Fresh FEBio 4.12.0 CLI artifacts were retired to `legacy/retired_generated_2026-05-18/febio_exports/S10_pipette_nc_refined/febio_runs/S10-I_top_suction_current/`: the run reached `N O R M A L   T E R M I N A T I O N`, completed `212` total time steps with `811` equilibrium iterations, emitted the active `nucleus_cytoplasm_top_surface` record, and the log scan found no errors, warnings, negative/jacobian failure, no-force, or no-contact messages.
+- The current canonical generated edit file is `generated/gmsh_current/mesh.geo`, a rectangular-block `.geo` with coordinate variables, block readouts such as `cyto_1_width`, and pipette edit handles. Use the captured top-suction S10-I CLI run as the comparison baseline for the next rectangular-block edit.
 - `scripts/export_febio_from_gmsh_mesh.mjs` provides the handoff from a saved edited `.msh` into FEBio export artifacts.
-- S10-I now also emits `generated/gmsh_editable_s10i/native-python-api-block.py`, a Gmsh Python API script with centralized Physical Group registries. It is the intended next safe-edit surface once Python `gmsh` is available.
+- The current generated Python API artifact is `generated/gmsh_current/mesh.py`, a Gmsh Python API script with centralized Physical Group registries.
 
 Add a mesh construct with explicit diagnostics:
 
@@ -148,7 +152,7 @@ The NC interface should support both baseline continuity and failure-capable com
 Required features:
 
 - region split: `nc:left`, `nc:right`, `nc:top`, `nc:bottom`;
-- local refinement near the suction patch, especially `nc:right`;
+- local refinement near the suction patch. Older side-entry S10 cases emphasize `nc:right`; current top-suction S10-I emphasizes `nc:top`;
 - stable nucleus-side and cytoplasm-side node mapping;
 - explicit support for:
   - `conformal-shared-node` baseline;
@@ -170,7 +174,7 @@ Avoid overloading `pipette_contact_surface`.
 Preferred vocabulary for refined models:
 
 - `pipette_mouth_surface`
-  - rigid pipette mouth / device-side left face;
+  - rigid pipette mouth / device-side face;
 - `pipette_mouth_patch`
   - the rigid pipette-mouth band aligned with the deformable suction patch;
 - `pipette_suction_patch`
@@ -206,8 +210,12 @@ Suggested levels:
 - `s10-nc-refined`
   - refines NC interface and pairing around the suction side;
 - `s10-pipette-nc-refined`
-  - aligns pipette mouth / suction patch / NC interface refinement;
-  - S10-I implements this as a behavior-preserving transition from S10-H: `88 -> 96` nodes, `17 -> 19` elements, `21 -> 23` named surfaces, with `pipette_mouth_patch` aligned to `pipette_suction_patch`;
+  - historical side-entry S10-I mesh that aligns pipette mouth / suction patch / NC interface refinement;
+  - implemented as a behavior-preserving transition from S10-H: `88 -> 96` nodes, `17 -> 19` elements, `21 -> 23` named surfaces, with `pipette_mouth_patch` aligned to `pipette_suction_patch`;
+- `s10-top-pipette-reference`
+  - current image-guided top-suction S10-I mesh;
+  - `100` nodes, `22` elements, top `pipette_suction_patch` normal `-z`, aspiration axis `+z`, and solver-active NC region `top`;
+  - FEBio 4.12.0 CLI confirmation is complete and retired at `legacy/retired_generated_2026-05-18/febio_exports/S10_pipette_nc_refined/febio_runs/S10-I_top_suction_current/`;
 - `s11-convergence-candidate`
   - candidate mesh family for pressure-threshold re-evaluation.
 

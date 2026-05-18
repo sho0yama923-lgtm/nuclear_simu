@@ -42,7 +42,9 @@ export function buildNativeInterfaces(spec, mesh) {
   const pipetteNucleus = spec.contacts.pipetteNucleus;
   const ncSolverActive = nc.solverActive === true;
   const ncSolverType = ncSolverActive ? (nc.solverType || nc.type || "tied-elastic") : "conformal-shared-node";
-  const ncContactRegions = mesh.refinements?.nucleusCytoplasmCoupling?.separatedContactComparison
+  const ncContactRegions = mesh.refinements?.topPipetteReference?.axis === "z"
+    ? ["top"]
+    : mesh.refinements?.nucleusCytoplasmCoupling?.separatedContactComparison
     ? ["left", "right"]
     : ["left", "right", "top", "bottom"];
   const normalPenalty = clamp(Math.max(buildPenalty(nc.normalStiffness, nc.criticalNormalStress, nc.fractureEnergy), nc.normalStiffness * 0.85), 0.35, 2.5);
